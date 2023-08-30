@@ -1,1 +1,1 @@
-# awaken-server
+# AwakenServer
