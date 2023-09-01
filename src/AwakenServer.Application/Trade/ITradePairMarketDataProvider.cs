@@ -296,9 +296,9 @@ namespace AwakenServer.Trade
             var snapshots = await GetIndexListAsync(snapshotDto.ChainId,
                 snapshotDto.TradePairId, snapshotDto.Timestamp.AddDays(-2));
 
-            var volume24h = snapshotDto.Volume;
-            var tradeValue24h = snapshotDto.TradeValue;
-            var tradeCount24h = snapshotDto.TradeCount;
+            var volume24h = 0d;
+            var tradeValue24h = 0d;
+            var tradeCount24h = 0;
             var priceHigh24h = snapshotDto.PriceHigh;
             var priceLow24h = snapshotDto.PriceLow;
             var priceHigh24hUSD = snapshotDto.PriceHighUSD;
