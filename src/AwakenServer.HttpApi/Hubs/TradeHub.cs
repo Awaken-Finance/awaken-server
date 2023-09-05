@@ -163,7 +163,10 @@ namespace AwakenServer.Hubs
         {
             var pairId = Guid.Parse(tradePairId);
 
-            _tradeHubConnectionProvider.AddUserConnection(chainId, pairId, address, timestamp, Context.ConnectionId);
+            _tradeHubConnectionProvider.AddUserConnection(chainId, pairId, address, Context.ConnectionId);
+            var list = _tradeHubConnectionProvider.GetUserConnectionList(chainId, pairId, address);
+            _logger.LogInformation("RequestUserTradeRecord,connectionId:{connectionId},count:{count}", list, list?.Count ?? 0);
+            
             var records = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
             {
                 ChainId = chainId,

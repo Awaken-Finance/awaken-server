@@ -19,6 +19,14 @@ namespace AwakenServer.Trade
     {
         public override void ConfigureServices(ServiceConfigurationContext context)
         {
+            context.Services.Configure<TradeRecordOptions>(o =>
+            {
+                o.QueryOnceLimit = 1000;
+                o.BlockHeightLimit = 100;
+                o.RetryLimit = 2;
+                o.TransactionHashExpirationTime = 360;
+                o.RevertTimePeriod = 75000;
+            });
             context.Services.Configure<AssetShowOptions>(o =>
             {
                 o.ShowList = new List<string>()

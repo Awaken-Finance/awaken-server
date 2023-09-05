@@ -67,6 +67,12 @@ namespace AwakenServer.Trade
             _graphQlProvider.AddSwapRecord(swapRecordDto);
             var swapList = _graphQlProvider.GetSwapRecordsAsync(ChainId, 0 , 100);
             swapList.Result.Count.ShouldBe(1);
+            var ret = await _tradeRecordAppService.CreateAsync(swapRecordDto);
+            ret.ShouldBe(false);
+            await _tradePairIndexRepository.DeleteAsync(tradePair.Id);
+            swapRecordDto.TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d36";
+            ret = await _tradeRecordAppService.CreateAsync(swapRecordDto);
+            ret.ShouldBe(false);
         }
         
         [Fact]
@@ -108,6 +114,12 @@ namespace AwakenServer.Trade
             _graphQlProvider.AddSwapRecord(dto);
             await _tradeRecordAppService.RevertAsync(chainId);
             await _tradeRecordAppService.RevertAsync(chainId);
+
+            for (var i = 2; i < 104; i++)
+            {
+                dto.BlockHeight = i;
+                await _tradeRecordAppService.CreateCacheAsync(tradePairId, dto);
+            }
         }
 
         [Fact]
@@ -311,6 +323,78 @@ namespace AwakenServer.Trade
             record.TotalCount.ShouldBe(1);
             record.Items.Count.ShouldBe(1);
             record.Items[0].TradePair.Id.ShouldBe(TradePairEthUsdtId);
+            
+            record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                TokenSymbol = "BSC",
+                MaxResultCount = 1,
+            });
+            record.TotalCount.ShouldBe(0);
+            
+            record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                Sorting = "timestamp",
+                MaxResultCount = 1,
+            });
+            record.TotalCount.ShouldBe(2);
+            
+            record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                Sorting = "tradepair",
+                MaxResultCount = 1,
+            });
+            record.TotalCount.ShouldBe(2);
+            
+            record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                Sorting = "side",
+                MaxResultCount = 1,
+            });
+            record.TotalCount.ShouldBe(2);
+            
+            record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                Sorting = "totalpriceinusd",
+                MaxResultCount = 1,
+            });
+            record.TotalCount.ShouldBe(2);
+            
+            record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                Sorting = "timestamp desc",
+                MaxResultCount = 1,
+            });
+            record.TotalCount.ShouldBe(2);
+            
+            record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                Sorting = "tradepair desc",
+                MaxResultCount = 1,
+            });
+            record.TotalCount.ShouldBe(2);
+            
+            record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                Sorting = "side desc",
+                MaxResultCount = 1,
+            });
+            record.TotalCount.ShouldBe(2);
+            
+            record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                Sorting = "totalpriceinusd desc",
+                MaxResultCount = 1,
+            });
+            record.TotalCount.ShouldBe(2);
         }
 
         [Fact]
