@@ -15,7 +15,7 @@ namespace AwakenServer.Trade
 {
     public interface ITradePairMarketDataProvider
     {
-        Task UpdateTotalSupplyAsync(string chainId, Guid tradePairId, DateTime timestamp, BigDecimal lpTokenAmount);
+        Task UpdateTotalSupplyAsync(string chainId, Guid tradePairId, DateTime timestamp, BigDecimal lpTokenAmount, string supply = null);
 
         Task UpdateTradeRecordAsync(string chainId, Guid tradePairId, DateTime timestamp, double volume, double tradeValue, int tradeAddressCount24h);
 
@@ -60,7 +60,8 @@ namespace AwakenServer.Trade
             _bus = bus;
         }
 
-        public async Task UpdateTotalSupplyAsync(string chainId, Guid tradePairId, DateTime timestamp, BigDecimal lpTokenAmount)
+        public async Task UpdateTotalSupplyAsync(string chainId, Guid tradePairId, DateTime timestamp,
+            BigDecimal lpTokenAmount, string supply = null) 
         {
             var snapshotTime = GetSnapshotTime(timestamp);
             var marketData = await GetTradePairMarketDataIndexAsync(chainId, tradePairId, snapshotTime);
@@ -79,7 +80,7 @@ namespace AwakenServer.Trade
                     Id = Guid.NewGuid(),
                     ChainId = chainId,
                     TradePairId = tradePairId,
-                    TotalSupply = totalSupply.ToNormalizeString(),
+                    TotalSupply = string.IsNullOrWhiteSpace(supply) ? totalSupply.ToNormalizeString() : supply,
                     Timestamp = snapshotTime
                 };
                 if (lastMarketData != null)
@@ -99,7 +100,8 @@ namespace AwakenServer.Trade
             else
             {
                 var totalSupply = BigDecimal.Parse(marketData.TotalSupply);
-                marketData.TotalSupply = (totalSupply + lpTokenAmount).ToNormalizeString();
+                marketData.TotalSupply =
+                    string.IsNullOrWhiteSpace(supply) ? (totalSupply + lpTokenAmount).ToNormalizeString() : supply;
                 await _snapshotIndexRepository.UpdateAsync(marketData);
                 await AddOrUpdateTradePairIndexAsync(marketData);
             }
@@ -107,7 +109,9 @@ namespace AwakenServer.Trade
             var latestMarketData = await GetLatestTradePairMarketDataIndexAsync(chainId, tradePairId);
             if (latestMarketData != null && latestMarketData.Timestamp > snapshotTime)
             {
-                latestMarketData.TotalSupply = (BigDecimal.Parse(latestMarketData.TotalSupply) + lpTokenAmount).ToNormalizeString();
+                latestMarketData.TotalSupply = string.IsNullOrWhiteSpace(supply)
+                    ? (BigDecimal.Parse(latestMarketData.TotalSupply) + lpTokenAmount).ToNormalizeString()
+                    : supply;
                 await _snapshotIndexRepository.UpdateAsync(latestMarketData);
                 await AddOrUpdateTradePairIndexAsync(latestMarketData);
             }
@@ -296,9 +300,9 @@ namespace AwakenServer.Trade
             var snapshots = await GetIndexListAsync(snapshotDto.ChainId,
                 snapshotDto.TradePairId, snapshotDto.Timestamp.AddDays(-2));
 
-            var volume24h = snapshotDto.Volume;
-            var tradeValue24h = snapshotDto.TradeValue;
-            var tradeCount24h = snapshotDto.TradeCount;
+            var volume24h = 0d;
+            var tradeValue24h = 0d;
+            var tradeCount24h = 0;
             var priceHigh24h = snapshotDto.PriceHigh;
             var priceLow24h = snapshotDto.PriceLow;
             var priceHigh24hUSD = snapshotDto.PriceHighUSD;

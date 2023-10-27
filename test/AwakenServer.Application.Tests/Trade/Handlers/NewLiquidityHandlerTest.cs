@@ -22,6 +22,15 @@ namespace AwakenServer.Trade.Handlers
         }
 
         [Fact]
+        public async Task PairNameTest()
+        {
+            var token0 = "CPU";
+            var token1 = "ELF";
+            var pairName = TradePairHelper.GetLpToken(token0, token1);
+            pairName.ShouldBe("ALP CPU-ELF");
+        }
+
+        [Fact]
         public async Task HandleEventTest()
         {
             var eventData = new NewLiquidityRecordEvent

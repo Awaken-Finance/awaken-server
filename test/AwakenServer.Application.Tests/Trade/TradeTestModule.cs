@@ -19,6 +19,14 @@ namespace AwakenServer.Trade
     {
         public override void ConfigureServices(ServiceConfigurationContext context)
         {
+            context.Services.Configure<TradeRecordOptions>(o =>
+            {
+                o.QueryOnceLimit = 1000;
+                o.BlockHeightLimit = 100;
+                o.RetryLimit = 2;
+                o.TransactionHashExpirationTime = 360;
+                o.RevertTimePeriod = 75000;
+            });
             context.Services.Configure<AssetShowOptions>(o =>
             {
                 o.ShowList = new List<string>()
@@ -75,6 +83,17 @@ namespace AwakenServer.Trade
             context.Services.Configure<CmsOptions>(o =>
             {
                 o.CmsAddress = "https://test-cms.awaken.finance/";
+            });
+            
+            context.Services.Configure<ContractsTokenOptions>(o =>
+            {
+                o.Contracts = new Dictionary<string, string>
+                {
+                    {"0.0005", "2F4vThkqXxzoUGQowUzmGNQwyGc6a6Ca7UZK5eWHpwmkwRuUpN"},
+                    {"0.001", "2KRHY1oZv5S28YGRJ3adtMxfAh7WQP3wmMyoFq33oTc7Mt5Z1Y"},
+                    {"0.03", "UoHeeCXZ6fV481oD3NXASSexWVtsPLgv2Wthm3BGrPAgqdS5d"},
+                    {"0.05", "2tWvBTmX7YhB2HLcWGGG5isVCgab96jdaXnqDs1jzSsyqwmjic"}
+                };
             });
             
             context.Services.AddSingleton<TestEnvironmentProvider>();
@@ -142,7 +161,7 @@ namespace AwakenServer.Trade
                 Address = "0xPool006a6FaC8c710e53c4B2c2F96477119dA362",
                 Token0Id = tokenBTC.Id,
                 Token1Id = tokenETH.Id,
-                FeeRate = 0.3,
+                FeeRate = 0.03,
             }));
             environmentProvider.TradePairBtcEthId = tradePairBtcEth.Id;
         }

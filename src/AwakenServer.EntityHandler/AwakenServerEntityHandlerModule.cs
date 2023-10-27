@@ -7,6 +7,7 @@ using AwakenServer.EntityFrameworkCore;
 using AwakenServer.Farms.Options;
 using AwakenServer.Grains;
 using AwakenServer.RabbitMq;
+using AwakenServer.Trade;
 using AwakenServer.Worker;
 using MassTransit;
 using Microsoft.AspNetCore.DataProtection;
@@ -56,6 +57,8 @@ public class AwakenServerEntityHandlerModule : AbpModule
         Configure<ChainsInitOptions>(configuration.GetSection("ChainsInit"));
 
         Configure<ApiOptions>(configuration.GetSection("Api"));
+        
+        Configure<TradeRecordOptions>(configuration.GetSection("TradeRecord"));
         
         context.Services.AddMassTransit(x =>
         {

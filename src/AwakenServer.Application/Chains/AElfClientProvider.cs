@@ -16,6 +16,7 @@ namespace AwakenServer.Chains
     {
         Task<long> GetTransactionFeeAsync(string chainName, string transactionId);
         Task<int> ExistTransactionAsync(string chainName, string transactionHash);
+        Task<TokenInfo> GetTokenInfoFromChainAsync(string chainName, string address, string symbol);
     }
 
     public class AElfClientProvider : IAElfClientProvider
@@ -57,7 +58,7 @@ namespace AwakenServer.Chains
             };
         }
 
-        private async Task<TokenInfo> GetTokenInfoFromChainAsync(string chainName, string address, string symbol)
+        public async Task<TokenInfo> GetTokenInfoFromChainAsync(string chainName, string address, string symbol)
         {
             var client = _blockchainClientFactory.GetClient(chainName);
             var paramGetBalance = new GetTokenInfoInput

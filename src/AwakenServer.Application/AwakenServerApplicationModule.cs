@@ -64,6 +64,8 @@ namespace AwakenServer
             Configure<DividendOption>(configuration.GetSection("Dividend"));
             Configure<GraphQLOptions>(configuration.GetSection("GraphQL"));
             Configure<CmsOptions>(configuration.GetSection("Cms"));
+            Configure<ContractsTokenOptions>(configuration.GetSection("ContractsTokenOptions"));
+
 
 
             context.Services.AddTransient<IBlockchainClientProvider, AElfClientProvider>();

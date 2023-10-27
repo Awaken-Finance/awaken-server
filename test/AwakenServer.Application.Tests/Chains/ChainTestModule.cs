@@ -46,6 +46,15 @@ public class ChainTestModule : AbpModule
                 }
             };
         });
+        context.Services.Configure<ContractsTokenOptions>(o =>
+        {
+            o.Contracts = new Dictionary<string, string>
+            {
+                {"0.0005", "2F4vThkqXxzoUGQowUzmGNQwyGc6a6Ca7UZK5eWHpwmkwRuUpN"},
+                {"0.001", "2KRHY1oZv5S28YGRJ3adtMxfAh7WQP3wmMyoFq33oTc7Mt5Z1Y"},
+                {"0.03", "UoHeeCXZ6fV481oD3NXASSexWVtsPLgv2Wthm3BGrPAgqdS5d"}
+            };
+        });
     }
 
     public override void OnApplicationInitialization(ApplicationInitializationContext context)
