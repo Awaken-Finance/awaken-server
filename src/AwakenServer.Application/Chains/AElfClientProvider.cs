@@ -6,6 +6,8 @@ using AElf.Client.Dto;
 using AElf.Client.MultiToken;
 using AElf.Client.Service;
 using AElf.Types;
+using AwakenServer.Commons;
+using AwakenServer.Monitor;
 using AwakenServer.Tokens;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
@@ -22,12 +24,15 @@ namespace AwakenServer.Chains
     public class AElfClientProvider : IAElfClientProvider
     {
         private readonly IBlockchainClientFactory<AElfClient> _blockchainClientFactory;
+        private readonly IIndicatorScope _indicatorScope;
         private readonly ILogger<AElfClientProvider> _logger;
 
         public AElfClientProvider(IBlockchainClientFactory<AElfClient> blockchainClientFactory,
+            IIndicatorScope indicatorScope,
             ILogger<AElfClientProvider> logger)
         {
             _blockchainClientFactory = blockchainClientFactory;
+            _indicatorScope = indicatorScope;
             _logger = logger;
         }
 
@@ -36,7 +41,12 @@ namespace AwakenServer.Chains
         public async Task<long> GetBlockNumberAsync(string chainName)
         {
             var client = _blockchainClientFactory.GetClient(chainName);
+            
+            var interIndicator = _indicatorScope.Begin(MonitorTag.AelfClient,
+                MonitorAelfClientType.GetBestChainHeightAsync.ToString());
             var chain = await client.GetChainStatusAsync();
+            _indicatorScope.End(interIndicator);
+            
             return chain.BestChainHeight;
         }
 
@@ -65,15 +75,25 @@ namespace AwakenServer.Chains
             {
                 Symbol = symbol
             };
+            
+            var generateIndicator = _indicatorScope.Begin(MonitorTag.AelfClient,
+                MonitorAelfClientType.GenerateTransactionAsync.ToString());
             var transactionGetToken =
                 await client.GenerateTransactionAsync(client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey), address,
                     "GetTokenInfo",
                     paramGetBalance);
+            _indicatorScope.End(generateIndicator);
+            
             var txWithSignGetToken = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetToken);
+            
+            var interIndicator = _indicatorScope.Begin(MonitorTag.AelfClient,
+                MonitorAelfClientType.ExecuteTransactionAsync.ToString());
             var transactionGetTokenResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
             {
                 RawTransaction = txWithSignGetToken.ToByteArray().ToHex()
             });
+            _indicatorScope.End(interIndicator);
+            
             return
                 TokenInfo.Parser.ParseFrom(
                     ByteArrayHelper.HexStringToByteArray(transactionGetTokenResult));
@@ -84,7 +104,12 @@ namespace AwakenServer.Chains
             try
             {
                 var client = _blockchainClientFactory.GetClient(chainName);
+                
+                var interIndicator = _indicatorScope.Begin(MonitorTag.AelfClient,
+                    MonitorAelfClientType.GetTransactionResultAsync.ToString());
                 var result = await client.GetTransactionResultAsync(transactionId);
+                _indicatorScope.End(interIndicator);
+                
                 if (result == null)
                 {
                     return 0;

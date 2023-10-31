@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AwakenServer.Domain.Shared\AwakenServer.Domain.Shared.csproj" />
+    <ProjectReference Include="..\AwakenServer.Monitor\AwakenServer.Monitor.csproj" />
   </ItemGroup>
 
   <ItemGroup>

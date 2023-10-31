@@ -57,6 +57,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.Grains.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.CoinGeckoApi", "src\AwakenServer.CoinGeckoApi\AwakenServer.CoinGeckoApi.csproj", "{C1CFF7C0-6611-400F-BCE7-DF35097660A1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.Monitor", "src\AwakenServer.Monitor\AwakenServer.Monitor.csproj", "{9A718C98-671D-458A-A33C-F593587F5E26}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -163,6 +165,10 @@ Global
 		{C1CFF7C0-6611-400F-BCE7-DF35097660A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C1CFF7C0-6611-400F-BCE7-DF35097660A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C1CFF7C0-6611-400F-BCE7-DF35097660A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9A718C98-671D-458A-A33C-F593587F5E26}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9A718C98-671D-458A-A33C-F593587F5E26}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9A718C98-671D-458A-A33C-F593587F5E26}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9A718C98-671D-458A-A33C-F593587F5E26}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -193,6 +199,7 @@ Global
 		{948AA2E5-0B95-4454-AD66-B9D7F6A0966A} = {CA9AC87F-097E-4F15-8393-4BC07735A5B0}
 		{4B6CC556-431A-4008-9E6A-C3FAE5CCE373} = {04DBDB01-70F4-4E06-B468-8F87850B22BE}
 		{C1CFF7C0-6611-400F-BCE7-DF35097660A1} = {CA9AC87F-097E-4F15-8393-4BC07735A5B0}
+		{9A718C98-671D-458A-A33C-F593587F5E26} = {CA9AC87F-097E-4F15-8393-4BC07735A5B0}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {28315BFD-90E7-4E14-A2EA-F3D23AF4126F}

@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using AwakenServer.Asset;
 using AwakenServer.ContractEventHandler.Application;
 using AwakenServer.Grains.Grain.ApplicationHandler;
+using AwakenServer.Monitor;
+using AwakenServer.Monitor.Logger;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using GraphQL;
@@ -24,9 +27,11 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     private readonly IClusterClient _clusterClient;
     private readonly ILogger<GraphQLProvider> _logger;
     private readonly ITokenAppService _tokenAppService;
+    private readonly IIndicatorLogger _indicatorLogger;
 
     public GraphQLProvider(ILogger<GraphQLProvider> logger, IClusterClient clusterClient,
         ITokenAppService tokenAppService,
+        IIndicatorLogger indicatorLogger,
         IOptions<GraphQLOptions> graphQLOptions)
     {
         _logger = logger;
@@ -34,10 +39,12 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         _graphQLOptions = graphQLOptions.Value;
         _graphQLClient = new GraphQLHttpClient(_graphQLOptions.Configuration, new NewtonsoftJsonSerializer());
         _tokenAppService = tokenAppService;
+        _indicatorLogger = indicatorLogger;
     }
 
     public async Task<TradePairInfoDtoPageResultDto> GetTradePairInfoListAsync(GetTradePairsInfoInput input)
     {
+        var stopwatch = Stopwatch.StartNew();
         var graphQlResponse = await _graphQLClient.SendQueryAsync<TradePairInfoDtoPageResultDto>(new GraphQLRequest
         {
             Query =
@@ -64,6 +71,10 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 feeRate = input.FeeRate == 0 ? input.FeeRate : 0,
             }
         });
+        stopwatch.Stop();
+        var duration = Convert.ToInt32(stopwatch.Elapsed.TotalMilliseconds);
+        var target = "GetTradePairInfoListAsync";
+        _indicatorLogger.LogInformation(MonitorTag.GraphQL, target, duration);
         
         if (graphQlResponse.Errors != null)
         {
@@ -119,7 +130,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             _logger.LogInformation("EndBlockHeight should be higher than StartBlockHeight");
             return new List<LiquidityRecordDto>();
         }*/
-
+        var stopwatch = Stopwatch.StartNew();
         var graphQlResponse = await _graphQLClient.SendQueryAsync<LiquidityRecordResultDto>(new GraphQLRequest
         {
             Query =
@@ -149,6 +160,11 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 endBlockHeight
             }
         });
+        stopwatch.Stop();
+        var duration = Convert.ToInt32(stopwatch.Elapsed.TotalMilliseconds);
+        var target = "GetLiquidRecordsAsync";
+        _indicatorLogger.LogInformation(MonitorTag.GraphQL, target, duration);
+        
         if (graphQlResponse.Data.GetLiquidityRecords.IsNullOrEmpty())
         {
             return new List<LiquidityRecordDto>();
@@ -163,7 +179,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         //     _logger.LogInformation("EndBlockHeight should be higher than StartBlockHeight");
         //     return new List<SwapRecordDto>();
         // }
-
+        var stopwatch = Stopwatch.StartNew();
         var graphQlResponse = await _graphQLClient.SendQueryAsync<SwapRecordResultDto>(new GraphQLRequest
         {
             Query =
@@ -190,6 +206,11 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 endBlockHeight
             }
         });
+        stopwatch.Stop();
+        var duration = Convert.ToInt32(stopwatch.Elapsed.TotalMilliseconds);
+        var target = "GetSwapRecordsAsync";
+        _indicatorLogger.LogInformation(MonitorTag.GraphQL, target, duration);
+        
         if (graphQlResponse.Data.GetSwapRecords.IsNullOrEmpty())
         {
             return new List<SwapRecordDto>();
@@ -204,7 +225,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             _logger.LogInformation("EndBlockHeight should be higher than StartBlockHeight");
             return new List<SyncRecordDto>();
         }*/
-
+        var stopwatch = Stopwatch.StartNew();
         var graphQlResponse = await _graphQLClient.SendQueryAsync<SyncRecordResultDto>(new GraphQLRequest
         {
             Query =
@@ -227,6 +248,11 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 endBlockHeight
             }
         });
+        stopwatch.Stop();
+        var duration = Convert.ToInt32(stopwatch.Elapsed.TotalMilliseconds);
+        var target = "GetSyncRecordsAsync";
+        _indicatorLogger.LogInformation(MonitorTag.GraphQL, target, duration);
+        
         if (graphQlResponse.Data.GetSyncRecords.IsNullOrEmpty())
         {
             return new List<SyncRecordDto>();
@@ -236,6 +262,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
 
     public async Task<LiquidityRecordPageResult> QueryLiquidityRecordAsync(GetLiquidityRecordIndexInput input)
     {
+        var stopwatch = Stopwatch.StartNew();
         var graphQlResponse = await _graphQLClient.SendQueryAsync<LiquidityRecordResultDto>(new GraphQLRequest
         {
             Query = 
@@ -278,11 +305,17 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
                 
         });
+        stopwatch.Stop();
+        var duration = Convert.ToInt32(stopwatch.Elapsed.TotalMilliseconds);
+        var target = "QueryLiquidityRecordAsync";
+        _indicatorLogger.LogInformation(MonitorTag.GraphQL, target, duration);
+        
         return graphQlResponse.Data.LiquidityRecord;
     }
     
     public async Task<UserLiquidityPageResultDto> QueryUserLiquidityAsync(GetUserLiquidityInput input)
     {
+        var stopwatch = Stopwatch.StartNew();
         var graphQlResponse = await _graphQLClient.SendQueryAsync<UserLiquidityResultDto>(new GraphQLRequest
         {
             Query = 
@@ -308,11 +341,17 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
                 
         });
+        stopwatch.Stop();
+        var duration = Convert.ToInt32(stopwatch.Elapsed.TotalMilliseconds);
+        var target = "QueryUserLiquidityAsync";
+        _indicatorLogger.LogInformation(MonitorTag.GraphQL, target, duration);
+        
         return graphQlResponse.Data.UserLiquidity;
     }
 
     public async Task<List<UserTokenDto>> GetUserTokensAsync(string chainId, string address)
     {
+        var stopwatch = Stopwatch.StartNew();
         var graphQLResponse = await _graphQLClient.SendQueryAsync<UserTokenResultDto>(new GraphQLRequest
         {
             Query = @"
@@ -329,11 +368,17 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 address
             }
         });
+        stopwatch.Stop();
+        var duration = Convert.ToInt32(stopwatch.Elapsed.TotalMilliseconds);
+        var target = "GetUserTokensAsync";
+        _indicatorLogger.LogInformation(MonitorTag.GraphQL, target, duration);
+        
         return graphQLResponse.Data.GetUserTokens;
     }
 
     public async Task<long> GetIndexBlockHeightAsync(string chainId)
     {
+        var stopwatch = Stopwatch.StartNew();
         var graphQLResponse = await _graphQLClient.SendQueryAsync<ConfirmedBlockHeightRecord>(new GraphQLRequest
         {
             Query = @"
@@ -347,7 +392,11 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 filterType = BlockFilterType.LOG_EVENT
             }
         });
-
+        stopwatch.Stop();
+        var duration = Convert.ToInt32(stopwatch.Elapsed.TotalMilliseconds);
+        var target = "GetIndexBlockHeightAsync";
+        _indicatorLogger.LogInformation(MonitorTag.GraphQL, target, duration);
+        
         return graphQLResponse.Data.SyncState.ConfirmedBlockHeight;
     }
 
