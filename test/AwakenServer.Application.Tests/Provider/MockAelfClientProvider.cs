@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using AElf.Client.MultiToken;
 using AwakenServer.Chains;
 using AwakenServer.Tokens;
 
@@ -31,5 +32,11 @@ public class MockAelfClientProvider : IAElfClientProvider
         if (chainName == "AELF") return 1;
         else if (chainName == "tDVV") return 0;
         else return -1;
+    }
+    
+    public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address, string contractAddress,
+        string symbol)
+    {
+        throw new System.NotImplementedException();
     }
 }

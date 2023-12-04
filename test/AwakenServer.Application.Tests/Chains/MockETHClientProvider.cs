@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using AElf.Client.MultiToken;
 using AwakenServer.Tokens;
 
 namespace AwakenServer.Chains;
@@ -19,5 +20,11 @@ public class MockETHClientProvider : IBlockchainClientProvider
             Decimals = 18,
             Symbol = symbol
         });
+    }
+    
+    public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address, string contractAddress,
+        string symbol)
+    {
+        throw new System.NotImplementedException();
     }
 }

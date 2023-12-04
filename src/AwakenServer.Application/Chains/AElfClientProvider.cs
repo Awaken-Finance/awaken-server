@@ -5,8 +5,10 @@ using AElf;
 using AElf.Client.Dto;
 using AElf.Client.MultiToken;
 using AElf.Client.Service;
+using AElf.Client.Proto;
 using AElf.Types;
 using AwakenServer.Tokens;
+using AwakenServer.Trade;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
 
@@ -65,7 +67,8 @@ namespace AwakenServer.Chains
                 Symbol = symbol
             };
             var transactionGetToken =
-                await client.GenerateTransactionAsync(client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey), address,
+                await client.GenerateTransactionAsync(client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey),
+                    address,
                     "GetTokenInfo",
                     paramGetBalance);
             var txWithSignGetToken = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetToken);
@@ -88,7 +91,9 @@ namespace AwakenServer.Chains
                 {
                     return 0;
                 }
-                var transactionFeeCharged = TransactionFeeCharged.Parser.ParseFrom(ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
+
+                var transactionFeeCharged = TransactionFeeCharged.Parser.ParseFrom(
+                    ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
                 return transactionFeeCharged.Amount;
             }
             catch (Exception e)
@@ -96,6 +101,32 @@ namespace AwakenServer.Chains
                 _logger.LogError(e, "GetTransactionFeeAsync fail.");
                 return 0;
             }
+        }
+
+        public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address,
+            string contractAddress, string symbol)
+        {
+            var client = _blockchainClientFactory.GetClient(chainName);
+            var paramGetBalance = new GetBalanceInput()
+            {
+                Symbol = symbol,
+                Owner = new AElf.Client.Proto.Address()
+                {
+                    Value = AElf.Types.Address.FromBase58(address).Value
+                }
+            };
+            var transactionGetBalance =
+                await client.GenerateTransactionAsync(client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey),
+                    contractAddress,
+                    "GetBalance",
+                    paramGetBalance);
+            var txWithSignGetBalance = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetBalance);
+            var transactionGetTokenResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
+            {
+                RawTransaction = txWithSignGetBalance.ToByteArray().ToHex()
+            });
+
+            return GetBalanceOutput.Parser.ParseFrom(ByteArrayHelper.HexStringToByteArray(transactionGetTokenResult));
         }
 
         public async Task<int> ExistTransactionAsync(string chainName, string transactionHash)
@@ -113,7 +144,7 @@ namespace AwakenServer.Chains
                        && (result.Status.Equals(TransactionResultStatus.Pending.ToString(),
                                StringComparison.OrdinalIgnoreCase)
                            || result.Status.Equals(TransactionResultStatus.Mined.ToString(),
-                               StringComparison.OrdinalIgnoreCase) 
+                               StringComparison.OrdinalIgnoreCase)
                            || result.Status.Equals(TransactionResultStatus.PendingValidation.ToString(),
                                StringComparison.OrdinalIgnoreCase))
                     ? 1
@@ -121,7 +152,8 @@ namespace AwakenServer.Chains
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Get the current status of a transaction {chainName}:{transactionHash} fail.", chainName, transactionHash);
+                _logger.LogError(e, "Get the current status of a transaction {chainName}:{transactionHash} fail.",
+                    chainName, transactionHash);
                 return -1;
             }
         }

@@ -28,7 +28,7 @@ namespace AwakenServer
         typeof(AwakenServerGrainsModule),
         typeof(AbpTenantManagementApplicationModule),
         typeof(AbpSettingManagementApplicationModule)
-        )]
+    )]
     public class AwakenServerApplicationModule : AbpModule
     {
         public override void PreConfigureServices(ServiceConfigurationContext context)
@@ -43,13 +43,11 @@ namespace AwakenServer
             //     });
             // });
         }
+
         public override void ConfigureServices(ServiceConfigurationContext context)
         {
-            Configure<AbpAutoMapperOptions>(options =>
-            {
-                options.AddMaps<AwakenServerApplicationModule>();
-            });
-            
+            Configure<AbpAutoMapperOptions>(options => { options.AddMaps<AwakenServerApplicationModule>(); });
+
             var configuration = context.Services.GetConfiguration();
             Configure<StableCoinOptions>(configuration.GetSection("StableCoin"));
             Configure<MainCoinOptions>(configuration.GetSection("MainCoin"));
@@ -64,6 +62,7 @@ namespace AwakenServer
             Configure<DividendOption>(configuration.GetSection("Dividend"));
             Configure<GraphQLOptions>(configuration.GetSection("GraphQL"));
             Configure<CmsOptions>(configuration.GetSection("Cms"));
+            Configure<AssetWhenNoTransactionOptions>(configuration.GetSection("AssetWhenNoTransaction"));
 
 
             context.Services.AddTransient<IBlockchainClientProvider, AElfClientProvider>();
@@ -71,10 +70,7 @@ namespace AwakenServer
             context.Services.AddTransient<IBlockchainClientProvider, Web3Provider>();
             context.Services.AddSingleton<IBlockchainClientFactory<AElfClient>, AElfClientFactory>();
             context.Services.AddSingleton<IBlockchainClientFactory<Nethereum.Web3.Web3>, Web3ClientFactory>();
-            context.Services.AddSingleton<IHttpService>(provider =>
-            {
-                return new HttpService(3);
-            });
+            context.Services.AddSingleton<IHttpService>(provider => { return new HttpService(3); });
         }
 
         public override void OnPreApplicationInitialization(ApplicationInitializationContext context)
