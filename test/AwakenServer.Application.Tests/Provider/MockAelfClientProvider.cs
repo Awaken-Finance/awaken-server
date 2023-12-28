@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using AElf.Client.MultiToken;
 using AwakenServer.Chains;
 using AwakenServer.Tokens;
 
@@ -12,6 +13,7 @@ public class MockAelfClientProvider : IAElfClientProvider
     }
 
     public string ChainType { get; } = "AElf";
+
     public Task<long> GetBlockNumberAsync(string chainName)
     {
         throw new System.NotImplementedException();
@@ -31,5 +33,30 @@ public class MockAelfClientProvider : IAElfClientProvider
         if (chainName == "AELF") return 1;
         else if (chainName == "tDVV") return 0;
         else return -1;
+    }
+
+    public Task<TokenInfo> GetTokenInfoFromChainAsync(string chainName, string address, string symbol)
+    {
+        throw new System.NotImplementedException();
+    }
+
+
+    public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address, string contractAddress,
+        string symbol)
+    {
+        if (symbol == "no")
+        {
+            return new GetBalanceOutput()
+            {
+                Balance = 1,
+                Symbol = "no",
+            };
+        }
+
+        return new GetBalanceOutput()
+        {
+            Balance = 1,
+            Symbol = symbol,
+        };
     }
 }

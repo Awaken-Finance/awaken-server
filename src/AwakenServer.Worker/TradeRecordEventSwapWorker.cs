@@ -30,6 +30,8 @@ public class TradeRecordEventSwapWorker : AsyncPeriodicBackgroundWorkerBase
 
     protected override async Task DoWorkAsync(PeriodicBackgroundWorkerContext workerContext)
     {
+        
+        _logger.LogInformation("swap TradeRecordEventSwapWorker start");
         var chains = await _chainAppService.GetListAsync(new GetChainInput());
         foreach (var chain in chains.Items)
         {
@@ -37,7 +39,7 @@ public class TradeRecordEventSwapWorker : AsyncPeriodicBackgroundWorkerBase
             _logger.LogInformation("swap first lastEndHeight: {lastEndHeight}", lastEndHeight);
 
             if(lastEndHeight < 0) continue;
-            var queryList = await _graphQlProvider.GetSwapRecordsAsync(chain.Name, lastEndHeight, 0);
+            var queryList = await _graphQlProvider.GetSwapRecordsAsync(chain.Name, lastEndHeight+1, 0);
             _logger.LogInformation("swap queryList count: {count}", queryList.Count);
             foreach (var queryDto in queryList)
             {

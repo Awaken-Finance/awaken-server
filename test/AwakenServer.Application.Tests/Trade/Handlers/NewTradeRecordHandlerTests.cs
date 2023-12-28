@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Trade.Dtos;
@@ -14,6 +16,7 @@ namespace AwakenServer.Trade.Handlers
         private readonly INESTRepository<Index.TradePair, Guid> _tradePairIndexRepository;
         private readonly ITradeRecordAppService _tradeRecordAppService;
         private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
+        private readonly IFlushCacheService _flushCacheService;
 
         public NewTradeRecordHandlerTests()
         {
@@ -23,6 +26,46 @@ namespace AwakenServer.Trade.Handlers
                 GetRequiredService<INESTRepository<Index.TradePair, Guid>>();
             _tradeRecordAppService = GetRequiredService<ITradeRecordAppService>();
             _tradePairMarketDataProvider = GetRequiredService<ITradePairMarketDataProvider>();
+            _flushCacheService = GetRequiredService<IFlushCacheService>();
+        }
+
+
+        [Fact]
+        public async Task FlushCacheServiceTest()
+        {
+            var dateTime = DateTime.UtcNow.AddDays(-2);
+            var recordInput = new TradeRecordCreateDto()
+            {
+                ChainId = "cahce",
+                Address = "0x",
+                Side = TradeSide.Buy,
+                Token0Amount = "1000",
+                Token1Amount = "2000",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(dateTime),
+                TransactionHash = "tx",
+                TradePairId = TradePairEthUsdtId
+            };
+
+            var lockName = string.Format("{0}-{1}-{2}", "cahce",
+                recordInput.TradePairId, dateTime.Date.AddHours(dateTime.Hour));
+
+
+            await _tradeRecordAppService.CreateAsync(recordInput);
+            recordInput.TransactionHash = "tx2";
+            await _tradeRecordAppService.CreateAsync(recordInput);
+            Thread.Sleep(3000);
+            await _flushCacheService.FlushCacheAsync(new List<string> { lockName });
+            Thread.Sleep(1000);
+
+            var snapshotTime =
+                _tradePairMarketDataProvider.GetSnapshotTime(
+                    DateTimeHelper.FromUnixTimeMilliseconds(recordInput.Timestamp));
+
+            var marketDataSnapshot = await _snapshotIndexRepository.GetAsync(q =>
+                q.Term(i => i.Field(f => f.ChainId).Value(recordInput.ChainId)) &&
+                q.Term(i => i.Field(f => f.TradePairId).Value(recordInput.TradePairId)) &&
+                q.Term(i => i.Field(f => f.Timestamp).Value(snapshotTime)));
+            marketDataSnapshot.ShouldNotBeNull();
         }
 
         [Fact]
@@ -39,94 +82,97 @@ namespace AwakenServer.Trade.Handlers
                 TransactionHash = "tx",
                 TradePairId = TradePairEthUsdtId
             };
-            await _tradeRecordAppService.CreateAsync(recordInput);
+            for (int i = 0; i < 10; i++)
+            {
+                recordInput.TransactionHash = $"tx{i}";
+                await _tradeRecordAppService.CreateAsync(recordInput);
+            }
+
 
             var snapshotTime =
-                _tradePairMarketDataProvider.GetSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(recordInput.Timestamp));
-            // var marketData = await _tradePairMarketDataSnapshotRepository.GetAsync(m =>
-            //     m.ChainId == recordInput.ChainId && m.TradePairId == recordInput.TradePairId && m.Timestamp == snapshotTime);
-            // marketData.Volume.ShouldBe(1000);
-            // marketData.TradeValue.ShouldBe(2000);
-            // marketData.TradeCount.ShouldBe(1);
-            // marketData.TradeAddressCount24h.ShouldBe(1);
-            
+                _tradePairMarketDataProvider.GetSnapshotTime(
+                    DateTimeHelper.FromUnixTimeMilliseconds(recordInput.Timestamp));
+
             var marketDataSnapshot = await _snapshotIndexRepository.GetAsync(q =>
                 q.Term(i => i.Field(f => f.ChainId).Value(recordInput.ChainId)) &&
                 q.Term(i => i.Field(f => f.TradePairId).Value(recordInput.TradePairId)) &&
                 q.Term(i => i.Field(f => f.Timestamp).Value(snapshotTime)));
-            marketDataSnapshot.Volume.ShouldBe(1000);
-            marketDataSnapshot.TradeValue.ShouldBe(2000);
-            marketDataSnapshot.TradeCount.ShouldBe(1);
+            marketDataSnapshot.Volume.ShouldBe(10000);
+            marketDataSnapshot.TradeValue.ShouldBe(20000);
+            marketDataSnapshot.TradeCount.ShouldBe(10);
             marketDataSnapshot.TradeAddressCount24h.ShouldBe(1);
-            
+
             var tradePair = await _tradePairIndexRepository.GetAsync(recordInput.TradePairId);
-            tradePair.Volume24h.ShouldBe(1000);
-            tradePair.TradeValue24h.ShouldBe(2000);
-            tradePair.TradeCount24h.ShouldBe(1);
+            tradePair.Volume24h.ShouldBe(10000);
+            tradePair.TradeValue24h.ShouldBe(20000);
+            tradePair.TradeCount24h.ShouldBe(10);
             tradePair.TradeAddressCount24h.ShouldBe(1);
             tradePair.VolumePercentChange24h.ShouldBe(0);
-            
-            recordInput.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(-1));
-            recordInput.Token0Amount = "1000";
-            recordInput.Token1Amount = "2000";
-            
+
+
+            for (int i = 10; i < 20; i++)
+            {
+                recordInput.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(-1));
+                recordInput.Token0Amount = "1000";
+                recordInput.Token1Amount = "2000";
+
+                recordInput.TransactionHash = $"tx{i}";
+                await _tradeRecordAppService.CreateAsync(recordInput);
+            }
+
+
             await _tradeRecordAppService.CreateAsync(recordInput);
             snapshotTime =
-                _tradePairMarketDataProvider.GetSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(recordInput.Timestamp));
-            
-            // marketData = await _tradePairMarketDataSnapshotRepository.GetAsync(m =>
-            //     m.ChainId == recordInput.ChainId && m.TradePairId == recordInput.TradePairId && m.Timestamp == snapshotTime);
-            // marketData.Volume.ShouldBe(200);
-            // marketData.TradeValue.ShouldBe(300);
-            // marketData.TradeCount.ShouldBe(1);
-            // marketData.TradeAddressCount24h.ShouldBe(1);
-            
+                _tradePairMarketDataProvider.GetSnapshotTime(
+                    DateTimeHelper.FromUnixTimeMilliseconds(recordInput.Timestamp));
+
+
             marketDataSnapshot = await _snapshotIndexRepository.GetAsync(q =>
                 q.Term(i => i.Field(f => f.ChainId).Value(recordInput.ChainId)) &&
                 q.Term(i => i.Field(f => f.TradePairId).Value(recordInput.TradePairId)) &&
                 q.Term(i => i.Field(f => f.Timestamp).Value(snapshotTime)));
-            marketDataSnapshot.Volume.ShouldBe(1000);
-            marketDataSnapshot.TradeValue.ShouldBe(2000);
-            marketDataSnapshot.TradeCount.ShouldBe(1);
+            marketDataSnapshot.Volume.ShouldBe(10000);
+            marketDataSnapshot.TradeValue.ShouldBe(20000);
+            marketDataSnapshot.TradeCount.ShouldBe(10);
             marketDataSnapshot.TradeAddressCount24h.ShouldBe(1);
-            
+
             tradePair = await _tradePairIndexRepository.GetAsync(recordInput.TradePairId);
-            tradePair.Volume24h.ShouldBe(1000);
-            tradePair.TradeValue24h.ShouldBe(2000);
-            tradePair.TradeCount24h.ShouldBe(1);
+            tradePair.Volume24h.ShouldBe(10000);
+            tradePair.TradeValue24h.ShouldBe(20000);
+            tradePair.TradeCount24h.ShouldBe(10);
             tradePair.TradeAddressCount24h.ShouldBe(1);
             tradePair.VolumePercentChange24h.ShouldBe(0);
-            
-            recordInput.Token0Amount = "1000";
-            recordInput.Token1Amount = "2000";
-            
-            await _tradeRecordAppService.CreateAsync(recordInput);
-            
+
+
+            for (int i = 20; i < 30; i++)
+            {
+                recordInput.Token0Amount = "1000";
+                recordInput.Token1Amount = "2000";
+                await _tradeRecordAppService.CreateAsync(recordInput);
+            }
+
+
             snapshotTime =
-                _tradePairMarketDataProvider.GetSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(recordInput.Timestamp));
-            // marketData = await _tradePairMarketDataSnapshotRepository.GetAsync(m =>
-            //     m.ChainId == recordInput.ChainId && m.TradePairId == recordInput.TradePairId && m.Timestamp == snapshotTime);
-            // marketData.Volume.ShouldBe(700);
-            // marketData.TradeValue.ShouldBe(1300);
-            // marketData.TradeCount.ShouldBe(2);
-            // marketData.TradeAddressCount24h.ShouldBe(1);
-            
+                _tradePairMarketDataProvider.GetSnapshotTime(
+                    DateTimeHelper.FromUnixTimeMilliseconds(recordInput.Timestamp));
+
             marketDataSnapshot = await _snapshotIndexRepository.GetAsync(q =>
                 q.Term(i => i.Field(f => f.ChainId).Value(recordInput.ChainId)) &&
                 q.Term(i => i.Field(f => f.TradePairId).Value(recordInput.TradePairId)) &&
                 q.Term(i => i.Field(f => f.Timestamp).Value(snapshotTime)));
-            marketDataSnapshot.Volume.ShouldBe(2000);
-            marketDataSnapshot.TradeValue.ShouldBe(4000);
-            marketDataSnapshot.TradeCount.ShouldBe(2);
+            marketDataSnapshot.Volume.ShouldBe(20000);
+            marketDataSnapshot.TradeValue.ShouldBe(40000);
+            marketDataSnapshot.TradeCount.ShouldBe(20);
             marketDataSnapshot.TradeAddressCount24h.ShouldBe(1);
-            
+
             tradePair = await _tradePairIndexRepository.GetAsync(recordInput.TradePairId);
-            tradePair.Volume24h.ShouldBe(2000);
-            tradePair.TradeValue24h.ShouldBe(4000);
-            tradePair.TradeCount24h.ShouldBe(2);
+            tradePair.Volume24h.ShouldBe(20000);
+            tradePair.TradeValue24h.ShouldBe(40000);
+            tradePair.TradeCount24h.ShouldBe(20);
             tradePair.TradeAddressCount24h.ShouldBe(1);
             tradePair.VolumePercentChange24h.ShouldBe(100);
-            
+
+
             var recordInput2 = new TradeRecordCreateDto()
             {
                 ChainId = ChainId,
@@ -138,30 +184,30 @@ namespace AwakenServer.Trade.Handlers
                 TransactionHash = "tx",
                 TradePairId = TradePairEthUsdtId
             };
-            await _tradeRecordAppService.CreateAsync(recordInput2);
-            
+            for (int i = 0; i < 10; i++)
+            {
+                await _tradeRecordAppService.CreateAsync(recordInput2);
+            }
+
+
             snapshotTime =
-                _tradePairMarketDataProvider.GetSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(recordInput2.Timestamp));
-            // marketData = await _tradePairMarketDataSnapshotRepository.GetAsync(m =>
-            //     m.ChainId == recordInput2.ChainId && m.TradePairId == recordInput2.TradePairId && m.Timestamp == snapshotTime);
-            // marketData.Volume.ShouldBe(700);
-            // marketData.TradeValue.ShouldBe(1300);
-            // marketData.TradeCount.ShouldBe(2);
-            // marketData.TradeAddressCount24h.ShouldBe(1);
-            
+                _tradePairMarketDataProvider.GetSnapshotTime(
+                    DateTimeHelper.FromUnixTimeMilliseconds(recordInput2.Timestamp));
+
+
             marketDataSnapshot = await _snapshotIndexRepository.GetAsync(q =>
                 q.Term(i => i.Field(f => f.ChainId).Value(recordInput.ChainId)) &&
                 q.Term(i => i.Field(f => f.TradePairId).Value(recordInput.TradePairId)) &&
                 q.Term(i => i.Field(f => f.Timestamp).Value(snapshotTime)));
-            marketDataSnapshot.Volume.ShouldBe(100);
-            marketDataSnapshot.TradeValue.ShouldBe(200);
-            marketDataSnapshot.TradeCount.ShouldBe(1);
+            marketDataSnapshot.Volume.ShouldBe(1000);
+            marketDataSnapshot.TradeValue.ShouldBe(2000);
+            marketDataSnapshot.TradeCount.ShouldBe(10);
             marketDataSnapshot.TradeAddressCount24h.ShouldBe(1);
-            
+
             tradePair = await _tradePairIndexRepository.GetAsync(recordInput.TradePairId);
-            tradePair.Volume24h.ShouldBe(2000);
-            tradePair.TradeValue24h.ShouldBe(4000);
-            tradePair.TradeCount24h.ShouldBe(2);
+            tradePair.Volume24h.ShouldBe(20000);
+            tradePair.TradeValue24h.ShouldBe(40000);
+            tradePair.TradeCount24h.ShouldBe(20);
             tradePair.TradeAddressCount24h.ShouldBe(1);
             tradePair.VolumePercentChange24h.ShouldBe(100);
         }

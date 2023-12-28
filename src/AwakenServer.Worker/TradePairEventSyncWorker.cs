@@ -18,7 +18,7 @@ public class TradePairEventSyncWorker : AsyncPeriodicBackgroundWorkerBase
     private readonly ILogger<TradePairEventSyncWorker> _logger;
 
     public TradePairEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        IChainAppService chainAppService, IGraphQLProvider iGraphQlProvider, 
+        IChainAppService chainAppService, IGraphQLProvider iGraphQlProvider,
         ITradePairAppService tradePairAppService, ILogger<TradePairEventSyncWorker> logger)
         : base(timer, serviceScopeFactory)
     {
@@ -35,15 +35,9 @@ public class TradePairEventSyncWorker : AsyncPeriodicBackgroundWorkerBase
         foreach (var chain in chains.Items)
         {
             var lastEndHeight = await _graphQlProvider.GetLastEndHeightAsync(chain.Name, QueryType.Sync);
-            var newIndexHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Name);
-            _logger.LogInformation("sync lastEndHeight: {lastEndHeight}, newIndexHeight: {newIndexHeight}", lastEndHeight, newIndexHeight);
-            if (lastEndHeight >= newIndexHeight)
-            {
-                continue;
-            }
 
-            var queryList = await _graphQlProvider.GetSyncRecordsAsync(chain.Name, lastEndHeight, 0);
-            _logger.LogInformation("sync queryList count: {count}", queryList.Count);
+            var queryList = await _graphQlProvider.GetSyncRecordsAsync(chain.Name, lastEndHeight + 1, 0);
+            _logger.LogInformation("sync queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Name);
             try
             {
                 long blockHeight = -1;
@@ -52,17 +46,18 @@ public class TradePairEventSyncWorker : AsyncPeriodicBackgroundWorkerBase
                     await _tradePairAppService.UpdateLiquidityAsync(queryDto);
                     blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
                 }
+
                 if (blockHeight > 0)
                 {
                     await _graphQlProvider.SetLastEndHeightAsync(chain.Name, QueryType.Sync, blockHeight);
-                    _logger.LogInformation("sync lastEndHeight: {BlockHeight}", blockHeight);
+                    _logger.LogInformation("sync lastEndHeight: {BlockHeight},:chainId:{chainId}", blockHeight,
+                        chain.Name);
                 }
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "sync event fail.");
             }
-            
         }
     }
 }

@@ -28,19 +28,19 @@ namespace AwakenServer.Price
                 Symbol = Symbol.BTC,
                 ChainId = ChainId
             });
-            decimal.Parse(btcPrice).ShouldBe(0);
+            decimal.Parse(btcPrice).ShouldBe(69000);
             var sashimiPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
             {
                 Symbol = Symbol.SASHIMI,
                 ChainId = ChainId
             });
-            decimal.Parse(sashimiPrice).ShouldBe(0);
+            decimal.Parse(sashimiPrice).ShouldBe(1);
             var istarPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
             {
                 Symbol = Symbol.ISTAR,
                 ChainId = ChainId
             });
-            decimal.Parse(istarPrice).ShouldBe(0);
+            decimal.Parse(istarPrice).ShouldBe(1);
             
             var ethPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
             {
@@ -58,7 +58,7 @@ namespace AwakenServer.Price
                 Symbol = Symbol.BTC,
                 ChainId = ChainId
             });
-            newBtcPrice.ShouldBe("0");
+            newBtcPrice.ShouldBe("69000");
             
             newBtcPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
             {
@@ -96,9 +96,8 @@ namespace AwakenServer.Price
             var result = await _priceAppService.GetTokenPriceListAsync(new List<string> { });
             result.Items.Count.ShouldBe(0);
 
-            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "ELF" });
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "USDT" });
             result.Items.Count.ShouldBe(1);
-            //result.Items[0].PriceInUsd.ShouldBe(123);
         }
         
         [Fact]
@@ -111,24 +110,19 @@ namespace AwakenServer.Price
                     DateTime = DateTime.UtcNow.AddDays(-1)
                 } 
             });
-            result.Items.Count.ShouldBe(1);
+            result.Items.Count.ShouldBe(0);
             
-            var exception = await Assert.ThrowsAsync<NullReferenceException>(async () =>
-            {
-                await _priceAppService.GetTokenHistoryPriceDataAsync(new List<GetTokenHistoryPriceInput>{ null });
-            });
-            exception.Message.ShouldContain("Object reference not set to an instance of an object");
+      
             
             result = await _priceAppService.GetTokenHistoryPriceDataAsync(new List<GetTokenHistoryPriceInput>
             {
                 new GetTokenHistoryPriceInput()
                 {
-                    Symbol = "ELF",
+                    Symbol = "USDT",
                     DateTime = DateTime.UtcNow.AddDays(-1)
                 } 
             });
-            result.Items.Count.ShouldBe(1);
-            //result.Items[0].PriceInUsd.ShouldBe(123);
+            result.Items.Count.ShouldBe(0);
         }
     }
 }

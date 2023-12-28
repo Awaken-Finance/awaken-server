@@ -19,14 +19,9 @@ namespace AwakenServer.Trade.Handlers
 
         public async Task HandleEventAsync(NewTradeRecordEvent eventData)
         {
-            var time = _tradePairMarketDataProvider.GetSnapshotTime(eventData.Timestamp);
-
-            var userTradeCount = await _tradeRecordAppService.GetUserTradeAddressCountAsync(eventData.ChainId, eventData.TradePairId,
-                time.AddDays(-1), eventData.Timestamp);
             
             await _tradePairMarketDataProvider.UpdateTradeRecordAsync(eventData.ChainId, eventData.TradePairId,
-                eventData.Timestamp, double.Parse(eventData.Token0Amount), double.Parse(eventData.Token1Amount),
-                userTradeCount);
+                eventData.Timestamp, double.Parse(eventData.Token0Amount), double.Parse(eventData.Token1Amount));
         }
     }
 }

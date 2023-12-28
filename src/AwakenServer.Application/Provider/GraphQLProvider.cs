@@ -199,11 +199,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
 
     public async Task<List<SyncRecordDto>> GetSyncRecordsAsync(string chainId, long startBlockHeight, long endBlockHeight)
     {
-        /*if (startBlockHeight > endBlockHeight)
-        {
-            _logger.LogInformation("EndBlockHeight should be higher than StartBlockHeight");
-            return new List<SyncRecordDto>();
-        }*/
+
 
         var graphQlResponse = await _graphQLClient.SendQueryAsync<SyncRecordResultDto>(new GraphQLRequest
         {

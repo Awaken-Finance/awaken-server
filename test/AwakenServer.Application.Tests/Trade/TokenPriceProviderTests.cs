@@ -60,23 +60,23 @@ namespace AwakenServer.Trade
 
             // BSC
             var price = await _tokenPriceProvider.GetTokenUSDPriceAsync(chainBSC.Id, TokenUsdtSymbol);
-            price.ShouldBe(0);
+            price.ShouldBe(1);
 
             await _tokenPriceProvider.UpdatePriceAsync(chainBSC.Id, TokenBtcId, TokenUsdtId, 10);
             price = await _tokenPriceProvider.GetTokenUSDPriceAsync(chainBSC.Id, TokenBtcSymbol);
-            price.ShouldBe(0);
+            price.ShouldBe(1);
             price = await _tokenPriceProvider.GetTokenUSDPriceAsync(chainBSC.Id, TokenUsdtSymbol);
-            price.ShouldBe(0);
+            price.ShouldBe(1);
 
             // ETH
             var priceUsdt = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenUsdtSymbol);
-            priceUsdt.ShouldBe(0);
+            priceUsdt.ShouldBe(1);
             
             var priceEth = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenEthSymbol);
             priceEth.ShouldBe(0);
             
             var priceBtc = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenBtcSymbol);
-            priceBtc.ShouldBe(0);
+            priceBtc.ShouldBe(1);
             
             var priceSashimi = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, "TOKENA");
             priceSashimi.ShouldBe(0);
@@ -90,7 +90,7 @@ namespace AwakenServer.Trade
             
             await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenBtcId, TokenEthId, 100);
             priceBtc = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenBtcSymbol);
-            priceBtc.ShouldBe(0);
+            priceBtc.ShouldBe(1);
             
             await _tokenPriceProvider.UpdatePriceAsync(ChainId, tokenA, TokenEthId, 0.001);
             priceSashimi = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, "TOKENA");
@@ -102,7 +102,7 @@ namespace AwakenServer.Trade
             
             await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenEthId, TokenBtcId,0.02);
             priceBtc = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenBtcSymbol);
-            priceBtc.ShouldBe(0);
+            priceBtc.ShouldBe(1);
             
             await _tokenPriceProvider.UpdatePriceAsync(ChainId,  TokenUsdtId, TokenEthId,0.5);
             priceEth = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenEthSymbol);

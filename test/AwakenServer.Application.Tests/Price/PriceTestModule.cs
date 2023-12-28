@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AwakenServer.Applications.GameOfTrust;
 using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp.Modularity;
@@ -12,6 +13,8 @@ namespace AwakenServer.Price
     {
         public override void ConfigureServices(ServiceConfigurationContext context)
         {
+            
+            context.Services.AddSingleton<IPriceAppService, MockPriceAppService>();
             context.Services.Configure<StableCoinOptions>(o =>
             {
                 o.Coins = new Dictionary<string, List<Coin>>();

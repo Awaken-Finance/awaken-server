@@ -32,4 +32,19 @@ public class AssetController : AbpController
     {
         return await _assetAppService.GetTransactionFeeAsync();
     }
+    
+    [HttpPost]
+    [Route("user-assets-token")]
+    public virtual async Task SetDefaultTokenAsync(SetDefaultTokenDto input)
+    {
+        await _assetAppService.SetDefaultTokenAsync(input);
+    }
+    
+    
+    [HttpGet]
+    [Route("user-assets-token")]
+    public virtual async Task<DefaultTokenDto> GetDefaultTokenAsync(GetDefaultTokenDto input)
+    {
+        return await _assetAppService.GetDefaultTokenAsync(input);
+    }
 }

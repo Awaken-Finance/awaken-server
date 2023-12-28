@@ -27,7 +27,6 @@ namespace AwakenServer.EntityHandler.GameOfTrust
         {
            var userCreatedEto =  eventData.Entity;
            var userCreated = _mapper.Map<UserGameOfTrustChangedEto, UserGameOfTrust>(userCreatedEto);
-           // todo 
            userCreated.ChainId = userCreatedEto.GameOfTrust.DepositToken.ChainId;
            userCreated.GameOfTrust.ChainId = userCreatedEto.GameOfTrust.DepositToken.ChainId;
            await _userResRepository.AddAsync(userCreated);
@@ -37,7 +36,7 @@ namespace AwakenServer.EntityHandler.GameOfTrust
         {
             var userChanged = eventData.Entity;
             var user = _mapper.Map<UserGameOfTrustChangedEto, UserGameOfTrust>(userChanged);
-            // todo 
+            
             user.ChainId = userChanged.GameOfTrust.DepositToken.ChainId;
             user.GameOfTrust.ChainId = userChanged.GameOfTrust.DepositToken.ChainId;
             await _userResRepository.UpdateAsync(user);

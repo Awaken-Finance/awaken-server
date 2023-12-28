@@ -42,18 +42,19 @@ namespace AwakenServer.EntityHandler.Trade
             var index = ObjectMapper.Map<TradeRecordEto, TradeRecord>(eventData.Entity);
             index.TradePair = await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
             index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
-            index.TransactionFee = await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) / Math.Pow(10, 8);
-            
+            index.TransactionFee =
+                await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
+                Math.Pow(10, 8);
+
             await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
 
-            await _bus.Publish<NewIndexEvent<TradeRecordIndexDto>>(new NewIndexEvent<TradeRecordIndexDto>
+            await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
             {
                 Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(index)
             });
-            /*await DistributedEventBus.PublishAsync(new NewIndexEvent<TradeRecordIndexDto>
-            {
-                Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(index)
-            });*/
+
+            _logger.LogInformation(
+                $"publish TradeRecordIndexDto address:{index.Address} tradePairId:{index.TradePair.Id} chainId:{index.ChainId} txId:{index.TransactionHash}");
         }
 
         private async Task<double> GetHistoryPriceInUsdAsync(TradeRecord index)
@@ -71,14 +72,17 @@ namespace AwakenServer.EntityHandler.Trade
                     });
                 if (list.Items.Count >= 1)
                 {
-                    _logger.LogInformation("{token1Symbol}, time: {time}, get history price: {price}", index.TradePair.Token1.Symbol, index.Timestamp, list.Items[0].PriceInUsd.ToString());
-                    return index.Price * double.Parse(index.Token1Amount) * double.Parse(list.Items[0].PriceInUsd.ToString());
+                    _logger.LogInformation("{token1Symbol}, time: {time}, get history price: {price}",
+                        index.TradePair.Token1.Symbol, index.Timestamp, list.Items[0].PriceInUsd.ToString());
+                    return index.Price * double.Parse(index.Token1Amount) *
+                           double.Parse(list.Items[0].PriceInUsd.ToString());
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Get history price failed.");
             }
+
             return 0;
         }
     }

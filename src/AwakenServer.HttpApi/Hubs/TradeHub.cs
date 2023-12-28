@@ -46,11 +46,14 @@ namespace AwakenServer.Hubs
             {
                 ChainId = chain,
                 TradePairId = pairId,
-                TimestampMin = timestamp == 0 ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8)) : timestamp,
+                TimestampMin = timestamp == 0
+                    ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8))
+                    : timestamp,
                 SkipCount = 0,
                 MaxResultCount = maxResultCount
             });
-            _logger.LogInformation("RequestTradeRecord TimestampMin: {timestamp}", timestamp == 0 ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8)) : timestamp);
+            _logger.LogInformation("RequestTradeRecord TimestampMin: {timestamp}",
+                timestamp == 0 ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8)) : timestamp);
             await Clients.Caller.SendAsync("ReceiveTradeRecords", new TradeRecordModel<List<TradeRecordIndexDto>>
             {
                 ChainId = chain,
@@ -66,13 +69,13 @@ namespace AwakenServer.Hubs
             await TryRemoveFromGroupAsync(Context.ConnectionId,
                 _tradeHubGroupProvider.GetTradeRecordGroupName(chain, pairId, timestamp));
         }
-        
+
         public async Task RequestRemovedTradeRecord(string chainId, string tradePairId)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId,
                 _tradeHubGroupProvider.GetRemovedTradeRecordGroupName(chainId, Guid.Parse(tradePairId)));
         }
-        
+
         public async Task UnsubscribeRemovedTradeRecord(string chainId, string tradePairId)
         {
             await TryRemoveFromGroupAsync(Context.ConnectionId,
@@ -87,10 +90,7 @@ namespace AwakenServer.Hubs
             await Groups.AddToGroupAsync(Context.ConnectionId,
                 _tradeHubGroupProvider.GetKlineGroupName(chainId, pairId, period));
 
-            /*
-            _logger.LogInformation("RequestKLine,group:{group}",
-                _tradeHubGroupProvider.GetKlineGroupName(chainId, pairId, period));
-            */
+
             var kLines = await _kLineAppService.GetListAsync(new GetKLinesInput
             {
                 ChainId = chainId,
@@ -99,7 +99,7 @@ namespace AwakenServer.Hubs
                 TimestampMin = timestampMin,
                 TimestampMax = to
             });
-            
+
             await Clients.Caller.SendAsync("ReceiveKLines", new KLineModel<List<KLineDto>>
             {
                 ChainId = chainId,
@@ -129,7 +129,7 @@ namespace AwakenServer.Hubs
             await TryRemoveFromGroupAsync(Context.ConnectionId,
                 _tradeHubGroupProvider.GetTradePairGroupName(chainId));
         }
-        
+
         public async Task RequestTradePairDetail(string tradePairId)
         {
             var pairId = Guid.TryParse(tradePairId, out var tradePairGuid) ? tradePairGuid : Guid.Empty;
@@ -137,7 +137,7 @@ namespace AwakenServer.Hubs
             {
                 return;
             }
-            
+
             var tradePairIndexDto = await _tradePairAppService.GetAsync(pairId);
             if (tradePairIndexDto == null)
             {
@@ -145,10 +145,7 @@ namespace AwakenServer.Hubs
             }
 
             await Clients.Caller.SendAsync("ReceiveTradePairDetail", tradePairIndexDto);
-            /*_logger.LogInformation(
-                "RequestTradePairDetail,tradePairId:{tradePairId},clientId:{clientid},groupName:{gruop}", tradePairId,
-                Context.ConnectionId, _tradeHubGroupProvider.GetTradePairDetailName(tradePairId));*/
-            
+
             await Groups.AddToGroupAsync(Context.ConnectionId,
                 _tradeHubGroupProvider.GetTradePairDetailName(tradePairId));
         }
@@ -159,46 +156,50 @@ namespace AwakenServer.Hubs
                 _tradeHubGroupProvider.GetTradePairDetailName(tradePairId));
         }
 
-        public async Task RequestUserTradeRecord(string chainId, string tradePairId, string address, long timestamp, int maxResultCount)
+        public async Task RequestUserTradeRecord(string chainId, string tradePairId, string address, long timestamp,
+            int maxResultCount)
         {
             var pairId = Guid.Parse(tradePairId);
 
-            _tradeHubConnectionProvider.AddUserConnection(chainId, pairId, address, timestamp, Context.ConnectionId);
+            _tradeHubConnectionProvider.AddUserConnection(chainId, pairId, address, Context.ConnectionId);
             var records = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
             {
                 ChainId = chainId,
                 TradePairId = pairId,
                 Address = address,
-                TimestampMin = timestamp == 0 ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8)) : timestamp,
+                TimestampMin = timestamp == 0
+                    ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8))
+                    : timestamp,
                 SkipCount = 0,
                 MaxResultCount = maxResultCount
             });
-            /*
-            _logger.LogInformation("RequestUserTradeRecord TimestampMin: {timestamp}", timestamp == 0 ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8)) : timestamp);
-            */
-            await Clients.Caller.SendAsync("ReceiveUserTradeRecords", new UserTradeRecordModel<List<TradeRecordIndexDto>>
-            {
-                ChainId = chainId,
-                TradePairId = pairId,
-                Address = address,
-                Data = records.Items.ToList()
-            });
+
+            await Clients.Caller.SendAsync("ReceiveUserTradeRecords",
+                new UserTradeRecordModel<List<TradeRecordIndexDto>>
+                {
+                    ChainId = chainId,
+                    TradePairId = pairId,
+                    Address = address,
+                    Data = records.Items.ToList()
+                });
         }
-        
+
         public async Task UnsubscribeUserTradeRecord(string chainId, string tradePairId, string address, long timestamp)
         {
             var pairId = Guid.Parse(tradePairId);
             _tradeHubConnectionProvider.ClearUserConnection(chainId, pairId, address, timestamp, Context.ConnectionId);
         }
-        
+
         public async Task RequestRemovedUserTradeRecord(string chainId, string tradePairId, string address)
         {
-            _tradeHubConnectionProvider.AddRemovedUserConnection(chainId, Guid.Parse(tradePairId), address, Context.ConnectionId);
+            _tradeHubConnectionProvider.AddRemovedUserConnection(chainId, Guid.Parse(tradePairId), address,
+                Context.ConnectionId);
         }
-        
+
         public async Task UnsubscribeRemovedUserTradeRecord(string chainId, string tradePairId, string address)
         {
-            _tradeHubConnectionProvider.ClearRemovedUserConnection(chainId, Guid.Parse(tradePairId), address, Context.ConnectionId);
+            _tradeHubConnectionProvider.ClearRemovedUserConnection(chainId, Guid.Parse(tradePairId), address,
+                Context.ConnectionId);
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
@@ -214,13 +215,13 @@ namespace AwakenServer.Hubs
             {
                 await TryRemoveFromGroupAsync(Context.ConnectionId, group);
             }
-            
+
             var tradePairGroups = _tradeHubGroupProvider.GetAllTradePairGroup();
             foreach (var group in tradePairGroups)
             {
                 await TryRemoveFromGroupAsync(Context.ConnectionId, group);
             }
-            
+
             _tradeHubConnectionProvider.ClearUserConnection(Context.ConnectionId);
             _tradeHubConnectionProvider.ClearRemovedUserConnection(Context.ConnectionId);
 

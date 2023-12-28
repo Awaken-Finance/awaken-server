@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using AElf.Client.MultiToken;
 using AwakenServer.Chains;
 using AwakenServer.Tokens;
 using AwakenServer.Web3;
@@ -41,6 +42,11 @@ namespace AwakenServer.Applications.GameOfTrust
         }
 
         public Task<T> QueryAsync<TFunctionMessage, T>(string chainName, string address) where TFunctionMessage : FunctionMessage, new()
+        {
+            throw new System.NotImplementedException();
+        }
+        public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address, string contractAddress,
+            string symbol)
         {
             throw new System.NotImplementedException();
         }

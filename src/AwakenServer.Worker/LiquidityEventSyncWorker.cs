@@ -15,7 +15,6 @@ namespace AwakenServer.Worker;
  */
 public class LiquidityEventSyncWorker : AsyncPeriodicBackgroundWorkerBase
 {
-    
     private readonly IChainAppService _chainAppService;
     private readonly IGraphQLProvider _graphQlProvider;
     private readonly ILiquidityAppService _liquidityService;
@@ -39,14 +38,12 @@ public class LiquidityEventSyncWorker : AsyncPeriodicBackgroundWorkerBase
         foreach (var chain in chains.Items)
         {
             var lastEndHeight = await _graphQlProvider.GetLastEndHeightAsync(chain.Name, QueryType.Liquidity);
-            var newIndexHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Name);
-            if (lastEndHeight >= newIndexHeight)
-            {
-                continue;
-            }
+
 
             var queryList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Name, lastEndHeight + 1, 0);
-            _logger.LogInformation("liquidity event sync, queryList count: {count}, lastEndHeight: {lastEndHeight}, newIndexHeight: {newIndexHeight}", queryList.Count, lastEndHeight, newIndexHeight);
+            _logger.LogInformation(
+                "liquidity event sync, queryList count: {count}, lastEndHeight: {lastEndHeight}",
+                queryList.Count, lastEndHeight);
             try
             {
                 long blockHeight = -1;

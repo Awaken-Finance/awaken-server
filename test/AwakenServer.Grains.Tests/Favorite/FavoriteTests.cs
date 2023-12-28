@@ -9,7 +9,7 @@ public class FavoriteTests : AwakenServerGrainTestBase
 {
     private Guid TradePairId = Guid.NewGuid();
     private const string Address = "NewtAddress";
-    
+
     [Fact]
     public async Task FavoriteGrainTest()
     {
@@ -30,12 +30,12 @@ public class FavoriteTests : AwakenServerGrainTestBase
         result = await grain.CreateAsync(dto);
         result.Success.ShouldBeFalse();
         result.Message.ShouldContain("Favorite already existed");
-        
+
         //getList
         var list = await grain.GetListAsync();
         list.Success.ShouldBeTrue();
         list.Data.Count.ShouldBe(1);
-        
+
         //delete
         result = await grain.DeleteAsync("-");
         result.Success.ShouldBeFalse();

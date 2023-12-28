@@ -259,17 +259,10 @@ namespace AwakenServer.Trade
 
             var tradePair = ObjectMapper.Map<Index.TradePair, TradePairDto>(result);
 
-            var marketData =
-                await _tradePairMarketDataProvider.GetLatestTradePairMarketDataAsync(input.ChainId, input.TradePairId);
+          
             var timestamp = DateTimeHelper.FromUnixTimeMilliseconds(input.Timestamp);
             var price = double.Parse(input.Token1Amount) / double.Parse(input.Token0Amount);
-
-            /*if (marketData == null || marketData.Timestamp < timestamp)
-            {
-                await _tokenPriceProvider.UpdatePriceAsync(input.ChainId, tradePair.Token0Id, tradePair.Token1Id,
-                    price);
-            }*/
-
+            
             var priceUSD0 = await _tokenPriceProvider.GetTokenUSDPriceAsync(tradePair.ChainId, tradePair.Token0Symbol);
             var priceUSD1 = await _tokenPriceProvider.GetTokenUSDPriceAsync(tradePair.ChainId, tradePair.Token1Symbol);
             var tvl = priceUSD0 * double.Parse(input.Token0Amount) + priceUSD1 * double.Parse(input.Token1Amount);

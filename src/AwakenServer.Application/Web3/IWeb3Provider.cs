@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Threading.Tasks;
+using AElf.Client.MultiToken;
 using AwakenServer.Chains;
 using AwakenServer.Tokens;
 using AwakenServer.Web3.FunctionMessages;
@@ -148,5 +149,13 @@ namespace AwakenServer.Web3
             var contractHandler = web3.Eth.GetContractHandler(address);
             return await contractHandler.QueryAsync<TFunctionMessage, T>();
         }
+
+        public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address, string contractAddress,
+            string symbol)
+        {
+            throw new NotImplementedException();
+        }
+
+        
     }
 }

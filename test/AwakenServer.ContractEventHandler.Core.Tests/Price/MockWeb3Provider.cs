@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using AElf.Client.MultiToken;
 using AwakenServer.Chains;
 using AwakenServer.ContractEventHandler.Price.Processors;
 using AwakenServer.Tokens;
@@ -54,6 +55,12 @@ namespace AwakenServer.Price
             if (typeof(TFunctionMessage) == typeof(Token0Function)) return Task.FromResult((T)"0xBTC".Clone());
             if (typeof(TFunctionMessage) == typeof(Token1Function)) return Task.FromResult((T)"0xETH".Clone());
             return null;
+        }
+        
+        public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address, string contractAddress,
+            string symbol)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

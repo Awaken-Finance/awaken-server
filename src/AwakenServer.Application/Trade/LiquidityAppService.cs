@@ -91,8 +91,8 @@ namespace AwakenServer.Trade
                 bool isReversed = indexDto.TradePair.Token0.Symbol == recordDto.Token1;
                 if (isReversed)
                 {
-                    indexDto.Token0Amount = recordDto.Token0Amount.ToDecimalsString(indexDto.TradePair.Token1.Decimals);
-                    indexDto.Token1Amount = recordDto.Token1Amount.ToDecimalsString(indexDto.TradePair.Token0.Decimals);
+                    indexDto.Token0Amount = recordDto.Token1Amount.ToDecimalsString(indexDto.TradePair.Token1.Decimals);
+                    indexDto.Token1Amount = recordDto.Token0Amount.ToDecimalsString(indexDto.TradePair.Token0.Decimals);
                 }
                 else
                 {

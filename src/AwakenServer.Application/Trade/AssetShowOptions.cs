@@ -6,4 +6,6 @@ public class AssetShowOptions
 {
     public List<string> ShowList { get; set; }
     public long TransactionFee { get; set; }
+    
+    public string DefaultSymbol { get; set; }
 }

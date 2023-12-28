@@ -172,16 +172,7 @@ namespace AwakenServer.Trade
                 Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-2))
             };
             await _tradePairAppService.UpdateLiquidityAsync(newLiquidity);
-
-            // var ssTime = DateTimeHelper.ToUnixTimeMilliseconds(_tradePairMarketDataProvider.GetSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(newLiquidity.Timestamp)));
-            // var marketDataGrain = Cluster.Client.GetGrain<ITradePairMarketDataSnapshotGrain>($"{newLiquidity.ChainId}-{newLiquidity.TradePairId}-{ssTime}");
-            // var marketDataResult = await marketDataGrain.GetAsync();
-            // var marketData = marketDataResult.Data;
-            // marketData.Price.ShouldBe(100);
-            // marketData.PriceUSD.ShouldBe(100);
-            // marketData.TVL.ShouldBe(20000);
-            // marketData.ValueLocked0.ShouldBe(100);
-            // marketData.ValueLocked1.ShouldBe(10000);
+            
 
             var snapshotTime =
                 _tradePairMarketDataProvider.GetSnapshotTime(
@@ -190,15 +181,15 @@ namespace AwakenServer.Trade
                 q.Term(i => i.Field(f => f.TradePairId).Value(newLiquidity.TradePairId)) &&
                 q.Term(i => i.Field(f => f.Timestamp).Value(snapshotTime)));
             marketDataSnapshot.Price.ShouldBe(100);
-            marketDataSnapshot.PriceUSD.ShouldBe(0);
-            marketDataSnapshot.TVL.ShouldBe(0);
+            marketDataSnapshot.PriceUSD.ShouldBe(100);
+            marketDataSnapshot.TVL.ShouldBe(10000);
             marketDataSnapshot.ValueLocked0.ShouldBe(100);
             marketDataSnapshot.ValueLocked1.ShouldBe(10000);
 
             var pair = await _tradePairIndexRepository.GetAsync(newLiquidity.TradePairId);
             pair.Price.ShouldBe(100);
-            pair.PriceUSD.ShouldBe(0);
-            pair.TVL.ShouldBe(0);
+            pair.PriceUSD.ShouldBe(100);
+            pair.TVL.ShouldBe(10000);
             pair.ValueLocked0.ShouldBe(100);
             pair.ValueLocked1.ShouldBe(10000);
             pair.PricePercentChange24h.ShouldBe(0);
@@ -217,28 +208,21 @@ namespace AwakenServer.Trade
             snapshotTime =
                 _tradePairMarketDataProvider.GetSnapshotTime(
                     DateTimeHelper.FromUnixTimeMilliseconds(newLiquidity2.Timestamp));
-            // marketDataResult = await marketDataGrain.GetAsync();
-            // marketData = marketDataResult.Data;
-            // marketData.Price.ShouldBe(100);
-            // marketData.PriceUSD.ShouldBe(100);
-            // marketData.TVL.ShouldBe(20000);
-            // marketData.ValueLocked0.ShouldBe(100);
-            // marketData.ValueLocked1.ShouldBe(10000);
-
+          
             marketDataSnapshot = await _tradePairSnapshotIndexRepository.GetAsync(q =>
                 q.Term(i => i.Field(f => f.TradePairId).Value(newLiquidity.TradePairId)) &&
                 q.Term(i => i.Field(f => f.Timestamp)
                     .Value(snapshotTime)));
             marketDataSnapshot.Price.ShouldBe(110);
-            marketDataSnapshot.PriceUSD.ShouldBe(0);
-            marketDataSnapshot.TVL.ShouldBe(0);
+            marketDataSnapshot.PriceUSD.ShouldBe(110);
+            marketDataSnapshot.TVL.ShouldBe(22000);
             marketDataSnapshot.ValueLocked0.ShouldBe(200);
             marketDataSnapshot.ValueLocked1.ShouldBe(22000);
 
             pair = await _tradePairIndexRepository.GetAsync(newLiquidity.TradePairId);
             pair.Price.ShouldBe(110);
-            pair.PriceUSD.ShouldBe(0);
-            pair.TVL.ShouldBe(0);
+            pair.PriceUSD.ShouldBe(110);
+            pair.TVL.ShouldBe(22000);
             pair.ValueLocked0.ShouldBe(200);
             pair.ValueLocked1.ShouldBe(22000);
 
@@ -255,28 +239,22 @@ namespace AwakenServer.Trade
             snapshotTime =
                 _tradePairMarketDataProvider.GetSnapshotTime(
                     DateTimeHelper.FromUnixTimeMilliseconds(newLiquidity3.Timestamp));
-            // marketDataResult = await marketDataGrain.GetAsync();
-            // marketData = marketDataResult.Data;
-            // marketData.Price.ShouldBe(100);
-            // marketData.PriceUSD.ShouldBe(100);
-            // marketData.TVL.ShouldBe(20000);
-            // marketData.ValueLocked0.ShouldBe(100);
-            // marketData.ValueLocked1.ShouldBe(10000);
+           
 
             marketDataSnapshot = await _tradePairSnapshotIndexRepository.GetAsync(q =>
                 q.Term(i => i.Field(f => f.TradePairId).Value(newLiquidity.TradePairId)) &&
                 q.Term(i => i.Field(f => f.Timestamp)
                     .Value(snapshotTime)));
             marketDataSnapshot.Price.ShouldBe(120);
-            marketDataSnapshot.PriceUSD.ShouldBe(0);
-            marketDataSnapshot.TVL.ShouldBe(0);
+            marketDataSnapshot.PriceUSD.ShouldBe(120);
+            marketDataSnapshot.TVL.ShouldBe(12000);
             marketDataSnapshot.ValueLocked0.ShouldBe(100);
             marketDataSnapshot.ValueLocked1.ShouldBe(12000);
 
             pair = await _tradePairIndexRepository.GetAsync(newLiquidity.TradePairId);
             pair.Price.ShouldBe(110);
-            pair.PriceUSD.ShouldBe(0);
-            pair.TVL.ShouldBe(0);
+            pair.PriceUSD.ShouldBe(110);
+            pair.TVL.ShouldBe(22000);
             pair.ValueLocked0.ShouldBe(200);
             pair.ValueLocked1.ShouldBe(22000);
 
@@ -293,23 +271,15 @@ namespace AwakenServer.Trade
             snapshotTime =
                 _tradePairMarketDataProvider.GetSnapshotTime(
                     DateTimeHelper.FromUnixTimeMilliseconds(newLiquidity4.Timestamp));
-            // marketDataResult = await marketDataGrain.GetAsync();
-            // marketData = marketDataResult.Data;
-            // marketData.Price.ShouldBe(100);
-            // marketData.PriceUSD.ShouldBe(100);
-            // marketData.TVL.ShouldBe(20000);
-            // marketData.ValueLocked0.ShouldBe(100);
-            // marketData.ValueLocked1.ShouldBe(10000);
-            // marketData.PriceHigh.ShouldBe(100);
-            // marketData.PriceLow.ShouldBe(100);
+           
 
             marketDataSnapshot = await _tradePairSnapshotIndexRepository.GetAsync(q =>
                 q.Term(i => i.Field(f => f.TradePairId).Value(newLiquidity.TradePairId)) &&
                 q.Term(i => i.Field(f => f.Timestamp)
                     .Value(snapshotTime)));
             marketDataSnapshot.Price.ShouldBe(60);
-            marketDataSnapshot.PriceUSD.ShouldBe(0);
-            marketDataSnapshot.TVL.ShouldBe(0);
+            marketDataSnapshot.PriceUSD.ShouldBe(60);
+            marketDataSnapshot.TVL.ShouldBe(12000);
             marketDataSnapshot.ValueLocked0.ShouldBe(200);
             marketDataSnapshot.ValueLocked1.ShouldBe(12000);
             marketDataSnapshot.PriceHigh.ShouldBe(120);
@@ -317,8 +287,8 @@ namespace AwakenServer.Trade
 
             pair = await _tradePairIndexRepository.GetAsync(newLiquidity.TradePairId);
             pair.Price.ShouldBe(110);
-            pair.PriceUSD.ShouldBe(0);
-            pair.TVL.ShouldBe(0);
+            pair.PriceUSD.ShouldBe(110);
+            pair.TVL.ShouldBe(22000);
             pair.ValueLocked0.ShouldBe(200);
             pair.ValueLocked1.ShouldBe(22000);
         }
@@ -326,7 +296,6 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task UpdateTradePairTest()
         {
-            //await _tradePairAppService.UpdateTradePairAsync(TradePairEthUsdtId);
 
             var tradePair = await _tradePairAppService.GetAsync(TradePairEthUsdtId);
             tradePair.Price.ShouldBe(0);
