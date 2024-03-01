@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using AwakenServer.Chains;
 using AwakenServer.Provider;
@@ -44,8 +45,6 @@ public class TradePairSyncWorker : AsyncPeriodicBackgroundWorkerBase
                     pair.Id, chain.Name, pair.Token0Symbol, pair.Token1Symbol);
                 await _tradePairAppService.SyncTokenAsync(pair, chain);
                 await _tradePairAppService.SyncPairAsync(pair, chain);
-                //this is important, beacuse of the es sync time 
-                await Task.Delay(5000);
             }
         }
     }

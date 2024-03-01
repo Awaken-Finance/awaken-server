@@ -31,34 +31,27 @@ namespace AwakenServer.Trade.Handlers
 
         public async Task HandleEventAsync(NewLiquidityRecordEvent eventData)
         {
-            
             var lpAmount = BigDecimal.Parse(eventData.LpTokenAmount);
             lpAmount = eventData.Type == LiquidityType.Mint ? lpAmount : -lpAmount;
             var token = await GetTokenInfoAsync(eventData);
-            var supply = "";
-            if (token != null)
-                
-            {
-                supply = token.Supply.ToDecimalsString(token.Decimals);;
-            }
+            var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "";
 
+            _logger.LogInformation("NewLiquidityRecordEvent,supply:{supply}", supply);
             await _tradePairMarketDataProvider.UpdateTotalSupplyAsync(eventData.ChainId, eventData.TradePairId,
                 eventData.Timestamp, lpAmount, supply);
         }
-        
-        
+
+
         private async Task<TokenInfo> GetTokenInfoAsync(NewLiquidityRecordEvent eventData)
         {
             try
             {
                 var tradePairIndexDto = await _tradePairAppService.GetAsync(eventData.TradePairId);
-                if (tradePairIndexDto == null)
-                {
-                    return null;
-                }
 
-                if (_contractsTokenOptions.Contracts.TryGetValue(tradePairIndexDto.FeeRate.ToString(), out var address) ==
-                    false)
+
+                if (tradePairIndexDto == null || !_contractsTokenOptions.Contracts.TryGetValue(
+                        tradePairIndexDto.FeeRate.ToString(),
+                        out var address))
                 {
                     return null;
                 }

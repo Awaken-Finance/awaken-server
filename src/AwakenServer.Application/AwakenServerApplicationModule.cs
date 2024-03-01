@@ -63,6 +63,7 @@ namespace AwakenServer
             Configure<GraphQLOptions>(configuration.GetSection("GraphQL"));
             Configure<CmsOptions>(configuration.GetSection("Cms"));
             Configure<AssetWhenNoTransactionOptions>(configuration.GetSection("AssetWhenNoTransaction"));
+            Configure<ContractsTokenOptions>(configuration.GetSection("ContractsTokenOptions"));
 
 
             context.Services.AddTransient<IBlockchainClientProvider, AElfClientProvider>();

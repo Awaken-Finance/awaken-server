@@ -31,6 +31,7 @@ namespace AwakenServer.Trade
         private const string ASC = "asc";
         private const string ASCEND = "ascend";
         private const string ASSETUSD = "assetusd";
+        private const string BTCSymbol = "BTC";
 
         public LiquidityAppService(
             ITokenPriceProvider tokenPriceProvider,
@@ -72,7 +73,7 @@ namespace AwakenServer.Trade
                     TotalCount = queryResult.TotalCount
                 };
             }
-            
+
             var pairAddresses = queryResult.Data.Select(i => i.Pair).Distinct().ToList();
             var pairs =
                 (await _tradePairAppService.GetListAsync(input.ChainId, pairAddresses)).GroupBy(t => t.Address)
@@ -88,7 +89,8 @@ namespace AwakenServer.Trade
                 {
                     continue;
                 }
-                bool isReversed = indexDto.TradePair.Token0.Symbol == recordDto.Token1;
+
+                var isReversed = indexDto.TradePair.Token0.Symbol == recordDto.Token1;
                 if (isReversed)
                 {
                     indexDto.Token0Amount = recordDto.Token1Amount.ToDecimalsString(indexDto.TradePair.Token1.Decimals);
@@ -99,11 +101,14 @@ namespace AwakenServer.Trade
                     indexDto.Token0Amount = recordDto.Token0Amount.ToDecimalsString(indexDto.TradePair.Token0.Decimals);
                     indexDto.Token1Amount = recordDto.Token1Amount.ToDecimalsString(indexDto.TradePair.Token1.Decimals);
                 }
+
                 indexDto.LpTokenAmount = recordDto.LpTokenAmount.ToDecimalsString(8);
                 indexDto.TransactionFee =
-                   await _aelfClientProvider.GetTransactionFeeAsync(qlQueryInput.ChainId, recordDto.TransactionHash) / Math.Pow(10, 8);
+                    await _aelfClientProvider.GetTransactionFeeAsync(qlQueryInput.ChainId, recordDto.TransactionHash) /
+                    Math.Pow(10, 8);
                 dataList.Add(indexDto);
             }
+
             return new PagedResultDto<LiquidityRecordIndexDto>
             {
                 TotalCount = queryResult.TotalCount,
@@ -115,7 +120,7 @@ namespace AwakenServer.Trade
         {
             var result = dataList;
             if (string.IsNullOrWhiteSpace(sorting)) return result;
-            
+
             var sortingArray = sorting.Trim().ToLower().Split(" ", StringSplitOptions.RemoveEmptyEntries);
             switch (sortingArray.Length)
             {
@@ -126,6 +131,7 @@ namespace AwakenServer.Trade
                             result = dataList.OrderBy(o => o.AssetUSD).ToList();
                             break;
                     }
+
                     break;
                 case 2:
                     switch (sortingArray[0])
@@ -136,6 +142,7 @@ namespace AwakenServer.Trade
                                 : dataList.OrderBy(o => o.AssetUSD).Reverse().ToList();
                             break;
                     }
+
                     break;
             }
 
@@ -145,7 +152,7 @@ namespace AwakenServer.Trade
         public async Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityAsync(GetUserLiquidityInput input)
         {
             var dataList = new List<UserLiquidityIndexDto>();
-            
+
             var queryResult = await _graphQlProvider.QueryUserLiquidityAsync(input);
             if (queryResult.TotalCount == 0 || queryResult.Data.IsNullOrEmpty())
             {
@@ -170,12 +177,22 @@ namespace AwakenServer.Trade
                 {
                     continue;
                 }
+
                 indexDto.TradePair = tradePairIndex;
                 indexDto.LpTokenAmount = dto.LpTokenAmount.ToDecimalsString(8);
 
-                var prop = tradePairIndex.TotalSupply == null || tradePairIndex.TotalSupply == "0" ? 0 : dto.LpTokenAmount / double.Parse(tradePairIndex.TotalSupply);
-                indexDto.Token0Amount = ((long)(prop * tradePairIndex.ValueLocked0)).ToDecimalsString(8);
-                indexDto.Token1Amount = ((long)(prop * tradePairIndex.ValueLocked1)).ToDecimalsString(8);
+                var prop = tradePairIndex.TotalSupply == null || tradePairIndex.TotalSupply == "0"
+                    ? 0
+                    : dto.LpTokenAmount / double.Parse(tradePairIndex.TotalSupply);
+                _logger.LogInformation("User liquidity token0 decimal:{token0Decimal},token1 decimal:{token1Decimal}",
+                    tradePairIndex.Token0.Decimals, tradePairIndex.Token1.Decimals);
+                indexDto.Token0Amount = tradePairIndex.Token0.Decimals == 0
+                    ? Math.Floor(prop / Math.Pow(10, 8) * tradePairIndex.ValueLocked0).ToString()
+                    : ((long)(prop * tradePairIndex.ValueLocked0)).ToDecimalsString(8);
+                indexDto.Token1Amount = tradePairIndex.Token1.Decimals == 0
+                    ? Math.Floor(prop / Math.Pow(10, 8) * tradePairIndex.ValueLocked1).ToString()
+                    : ((long)(prop * tradePairIndex.ValueLocked1)).ToDecimalsString(8);
+
                 indexDto.AssetUSD = tradePairIndex.TVL * prop / Math.Pow(10, 8);
                 dataList.Add(indexDto);
             }
@@ -212,11 +229,12 @@ namespace AwakenServer.Trade
                 {
                     continue;
                 }
+
                 var totalSupply = double.Parse(pair.TotalSupply);
                 asset += pair.TVL * double.Parse(liquidity.LpTokenAmount.ToDecimalsString(8)) / totalSupply;
             }
-            
-            var btcPrice = await _tokenPriceProvider.GetTokenUSDPriceAsync(input.ChainId, "BTC");
+
+            var btcPrice = await _tokenPriceProvider.GetTokenUSDPriceAsync(input.ChainId, BTCSymbol);
             return new UserAssetDto
             {
                 AssetUSD = asset,
@@ -230,10 +248,12 @@ namespace AwakenServer.Trade
 
         public async Task CreateAsync(LiquidityRecordDto input)
         {
-            var grain = _clusterClient.GetGrain<ILiquiditySyncGrain>(GrainIdHelper.GenerateGrainId(input.ChainId, input.BlockHeight));
+            var grain = _clusterClient.GetGrain<ILiquiditySyncGrain>(
+                GrainIdHelper.GenerateGrainId(input.ChainId, input.BlockHeight));
             if (await grain.ExistTransactionHashAsync(input.TransactionHash))
             {
-                _logger.LogInformation("liquidity event transactionHash existed:{transactionHash}", input.TransactionHash);
+                _logger.LogInformation("liquidity event transactionHash existed:{transactionHash}",
+                    input.TransactionHash);
                 return;
             }
 
@@ -241,7 +261,8 @@ namespace AwakenServer.Trade
             var tradePair = await _tradePairAppService.GetTradePairAsync(input.ChainId, input.Pair);
             if (tradePair == null)
             {
-                _logger.LogInformation("tradePair not existed,chainId:{chainId},address:{address}", input.ChainId, input.Pair);
+                _logger.LogInformation("tradePair not existed,chainId:{chainId},address:{address}", input.ChainId,
+                    input.Pair);
                 throw new Exception("tradePair not existed");
             }
 
