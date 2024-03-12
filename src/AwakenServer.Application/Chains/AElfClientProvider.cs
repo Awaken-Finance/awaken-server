@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf;
@@ -9,6 +10,7 @@ using AElf.Types;
 using AwakenServer.Tokens;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
+using Volo.Abp;
 
 namespace AwakenServer.Chains
 {
@@ -66,7 +68,8 @@ namespace AwakenServer.Chains
                 Symbol = symbol
             };
             var transactionGetToken =
-                await client.GenerateTransactionAsync(client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey), address,
+                await client.GenerateTransactionAsync(client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey),
+                    address,
                     "GetTokenInfo",
                     paramGetBalance);
             var txWithSignGetToken = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetToken);
@@ -83,13 +86,25 @@ namespace AwakenServer.Chains
         {
             try
             {
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
+
                 var client = _blockchainClientFactory.GetClient(chainName);
                 var result = await client.GetTransactionResultAsync(transactionId);
                 if (result == null)
                 {
                     return 0;
                 }
-                var transactionFeeCharged = TransactionFeeCharged.Parser.ParseFrom(ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
+
+
+                var transactionFeeCharged = TransactionFeeCharged.Parser.ParseFrom(
+                    ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
+
+                stopwatch.Stop();
+                TimeSpan elapsedTime = stopwatch.Elapsed;
+                _logger.LogInformation("get transaction elapsedTime:{time}，transactionId:{id}",
+                    elapsedTime.TotalMilliseconds, transactionId);
+
                 return transactionFeeCharged.Amount;
             }
             catch (Exception e)
@@ -102,7 +117,15 @@ namespace AwakenServer.Chains
         public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address,
             string contractAddress, string symbol)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             var client = _blockchainClientFactory.GetClient(chainName);
+            if (client == null)
+            {
+                _logger.LogError("client is null,chainName:{chainName}", chainName);
+                throw new UserFriendlyException("client is null");
+            }
+
             var paramGetBalance = new GetBalanceInput()
             {
                 Symbol = symbol,
@@ -116,12 +139,19 @@ namespace AwakenServer.Chains
                     contractAddress,
                     "GetBalance",
                     paramGetBalance);
+
+
             var txWithSignGetBalance = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetBalance);
+            _logger.LogInformation("tnx:{t}", txWithSignGetBalance.ToByteArray().ToHex());
             var transactionGetTokenResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
             {
                 RawTransaction = txWithSignGetBalance.ToByteArray().ToHex()
             });
-
+            stopwatch.Stop();
+            TimeSpan elapsedTime = stopwatch.Elapsed;
+            _logger.LogInformation(
+                "get balance address:{address} elapsedTime:{time},chainIdName:{chainName},symbol:{symbol}",
+                address, elapsedTime.TotalSeconds, chainName, symbol);
             return GetBalanceOutput.Parser.ParseFrom(ByteArrayHelper.HexStringToByteArray(transactionGetTokenResult));
         }
 
@@ -140,7 +170,7 @@ namespace AwakenServer.Chains
                        && (result.Status.Equals(TransactionResultStatus.Pending.ToString(),
                                StringComparison.OrdinalIgnoreCase)
                            || result.Status.Equals(TransactionResultStatus.Mined.ToString(),
-                               StringComparison.OrdinalIgnoreCase) 
+                               StringComparison.OrdinalIgnoreCase)
                            || result.Status.Equals(TransactionResultStatus.PendingValidation.ToString(),
                                StringComparison.OrdinalIgnoreCase))
                     ? 1
@@ -148,7 +178,8 @@ namespace AwakenServer.Chains
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Get the current status of a transaction {chainName}:{transactionHash} fail.", chainName, transactionHash);
+                _logger.LogError(e, "Get the current status of a transaction {chainName}:{transactionHash} fail.",
+                    chainName, transactionHash);
                 return -1;
             }
         }

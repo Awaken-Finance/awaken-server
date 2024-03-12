@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -147,21 +148,25 @@ public class AssetAppService : ApplicationService, IAssetAppService
     private async Task AddNftTokenInfoAsync(List<UserTokenInfo> list, string chainId, string address)
     {
         var userTokenInfosDic = list.ToDictionary(key => key.Symbol);
-        foreach (var nftSymbol in _assetShowOptions.NftList)
+
+        var concurrentList = new ConcurrentBag<UserTokenInfo>();
+        await Task.WhenAll(_assetShowOptions.NftList.Select(async nftSymbol =>
         {
             if (!userTokenInfosDic.ContainsKey(nftSymbol))
             {
-                var balanceOutput = await _aelfClientProvider.GetBalanceAsync(chainId, address,
-                    _assetWhenNoTransactionOptions.ContractAddressOfGetBalance[chainId], nftSymbol);
-
-                if (balanceOutput.Balance == 0)
+                try
                 {
-                    continue;
-                }
+                    var balanceOutput = await Task.Run(() => _aelfClientProvider.GetBalanceAsync(chainId, address,
+                        _assetWhenNoTransactionOptions.ContractAddressOfGetBalance[chainId], nftSymbol));
+                    _logger.LogInformation("get balance address:{address},token:{token},,balance:{balance}", address,
+                        nftSymbol,
+                        balanceOutput == null ? 0 : balanceOutput.Balance);
+                    if (balanceOutput == null || balanceOutput.Balance == 0)
+                    {
+                        return;
+                    }
 
-                _logger.LogInformation("get balance,token:{token},balance:{balance}", nftSymbol, balanceOutput.Balance);
-                if (balanceOutput != null)
-                {
+
                     var userTokenInfo = new UserTokenInfo()
                     {
                         Balance = balanceOutput.Balance,
@@ -169,11 +174,20 @@ public class AssetAppService : ApplicationService, IAssetAppService
                         ChainId = chainId,
                         Address = address,
                     };
+
                     await SetUserTokenInfoAsync(userTokenInfo, 0);
-                    list.Add(userTokenInfo);
+                    concurrentList.Add(userTokenInfo);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "get balance from node err,token:{token},chanId:{chainId},address:{address}",
+                        nftSymbol, chainId, address);
+                    throw new UserFriendlyException("Internal service error, place try again later.");
                 }
             }
-        }
+        }));
+
+        list.AddRange(concurrentList);
     }
 
     private async Task<UserAssetInfoDto> GetAssetFromCacheOrAElfAsync(string chainId, string address)
