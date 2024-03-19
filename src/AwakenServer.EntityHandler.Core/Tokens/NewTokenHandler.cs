@@ -12,12 +12,12 @@ using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.ContractEventHandler.Tokens;
 
-public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransientDependency
+public class NewTokenHandler : IDistributedEventHandler<NewTokenEvent>, ITransientDependency
 {
     private readonly INESTRepository<Token, Guid> _tokenIndexRepository;
     private readonly IObjectMapper _objectMapper;
     private readonly ILogger<NewTokenHandler> _logger;
-    
+
     public NewTokenHandler(INESTRepository<Token, Guid> tokenIndexRepository,
         IObjectMapper objectMapper,
         ILogger<NewTokenHandler> logger)
@@ -26,13 +26,13 @@ public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransient
         _objectMapper = objectMapper;
         _logger = logger;
     }
-    
+
     public async Task HandleEventAsync(NewTokenEvent eventData)
     {
         try
         {
             await _tokenIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewTokenEvent, Token>(eventData));
-            _logger.LogDebug("Token info add success:{Id}-{Symbol}-{ChainId}", eventData.Id, eventData.Symbol,
+            _logger.LogInformation("TEST1 Token info add success:{Id}-{Symbol}-{ChainId}", eventData.Id, eventData.Symbol,
                 eventData.ChainId);
         }
         catch (Exception ex)
@@ -41,5 +41,4 @@ public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransient
                 eventData.ChainId);
         }
     }
-    
 }

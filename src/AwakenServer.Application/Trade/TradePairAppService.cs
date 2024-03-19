@@ -437,7 +437,7 @@ namespace AwakenServer.Trade
                     Symbol = tokenInfo.Symbol,
                     ChainId = chain.Id
                 });
-                _logger.LogInformation("token created: Id:{id},ChainId:{chainId},Symbol:{symbol},Decimal:{decimal}",
+                _logger.LogInformation("TEST1 token created: Id:{id},ChainId:{chainId},Symbol:{symbol},Decimal:{decimal}",
                     token.Id,
                     token.ChainId, token.Symbol, token.Decimals);
             }
@@ -461,7 +461,7 @@ namespace AwakenServer.Trade
                     Symbol = tokenInfo.Symbol,
                     ChainId = chain.Id
                 });
-                _logger.LogInformation("token created: Id:{id},ChainId:{chainId},Symbol:{symbol},Decimal:{decimal}",
+                _logger.LogInformation("TEST1 token created: Id:{id},ChainId:{chainId},Symbol:{symbol},Decimal:{decimal}",
                     token.Id,
                     token.ChainId, token.Symbol, token.Decimals);
             }
