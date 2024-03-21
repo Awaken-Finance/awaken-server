@@ -29,11 +29,11 @@ public class TradeRecordRevertWorker : AsyncPeriodicBackgroundWorkerBase
 
     protected override async Task DoWorkAsync(PeriodicBackgroundWorkerContext workerContext)
     {
-        // var chains = await _chainAppService.GetListAsync(new GetChainInput());
-        // foreach (var chain in chains.Items)
-        // {
-        //     _logger.LogInformation("revert start, {chainName}", chain.Name);
-        //     await _tradeRecordAppService.RevertAsync(chain.Name);
-        // }
+        var chains = await _chainAppService.GetListAsync(new GetChainInput());
+        foreach (var chain in chains.Items)
+        {
+            _logger.LogInformation("revert start, {chainName}", chain.Name);
+            await _tradeRecordAppService.RevertAsync(chain.Name);
+        }
     }
 }

@@ -2,7 +2,7 @@ namespace AwakenServer.Trade;
 
 public class TradePairConst
 {
-    public const int MaxPageSize = 100;
+    public const int MaxPageSize = 200;
     
     public const int MaxIdsLength = 2048;
 }
