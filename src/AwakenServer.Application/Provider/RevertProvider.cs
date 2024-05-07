@@ -66,8 +66,8 @@ public class RevertProvider : IRevertProvider
             startBlockHeight, confirmedHeight);
                 
         _logger.LogInformation(
-            "got unconfirmed transactions, block height range: {0}-{1}, count: {2}",
-            startBlockHeight, confirmedHeight, unconfirmedTransactions.Count());
+            "got unconfirmed transactions, block height range: {0}-{1}, count: {2}, {3}",
+            startBlockHeight, confirmedHeight, unconfirmedTransactions.Count(), unconfirmedTransactions.Select(s => s.TransactionHash).ToList());
         
         if (unconfirmedTransactions.Count <= 0)
         {
@@ -89,12 +89,12 @@ public class RevertProvider : IRevertProvider
             startBlockHeight, confirmedHeight, confirmedTransactionSet.Count(),
             confirmedTransactionSet.ToList());
         
-        if (confirmedTransactionSet.IsNullOrEmpty())
-        {
-            _logger.LogError("confirmed transactions is empty, block height range {0}-{1}", startBlockHeight,
-                confirmedHeight);
-            return new List<string>();
-        }
+        // if (confirmedTransactionSet.IsNullOrEmpty())
+        // {
+        //     _logger.LogError("confirmed transactions is empty, block height range {0}-{1}", startBlockHeight,
+        //         confirmedHeight);
+        //     return new List<string>();
+        // }
         
         var needDeletedTransactions = unconfirmedTransactions
             .Where(unconfirmed => !confirmedTransactionSet.Contains(unconfirmed.TransactionHash)).ToList();
