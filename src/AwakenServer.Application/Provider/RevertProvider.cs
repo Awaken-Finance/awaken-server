@@ -46,14 +46,14 @@ public class RevertProvider : IRevertProvider
     {
         var unconfirmedTransactionsGrain = _clusterClient.GetGrain<IUnconfirmedTransactionsGrain>(GrainIdHelper.GenerateGrainId(chainId, eventType));
         var confirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chainId);
-        if (blockHeight > confirmedHeight)
-        {
+        // if (blockHeight > confirmedHeight)
+        // {
             await unconfirmedTransactionsGrain.AddAsync(new UnconfirmedTransactionsGrainDto()
             {
                 BlockHeight = blockHeight,
                 TransactionHash = transactionHash,
             });
-        }
+        // }
     }
 
     public async Task<List<string>> GetNeedDeleteTransactionsAsync(EventType eventType, string chainId)
