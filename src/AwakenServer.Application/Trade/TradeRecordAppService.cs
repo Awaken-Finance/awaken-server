@@ -265,7 +265,7 @@ namespace AwakenServer.Trade
             await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
         }
 
-        public async Task<bool> CreateAsync(SwapRecordDto dto)
+        public async Task<bool> CreateAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
@@ -275,7 +275,7 @@ namespace AwakenServer.Trade
                 return true;
             }
             
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
+            await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
 
             var pair = await GetAsync(dto.ChainId, dto.PairAddress);
             if (pair == null)

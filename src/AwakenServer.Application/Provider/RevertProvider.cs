@@ -41,19 +41,18 @@ public class RevertProvider : IRevertProvider
         _revertOptions = tradeRecordOptions.Value;
     }
     
-    public async Task CheckOrAddUnconfirmedTransaction(EventType eventType, string chainId, long blockHeight,
+    public async Task CheckOrAddUnconfirmedTransaction(long currentConfirmedHeight, EventType eventType, string chainId, long blockHeight,
         string transactionHash)
     {
         var unconfirmedTransactionsGrain = _clusterClient.GetGrain<IUnconfirmedTransactionsGrain>(GrainIdHelper.GenerateGrainId(chainId, eventType));
-        var confirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chainId);
-        // if (blockHeight > confirmedHeight)
-        // {
+        if (blockHeight > currentConfirmedHeight)
+        {
             await unconfirmedTransactionsGrain.AddAsync(new UnconfirmedTransactionsGrainDto()
             {
                 BlockHeight = blockHeight,
                 TransactionHash = transactionHash,
             });
-        // }
+        }
     }
 
     public async Task<List<string>> GetNeedDeleteTransactionsAsync(EventType eventType, string chainId)

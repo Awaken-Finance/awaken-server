@@ -1102,7 +1102,7 @@ namespace AwakenServer.Trade
                 {
                     await _tradePairAppService.SyncTokenAsync(pair.ChainId, pair.Token0Symbol, chain);
                     await _tradePairAppService.SyncTokenAsync(pair.ChainId, pair.Token1Symbol, chain);
-                    await _tradePairAppService.SyncPairAsync(pair, chain);
+                    await _tradePairAppService.SyncPairAsync(0,pair, chain);
                 }
 
                 // token需要有2个，tradePair需要有1个

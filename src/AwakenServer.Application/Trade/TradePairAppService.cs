@@ -530,7 +530,7 @@ namespace AwakenServer.Trade
             return tokenDto;
         }
 
-        public async Task<bool> SyncPairAsync(TradePairInfoDto pair, ChainDto chain)
+        public async Task<bool> SyncPairAsync(long currentConfirmedHeight, TradePairInfoDto pair, ChainDto chain)
         {
             if (!Guid.TryParse(pair.Id, out var pairId))
             {
@@ -552,7 +552,7 @@ namespace AwakenServer.Trade
                 }
             }
             
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.TradePairEvent, pair.ChainId, pair.BlockHeight, pair.TransactionHash);
+            await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.TradePairEvent, pair.ChainId, pair.BlockHeight, pair.TransactionHash);
 
             var token0 = await _tokenAppService.GetAsync(new GetTokenInput
             {

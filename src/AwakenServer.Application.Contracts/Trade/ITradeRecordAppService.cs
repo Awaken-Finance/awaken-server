@@ -17,7 +17,7 @@ namespace AwakenServer.Trade
 
         Task CreateAsync(TradeRecordCreateDto input);
 
-        Task<bool> CreateAsync(SwapRecordDto dto);
+        Task<bool> CreateAsync(long currentConfirmedHeight, SwapRecordDto dto);
 
         Task FillRecord(SwapRecordDto dto);
         

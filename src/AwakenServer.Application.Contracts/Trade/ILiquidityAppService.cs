@@ -16,7 +16,7 @@ namespace AwakenServer.Trade
 
         Task<UserAssetDto> GetUserAssetAsync(GetUserAssertInput input);
         
-        Task CreateAsync(LiquidityRecordDto input);
+        Task CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input);
 
         Task RevertLiquidityAsync(string chainId);
 
