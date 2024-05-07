@@ -41,13 +41,14 @@ public class TradeRecordEventSwapWorker : AwakenServerWorkerBase
     {
         long blockHeight = -1;
         
+        var currentConfirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Id);
         var queryList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
         _logger.LogInformation("swap queryList count: {count}", queryList.Count);
             
         foreach (var queryDto in queryList)
         {
-            if (!await _tradeRecordAppService.CreateAsync(queryDto))
+            if (!await _tradeRecordAppService.CreateAsync(currentConfirmedHeight, queryDto))
             {
                 continue;
             }

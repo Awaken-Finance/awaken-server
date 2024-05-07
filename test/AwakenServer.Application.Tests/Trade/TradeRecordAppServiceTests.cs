@@ -67,15 +67,15 @@ namespace AwakenServer.Trade
                 },
             };
             await _tradePairIndexRepository.AddAsync(tradePair);
-            await _tradeRecordAppService.CreateAsync(swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
             _graphQlProvider.AddSwapRecord(swapRecordDto);
             var swapList = _graphQlProvider.GetSwapRecordsAsync(ChainId, 0 , 100, 0, 10000);
             swapList.Result.Count.ShouldBe(1);
-            var ret = await _tradeRecordAppService.CreateAsync(swapRecordDto);
+            var ret = await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
             ret.ShouldBe(true);
             await _tradePairIndexRepository.DeleteAsync(tradePair.Id);
             swapRecordDto.TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d36";
-            ret = await _tradeRecordAppService.CreateAsync(swapRecordDto);
+            ret = await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
             ret.ShouldBe(false);
         }
         
