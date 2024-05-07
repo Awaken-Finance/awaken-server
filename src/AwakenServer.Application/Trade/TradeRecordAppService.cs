@@ -367,6 +367,8 @@ namespace AwakenServer.Trade
             // update kLine and trade pair by publish event : NewTradeRecordEvent, Handler: KLineHandler and kNewTradeRecordHandler
             await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
             
+            // update trade pair token0reserved, token1reserved, price ... from chain
+            
             return true;
         }
 
@@ -438,7 +440,7 @@ namespace AwakenServer.Trade
             {
                 tradeRecord.IsDeleted = true;
             }
-                
+            
             await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(needDeleteIndexes);
 
             var listDto = new List<TradeRecordRemovedDto>();

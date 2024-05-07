@@ -88,6 +88,7 @@ public class RevertProvider : IRevertProvider
             startBlockHeight, confirmedHeight, confirmedTransactionSet.Count(),
             confirmedTransactionSet.ToList());
         
+        // There may be situations where the confirmed transaction list is empty.
         // if (confirmedTransactionSet.IsNullOrEmpty())
         // {
         //     _logger.LogError("confirmed transactions is empty, block height range {0}-{1}", startBlockHeight,

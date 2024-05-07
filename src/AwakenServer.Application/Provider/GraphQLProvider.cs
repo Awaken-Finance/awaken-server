@@ -163,6 +163,13 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
         });
         
+        _logger.LogInformation($"getLiquidityRecords " +
+                               $"startBlockHeight: {startBlockHeight}, " +
+                               $"endBlockHeight: {endBlockHeight}, " +
+                               $"maxResultCount: {maxResultCount}, " +
+                               $"skipCount: {skipCount}, " +
+                               $"graphQlResponse data count: {graphQlResponse.Data.GetLiquidityRecords.Count}");
+        
         if (graphQlResponse.Errors != null)
         {
             ErrorLog(graphQlResponse.Errors);

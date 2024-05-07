@@ -380,8 +380,6 @@ namespace AwakenServer.Trade
                 GrainIdHelper.GenerateGrainId(input.ChainId, input.TransactionHash));
             if (await grain.ExistAsync())
             {
-                _logger.LogInformation("liquidity event transactionHash existed:{transactionHash}",
-                    input.TransactionHash);
                 return;
             }
 
