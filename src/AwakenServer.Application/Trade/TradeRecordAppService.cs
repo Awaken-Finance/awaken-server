@@ -273,8 +273,8 @@ namespace AwakenServer.Trade
             if (await tradeRecordGrain.Exist())
             {
                 var recordResultDto = await tradeRecordGrain.GetAsync();
-                var tradePairIndex = await _tradeRecordIndexRepository.GetAsync(recordResultDto.Data.Id);
-                if (tradePairIndex != null)
+                var tradeRecordIndex = await _tradeRecordIndexRepository.GetAsync(recordResultDto.Data.Id);
+                if (tradeRecordIndex != null)
                 {
                     return true;
                 }
