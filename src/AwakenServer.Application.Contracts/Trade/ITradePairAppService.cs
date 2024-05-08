@@ -26,6 +26,7 @@ namespace AwakenServer.Trade
         Task<TradePairDto> CreateAsync(TradePairCreateDto input);
         Task CreateSyncAsync(SyncRecordDto dto);
         Task UpdateTradePairAsync(Guid id);
+        Task UpdateTotalSupplyAsync(Guid id, string chainId);
         Task DeleteManyAsync(List<Guid> ids);
         Task<TokenDto> SyncTokenAsync(string chainId, string symbol, ChainDto chain);
         Task<bool> SyncPairAsync(TradePairInfoDto pair, ChainDto chain);

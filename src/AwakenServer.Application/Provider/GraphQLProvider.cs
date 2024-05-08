@@ -309,6 +309,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
                 
         });
+        _logger.LogInformation($"liquidityRecord from graphql: {graphQlResponse.Data.LiquidityRecord.TotalCount}");
         return graphQlResponse.Data.LiquidityRecord;
     }
     

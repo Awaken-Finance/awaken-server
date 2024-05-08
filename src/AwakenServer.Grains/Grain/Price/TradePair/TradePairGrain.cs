@@ -326,7 +326,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 snapshotGrain.GetPrimaryKeyString());
             State.MarketDataSnapshotGrainIds.Add(snapshotGrain.GetPrimaryKeyString());
         }
-
+        
         // update trade pair
         var updateTradePairResult = await UpdateFromSnapshotAsync(updateSnapshotResult.Data);
         return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
@@ -340,8 +340,42 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         };
     }
 
+    public async Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> UpdateTotalSupplyAsync(string totalSupply)
+    {
+        State.TotalSupply = totalSupply;
+        
+        _logger.LogInformation($"update trade pair total supply, id: {State.Id}, address: {State.Address}, total supply: {totalSupply}");
+
+        await WriteStateAsync();
+        
+        var latestSnapshotGrain = await GetLatestSnapshotGrainAsync();
+        if (latestSnapshotGrain != null)
+        {
+            var updateSnapshotResult = await latestSnapshotGrain.UpdateTotalSupplyAsync(totalSupply);
+            return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
+            {
+                Success = true,
+                Data = new TradePairMarketDataSnapshotUpdateResult
+                {
+                    TradePairDto = _objectMapper.Map<TradePairState, TradePairGrainDto>(State),
+                    SnapshotDto = updateSnapshotResult.Data
+                }
+            };
+        }
+        
+        return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
+        {
+            Success = true,
+            Data = new TradePairMarketDataSnapshotUpdateResult
+            {
+                TradePairDto = _objectMapper.Map<TradePairState, TradePairGrainDto>(State),
+            }
+        };
+    }
+
     public async Task<GrainResultDto<TradePairGrainDto>> UpdateAsync(DateTime timestamp,
-        int userTradeAddressCount)
+        int userTradeAddressCount,
+        string totalSupply)
     {
         var previous7DaysSnapshotDtos = await GetPrevious7DaysSnapshotsDtoAsync();
 
@@ -431,7 +465,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         State.FeePercent7d =
             State.TVL == 0 ? 0 : (volume7d * State.PriceUSD * State.FeeRate * 365 * 100) / (State.TVL * 7);
         State.TradeAddressCount24h = userTradeAddressCount;
-
+        State.TotalSupply = totalSupply;
+        
         _logger.LogInformation(
             "updatePairTimer token:{token0Symbol}-{token1Symbol},fee:{fee}-price:{price}-priceUSD:{priceUSD},token1:{token1}-priceUSD1:{priceUSD1}",
             State.Token0.Symbol, State.Token1.Symbol, State.FeeRate, State.Price, State.PriceUSD, State.Token1.Symbol,
@@ -520,7 +555,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 lastDayPriceUSD = latestBeforeThisSnapshotDto.PriceUSD;
             }
         }
-
+        
         State.TotalSupply = dto.TotalSupply;
         State.Price = dto.Price;
         State.PriceUSD = dto.PriceUSD;

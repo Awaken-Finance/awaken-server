@@ -13,16 +13,16 @@ using Volo.Abp.Threading;
 
 namespace AwakenServer.Worker
 {
-    public class TradePairUpdateWorker : AwakenServerWorkerBase
+    public class TradeRecordUpdateWorker : AwakenServerWorkerBase
     {
-        protected override WorkerBusinessType _businessType => WorkerBusinessType.TradePairUpdate;
+        protected override WorkerBusinessType _businessType => WorkerBusinessType.TradeRecordUpdate;
         
         protected readonly IChainAppService _chainAppService;
         protected readonly IGraphQLProvider _graphQlProvider;
-        private readonly ITradePairAppService _tradePairAppService;
+        private readonly ITradeRecordAppService _tradeRecordAppService;
         
-        public TradePairUpdateWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-            ITradePairAppService tradePairAppService, IChainAppService chainAppService,
+        public TradeRecordUpdateWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
+            ITradeRecordAppService tradeRecordAppService, IChainAppService chainAppService,
             IGraphQLProvider graphQlProvider,
             IOptionsMonitor<WorkerOptions> optionsMonitor,
             ILogger<AwakenServerWorkerBase> logger,
@@ -31,21 +31,12 @@ namespace AwakenServer.Worker
         {
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;
-            _tradePairAppService = tradePairAppService;
+            _tradeRecordAppService = tradeRecordAppService;
         }
 
         public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
         {
-            var pairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
-            {
-                ChainId = chain.Name,
-                MaxResultCount = 1000
-            });
-            foreach (var pair in pairs.Items)
-            {
-                await _tradePairAppService.UpdateTradePairAsync(pair.Id);
-            }
-
+            await _tradeRecordAppService.UpdateAllTxnFeeAsync(chain.Name);
             return 0;
         }
         
