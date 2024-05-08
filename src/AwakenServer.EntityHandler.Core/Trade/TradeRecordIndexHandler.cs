@@ -41,6 +41,9 @@ namespace AwakenServer.EntityHandler.Trade
 
         public async Task HandleEventAsync(EntityCreatedEto<TradeRecordEto> eventData)
         {
+            _logger.LogInformation(
+                $"handle EntityCreatedEto<TradeRecordEto>");
+            
             var index = ObjectMapper.Map<TradeRecordEto, TradeRecord>(eventData.Entity);
             index.TradePair = await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
             index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
@@ -49,12 +52,16 @@ namespace AwakenServer.EntityHandler.Trade
             //     Math.Pow(10, 8);
             index.TransactionFee = 0;
 
+            _logger.LogInformation(
+                $"handle EntityCreatedEto<TradeRecordEto> write es begin");
             await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
-
-            await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
-            {
-                Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(index)
-            });
+            _logger.LogInformation(
+                $"handle EntityCreatedEto<TradeRecordEto> write es end");
+            
+            // await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
+            // {
+            //     Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(index)
+            // });
 
             _logger.LogInformation(
                 $"publish TradeRecordIndexDto address:{index.Address} tradePairId:{index.TradePair.Id} chainId:{index.ChainId} txId:{index.TransactionHash}");
