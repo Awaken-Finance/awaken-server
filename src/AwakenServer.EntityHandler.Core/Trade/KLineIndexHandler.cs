@@ -58,10 +58,10 @@ namespace AwakenServer.EntityHandler.Trade
             await _kLineIndexRepository.AddOrUpdateAsync(existIndex);
 
             _logger.LogInformation("KLineIndexHandler: PublishAsync KLineDto:Period:{period},Timestamp:{timestamp}", eto.Period, eto.Timestamp);
-            await _bus.Publish(new NewIndexEvent<KLineDto>
-            {
-                Data = ObjectMapper.Map<KLine, KLineDto>(existIndex)
-            });
+            // await _bus.Publish(new NewIndexEvent<KLineDto>
+            // {
+            //     Data = ObjectMapper.Map<KLine, KLineDto>(existIndex)
+            // });
            
         }
     }
