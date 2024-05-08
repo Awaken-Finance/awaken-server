@@ -44,9 +44,10 @@ namespace AwakenServer.EntityHandler.Trade
             var index = ObjectMapper.Map<TradeRecordEto, TradeRecord>(eventData.Entity);
             index.TradePair = await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
             index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
-            index.TransactionFee =
-                await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
-                Math.Pow(10, 8);
+            // index.TransactionFee =
+            //     await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
+            //     Math.Pow(10, 8);
+            index.TransactionFee = 0;
 
             await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
 
