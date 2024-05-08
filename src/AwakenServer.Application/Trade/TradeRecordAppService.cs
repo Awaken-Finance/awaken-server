@@ -272,7 +272,13 @@ namespace AwakenServer.Trade
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
             if (await tradeRecordGrain.Exist())
             {
-                return true;
+                var recordResultDto = await tradeRecordGrain.GetAsync();
+                var tradePairIndex = await _tradeRecordIndexRepository.GetAsync(recordResultDto.Data.Id);
+                if (tradePairIndex != null)
+                {
+                    return true;
+                }
+                _logger.LogInformation($"swap record exist in grain does exist in es: {dto.Sender}, {dto.TransactionHash}");
             }
             
             await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
