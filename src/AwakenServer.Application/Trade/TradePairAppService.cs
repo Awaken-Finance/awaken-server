@@ -303,6 +303,18 @@ namespace AwakenServer.Trade
             
             return ObjectMapper.Map<List<TradePairGrainDto>, List<TradePairIndexDto>>(result.Data);
         }
+        
+        public async Task<List<TradePairIndexDto>> GetListFromEsAsync(string chainId, IEnumerable<string> addresses)
+        {
+            QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> q) =>
+                q.Term(i => i.Field(f => f.ChainId).Value(chainId)) &&
+                q.Terms(i => i.Field(f => f.Address).Terms(addresses));
+            
+            var list = await _tradePairIndexRepository.GetListAsync(Filter,
+                limit: addresses.Count(), skip: 0);
+            
+            return ObjectMapper.Map<List<Index.TradePair>, List<TradePairIndexDto>>(list.Item2);
+        }
 
         /// <summary>
         /// this function is for unit test and some unuse processor
