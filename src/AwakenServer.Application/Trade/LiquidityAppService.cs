@@ -248,12 +248,26 @@ namespace AwakenServer.Trade
                     : dto.LpTokenAmount / double.Parse(tradePairIndex.TotalSupply);
                 
                 _logger.LogInformation(
-                    "User liquidity, tradePairIndex.TotalSupply: {tradePairIndex.TotalSupply}, " +
-                    "dto.LpTokenAmount: {dto.LpTokenAmount}, " +
-                    "prop:{prop}, token0:{token0} decimal:{token0Decimal},token1:{token1} decimal:{token1Decimal},token0 amount:{amount0},token1 amount:{amoun1}",
-                    tradePairIndex.Token0.Symbol, tradePairIndex.Token0.Decimals,
-                    tradePairIndex.Token1.Symbol, tradePairIndex.Token1.Decimals, tradePairIndex.ValueLocked0,
+                    "User liquidity, tradePairIndex.TotalSupply: {supply}, " +
+                    "dto.LpTokenAmount: {LpTokenAmount}, " +
+                    "prop:{prop}, " +
+                    "token0:{token0} " +
+                    "decimal:{token0Decimal}," +
+                    "token1:{token1} " +
+                    "decimal:{token1Decimal}," +
+                    "token0 amount:{amount0}," +
+                    "token1 amount:{amoun1}",
+                    tradePairIndex.TotalSupply, 
+                    dto.LpTokenAmount, 
+                    prop, 
+                    tradePairIndex.Token0.Symbol, 
+                    tradePairIndex.Token0.Decimals,
+                    tradePairIndex.Token1.Symbol, 
+                    tradePairIndex.Token1.Decimals, 
+                    tradePairIndex.ValueLocked0,
                     tradePairIndex.ValueLocked1);
+                
+                
 
 
                 indexDto.Token0Amount = tradePairIndex.Token0.Decimals == 0
