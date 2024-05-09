@@ -17,6 +17,7 @@ using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.EventBus.Local;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 namespace AwakenServer.Trade
 {
@@ -94,6 +95,7 @@ namespace AwakenServer.Trade
                 (await _tradePairAppService.GetListFromEsAsync(input.ChainId, pairAddresses)).GroupBy(t => t.Address)
                 .Select(g => g.First()).ToDictionary(t => t.Address,
                     t => t);
+            _logger.LogInformation($"get trade pairs: {JsonConvert.SerializeObject(pairs)}");
             foreach (var recordDto in queryResult.Data)
             {
                 var indexDto = new LiquidityRecordIndexDto();
