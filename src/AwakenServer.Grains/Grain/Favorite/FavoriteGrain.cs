@@ -3,8 +3,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using AwakenServer.Grains.State.Favorite;
 using Microsoft.Extensions.Logging;
+using MongoDB.Bson.IO;
 using Orleans;
 using Volo.Abp.ObjectMapping;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
+
 
 namespace AwakenServer.Grains.Grain.Favorite;
 
@@ -40,12 +43,14 @@ public class FavoriteGrain : Grain<FavoriteState>, IFavoriteGrain
         favoriteDto.Id = GrainIdHelper.GenerateGrainId(favoriteDto.TradePairId, favoriteDto.Address);
         if (State.FavoriteInfos.Exists(info => info.Id == favoriteDto.Id))
         {
+            _logger.LogInformation($"exist fav info, {JsonConvert.SerializeObject(State.FavoriteInfos)}");
             result.Message = FavoriteMessage.ExistedMessage;
             return result;
         }
         
         if(State.FavoriteInfos.Count >= FavoriteMessage.MaxLimit)
         {
+            _logger.LogInformation($"fav list size out of range, now: {State.FavoriteInfos.Count}, limit: {FavoriteMessage.MaxLimit}");
             result.Message = FavoriteMessage.ExceededMessage;
             return result;
         }
