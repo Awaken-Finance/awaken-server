@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.Client.MultiToken;
 using Volo.Abp.ObjectMapping;
 using AwakenServer.Chains;
 using AwakenServer.Common;
@@ -12,6 +13,7 @@ using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
 using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
@@ -34,7 +36,8 @@ namespace AwakenServer.Trade
         private readonly ILogger<LiquidityAppService> _logger;
         private readonly IRevertProvider _revertProvider;
         private readonly IObjectMapper _objectMapper;
-
+        private readonly IAElfClientProvider _blockchainClientProvider;
+        private readonly ContractsTokenOptions _contractsTokenOptions;
         
         private const string ASC = "asc";
         private const string ASCEND = "ascend";
@@ -51,7 +54,9 @@ namespace AwakenServer.Trade
             ILocalEventBus localEventBus,
             ILogger<LiquidityAppService> logger,
             IRevertProvider revertProvider,
-            IObjectMapper objectMapper)
+            IObjectMapper objectMapper,
+            IAElfClientProvider blockchainClientProvider,
+            IOptions<ContractsTokenOptions> contractsTokenOptions)
         {
             _tokenPriceProvider = tokenPriceProvider;
             _tradePairAppService = tradePairAppService;
@@ -63,6 +68,8 @@ namespace AwakenServer.Trade
             _logger = logger;
             _revertProvider = revertProvider;
             _objectMapper = objectMapper;
+            _blockchainClientProvider = blockchainClientProvider;
+            _contractsTokenOptions = contractsTokenOptions.Value;
         }
 
         
@@ -208,6 +215,32 @@ namespace AwakenServer.Trade
             };
         }
 
+        private async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
+        {
+            try
+            {
+                var tradePairIndexDto = await _tradePairAppService.GetAsync(tradePairId);
+                
+                if (tradePairIndexDto == null || !_contractsTokenOptions.Contracts.TryGetValue(
+                        tradePairIndexDto.FeeRate.ToString(),
+                        out var address))
+                {
+                    _logger.LogError("GetTokenInfoAsync, Get tradePairIndexDto failed");
+                    return null;
+                }
+
+                var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
+                    TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
+                _logger.LogInformation($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
+                return token;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Get token info failed");
+                return null;
+            }
+        }
+        
         public async Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityFromGraphQLAsync(GetUserLiquidityInput input)
         {
             var dataList = new List<UserLiquidityIndexDto>();
@@ -242,10 +275,18 @@ namespace AwakenServer.Trade
 
                 indexDto.TradePair = tradePairIndex;
                 indexDto.LpTokenAmount = dto.LpTokenAmount.ToDecimalsString(8);
-
+                
+                var token = await GetTokenInfoAsync(tradePairIndex.Id, tradePairIndex.ChainId);
+                var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "";
+                if (tradePairIndex.TotalSupply == null || tradePairIndex.TotalSupply == "0")
+                {
+                    tradePairIndex.TotalSupply = supply;
+                }
+                
                 var prop = tradePairIndex.TotalSupply == null || tradePairIndex.TotalSupply == "0"
                     ? 0
                     : dto.LpTokenAmount / double.Parse(tradePairIndex.TotalSupply);
+                
                 
                 _logger.LogInformation(
                     "User liquidity, tradePairIndex.TotalSupply: {supply}, " +
