@@ -246,8 +246,11 @@ namespace AwakenServer.Trade
                 var prop = tradePairIndex.TotalSupply == null || tradePairIndex.TotalSupply == "0"
                     ? 0
                     : dto.LpTokenAmount / double.Parse(tradePairIndex.TotalSupply);
+                
                 _logger.LogInformation(
-                    "User liquidity token0:{token0} decimal:{token0Decimal},token1:{token1} decimal:{token1Decimal},token0 amount:{amount0},token1 amount:{amoun1}",
+                    "User liquidity, tradePairIndex.TotalSupply: {tradePairIndex.TotalSupply}, " +
+                    "dto.LpTokenAmount: {dto.LpTokenAmount}, " +
+                    "prop:{prop}, token0:{token0} decimal:{token0Decimal},token1:{token1} decimal:{token1Decimal},token0 amount:{amount0},token1 amount:{amoun1}",
                     tradePairIndex.Token0.Symbol, tradePairIndex.Token0.Decimals,
                     tradePairIndex.Token1.Symbol, tradePairIndex.Token1.Decimals, tradePairIndex.ValueLocked0,
                     tradePairIndex.ValueLocked1);
