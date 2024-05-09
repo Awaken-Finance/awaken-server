@@ -213,6 +213,8 @@ namespace AwakenServer.Trade
             var dataList = new List<UserLiquidityIndexDto>();
 
             var queryResult = await _graphQlProvider.QueryUserLiquidityAsync(input);
+            _logger.LogInformation($"GetUserLiquidityFromGraphQLAsync data count: {queryResult.Data.Count}");
+            
             if (queryResult.TotalCount == 0 || queryResult.Data.IsNullOrEmpty())
             {
                 return new PagedResultDto<UserLiquidityIndexDto>
@@ -224,7 +226,7 @@ namespace AwakenServer.Trade
 
             var pairAddresses = queryResult.Data.Select(i => i.Pair).Distinct().ToList();
             var pairs =
-                (await _tradePairAppService.GetListAsync(input.ChainId, pairAddresses)).GroupBy(t => t.Address)
+                (await _tradePairAppService.GetListFromEsAsync(input.ChainId, pairAddresses)).GroupBy(t => t.Address)
                 .Select(g => g.First()).ToDictionary(t => t.Address,
                     t => t);
             foreach (var dto in queryResult.Data)
@@ -234,6 +236,7 @@ namespace AwakenServer.Trade
                 var tradePairIndex = pairs.GetValueOrDefault(dto.Pair, null);
                 if (tradePairIndex == null)
                 {
+                    _logger.LogError($"can't find trade pair {dto.Pair}");
                     continue;
                 }
 
