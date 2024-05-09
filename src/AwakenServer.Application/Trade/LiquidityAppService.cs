@@ -68,14 +68,25 @@ namespace AwakenServer.Trade
         
         public async Task<PagedResultDto<LiquidityRecordIndexDto>> GetRecordsAsync(GetLiquidityRecordsInput input)
         {
+            _logger.LogInformation($"GetRecordsAsync, {JsonConvert.SerializeObject(input)}");
+            
             var qlQueryInput = new GetLiquidityRecordIndexInput();
-            ObjectMapper.Map(input, qlQueryInput);
-            if (input.TradePairId.HasValue)
-            {
-                var tradePairIndexDto = await _tradePairAppService.GetFromGrainAsync(input.TradePairId.Value);
-                qlQueryInput.Pair = tradePairIndexDto?.Address;
-            }
 
+            try
+            {
+                ObjectMapper.Map(input, qlQueryInput);
+                if (input.TradePairId.HasValue)
+                {
+                    var tradePairIndexDto = await _tradePairAppService.GetFromGrainAsync(input.TradePairId.Value);
+                    qlQueryInput.Pair = tradePairIndexDto?.Address;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Get tradePairIndexDto failed.");
+                throw;
+            }
+            
             var queryResult = await _graphQlProvider.QueryLiquidityRecordAsync(qlQueryInput);
             var dataList = new List<LiquidityRecordIndexDto>();
             
@@ -95,6 +106,8 @@ namespace AwakenServer.Trade
                 (await _tradePairAppService.GetListFromEsAsync(input.ChainId, pairAddresses)).GroupBy(t => t.Address)
                 .Select(g => g.First()).ToDictionary(t => t.Address,
                     t => t);
+            
+            
             _logger.LogInformation($"get trade pairs: {JsonConvert.SerializeObject(pairs)}");
             foreach (var recordDto in queryResult.Data)
             {
