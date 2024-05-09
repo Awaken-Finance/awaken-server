@@ -513,6 +513,8 @@ namespace AwakenServer.Trade
         {
             var snapshotTime = _tradePairMarketDataProvider.GetSnapshotTime(DateTime.UtcNow);
             
+            _logger.LogInformation($"UpdateTradePairAsync id: {id}");
+            
             var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(id));
             
             var pairResult = await grain.GetAsync();
