@@ -341,7 +341,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
     }
 
     public async Task<GrainResultDto<TradePairGrainDto>> UpdateAsync(DateTime timestamp,
-        int userTradeAddressCount)
+        int userTradeAddressCount,
+        string totalSupply)
     {
         var previous7DaysSnapshotDtos = await GetPrevious7DaysSnapshotsDtoAsync();
 
@@ -431,7 +432,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         State.FeePercent7d =
             State.TVL == 0 ? 0 : (volume7d * State.PriceUSD * State.FeeRate * 365 * 100) / (State.TVL * 7);
         State.TradeAddressCount24h = userTradeAddressCount;
-
+        State.TotalSupply = totalSupply;
+        
         _logger.LogInformation(
             "updatePairTimer token:{token0Symbol}-{token1Symbol},fee:{fee}-price:{price}-priceUSD:{priceUSD},token1:{token1}-priceUSD1:{priceUSD1}",
             State.Token0.Symbol, State.Token1.Symbol, State.FeeRate, State.Price, State.PriceUSD, State.Token1.Symbol,
