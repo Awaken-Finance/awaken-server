@@ -196,7 +196,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 ChainId = dto.ChainId,
                 TradePairId = State.Id,
                 Timestamp = GetSnapshotTime(dto.Timestamp),
-                TotalSupply = lpAmount.ToNormalizeString(),
+                LpTokenAmount = lpAmount,
+                TotalSupply = dto.TotalSupply,
             });
 
         // nie:The current snapshot is not up-to-date. The latest snapshot needs to update TotalSupply 
@@ -326,7 +327,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 snapshotGrain.GetPrimaryKeyString());
             State.MarketDataSnapshotGrainIds.Add(snapshotGrain.GetPrimaryKeyString());
         }
-
+        
         // update trade pair
         var updateTradePairResult = await UpdateFromSnapshotAsync(updateSnapshotResult.Data);
         return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
@@ -335,6 +336,28 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             Data = new TradePairMarketDataSnapshotUpdateResult
             {
                 TradePairDto = updateTradePairResult.Data,
+                SnapshotDto = updateSnapshotResult.Data
+            }
+        };
+    }
+
+    public async Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> UpdateTotalSupplyAsync(string totalSupply)
+    {
+        State.TotalSupply = totalSupply;
+        
+        _logger.LogInformation($"update trade pair total supply, id: {State.Id}, address: {State.Address}, total supply: {totalSupply}");
+
+        var latestSnapshotGrain = await GetLatestSnapshotGrainAsync();
+        var updateSnapshotResult = await latestSnapshotGrain.UpdateTotalSupplyAsync(totalSupply);
+        
+        await WriteStateAsync();
+
+        return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
+        {
+            Success = true,
+            Data = new TradePairMarketDataSnapshotUpdateResult
+            {
+                TradePairDto = _objectMapper.Map<TradePairState, TradePairGrainDto>(State),
                 SnapshotDto = updateSnapshotResult.Data
             }
         };
@@ -522,7 +545,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 lastDayPriceUSD = latestBeforeThisSnapshotDto.PriceUSD;
             }
         }
-
+        
         State.TotalSupply = dto.TotalSupply;
         State.Price = dto.Price;
         State.PriceUSD = dto.PriceUSD;

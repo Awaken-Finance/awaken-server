@@ -83,6 +83,7 @@ namespace AwakenServer.Trade.Handlers
             await _eventBus.PublishAsync(eventData);
             Thread.Sleep(3500);
             await _eventBus.PublishAsync(eventData);
+            Thread.Sleep(3500);
             var snapshotTime = eventData.Timestamp.Date.AddHours(eventData.Timestamp.Hour);
             var marketData =
                 await _tradePairMarketDataProvider.GetTradePairMarketDataIndexAsync(eventData.ChainId,

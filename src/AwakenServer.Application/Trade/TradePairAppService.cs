@@ -30,6 +30,7 @@ using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using Token = AwakenServer.Tokens.Token;
 using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 using IndexTradePair = AwakenServer.Trade.Index.TradePair;
 
@@ -508,6 +509,40 @@ namespace AwakenServer.Trade
                 return null;
             }
         }
+
+        public async Task UpdateTotalSupplyAsync(Guid id, string chainId)
+        {
+            var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(id));
+            var token = await GetTokenInfoAsync(id, chainId);
+            var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
+            if (supply == "0")
+            {
+                _logger.LogError($"update total supply, trade pair: {id}, get token info failed");
+                return;
+            }
+            
+            var result = await grain.UpdateTotalSupplyAsync(supply);
+            
+            if (!result.Success)
+            {
+                _logger.LogError($"update total supply, updage grain {id} failed");
+                return;
+            }
+            
+            _logger.LogDebug($"update total supply, publishAsync TradePairEto: {JsonConvert.SerializeObject(result.Data.TradePairDto)}");
+
+            await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairEto>(
+                _objectMapper.Map<TradePairGrainDto, TradePairEto>(
+                    result.Data.TradePairDto)
+            ));
+            
+            _logger.LogDebug($"update total supply, publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.SnapshotDto)}");
+            
+            await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairMarketDataSnapshotEto>(
+                _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>(
+                    result.Data.SnapshotDto)
+            ));
+        }
         
         public async Task UpdateTradePairAsync(Guid id)
         {
@@ -533,7 +568,7 @@ namespace AwakenServer.Trade
             
             var userTradeAddressCount = await _tradeRecordAppService.GetUserTradeAddressCountAsync(pair.ChainId, pair.Id, snapshotTime);
             var token = await GetTokenInfoAsync(pair.Id, pair.ChainId);
-            var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "";
+            var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
             _logger.LogInformation($"get pair {pair.Id}, supply {supply}");
             
             var tradePairGrainDtoResult = await grain.UpdateAsync(snapshotTime, userTradeAddressCount, supply);

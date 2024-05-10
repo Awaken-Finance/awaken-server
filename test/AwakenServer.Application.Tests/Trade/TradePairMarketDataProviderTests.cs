@@ -74,7 +74,7 @@ public class TradePairMarketDataProviderTests : TradeTestBase
                 ChainId = ChainId,
                 TradePairId = TradePairEthUsdtId,
                 Timestamp = DateTime.Now.AddHours(-1),
-                TotalSupply = "20"
+                LpTokenAmount = 20
             });
         });
 
@@ -89,12 +89,27 @@ public class TradePairMarketDataProviderTests : TradeTestBase
                 ChainId = ChainId,
                 TradePairId = TradePairEthUsdtId,
                 Timestamp = DateTime.Now.AddHours(-1),
-                TotalSupply = "30"
+                LpTokenAmount = 30
             });
         });
 
         pair = await _tradePairAppService.GetAsync(TradePairEthUsdtId);
         pair.TotalSupply.ShouldBe("60");
+        
+        // TotalSupply is Cover, LpTokenAmount is Accumulate
+        await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(TradePairEthUsdtId, async grain =>
+        {
+            return await grain.AddOrUpdateSnapshotAsync(new TradePairMarketDataSnapshotGrainDto
+            {
+                ChainId = ChainId,
+                TradePairId = TradePairEthUsdtId,
+                Timestamp = DateTime.Now.AddHours(-1),
+                TotalSupply = "50"
+            });
+        });
+
+        pair = await _tradePairAppService.GetAsync(TradePairEthUsdtId);
+        pair.TotalSupply.ShouldBe("50");
     }
     
 }

@@ -13,6 +13,8 @@ namespace AwakenServer.Trade
 
         public Task<TradeRecordIndexDto> GetRecordFromGrainAsync(string chainId, string transactionId);
 
+        public Task UpdateAllTxnFeeAsync(string chainId);
+        
         Task<PagedResultDto<TradeRecordIndexDto>> GetListAsync(GetTradeRecordsInput input);
 
         Task CreateAsync(TradeRecordCreateDto input);

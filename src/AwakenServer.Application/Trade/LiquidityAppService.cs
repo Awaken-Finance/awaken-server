@@ -277,7 +277,7 @@ namespace AwakenServer.Trade
                 indexDto.LpTokenAmount = dto.LpTokenAmount.ToDecimalsString(8);
                 
                 var token = await GetTokenInfoAsync(tradePairIndex.Id, tradePairIndex.ChainId);
-                var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "";
+                var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
                 tradePairIndex.TotalSupply = supply;
                 
                 var prop = tradePairIndex.TotalSupply == null || tradePairIndex.TotalSupply == "0"
@@ -382,6 +382,7 @@ namespace AwakenServer.Trade
             };
         }
 
+        
         public async Task UpdateTradePairFieldAsync(LiquidityRecordDto input)
         {
             var tradePair = await _tradePairAppService.GetTradePairAsync(input.ChainId, input.Pair);
@@ -399,6 +400,9 @@ namespace AwakenServer.Trade
                 GrainIdHelper.GenerateGrainId(input.ChainId, input.Address));
             await userLiquidityGrain.AddOrUpdateAsync(dto);
             
+            var token = await GetTokenInfoAsync(tradePair.Id, tradePair.ChainId);
+            var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
+            
             var liquidityEvent = new NewLiquidityRecordEvent
             {
                 ChainId = input.ChainId,
@@ -406,7 +410,8 @@ namespace AwakenServer.Trade
                 TradePairId = tradePair.Id,
                 Timestamp = DateTimeHelper.FromUnixTimeMilliseconds(input.Timestamp),
                 Type = input.Type,
-                IsRevert = input.IsRevert
+                IsRevert = input.IsRevert,
+                TotalSupply = supply,
             };
             await _localEventBus.PublishAsync(liquidityEvent);
         }
