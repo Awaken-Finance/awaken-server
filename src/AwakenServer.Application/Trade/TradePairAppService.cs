@@ -535,13 +535,16 @@ namespace AwakenServer.Trade
                 _objectMapper.Map<TradePairGrainDto, TradePairEto>(
                     result.Data.TradePairDto)
             ));
+
+            if (result.Data.SnapshotDto != null)
+            {
+                _logger.LogDebug($"update total supply, publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.SnapshotDto)}");
             
-            _logger.LogDebug($"update total supply, publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.SnapshotDto)}");
-            
-            await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairMarketDataSnapshotEto>(
-                _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>(
-                    result.Data.SnapshotDto)
-            ));
+                await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairMarketDataSnapshotEto>(
+                    _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>(
+                        result.Data.SnapshotDto)
+                ));
+            }
         }
         
         public async Task UpdateTradePairAsync(Guid id)
