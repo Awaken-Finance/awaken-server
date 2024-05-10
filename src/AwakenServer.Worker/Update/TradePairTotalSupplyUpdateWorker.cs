@@ -41,10 +41,15 @@ namespace AwakenServer.Worker
                 ChainId = chain.Name,
                 MaxResultCount = 1000
             });
+            
+            _logger.LogInformation($"update trade pair supply count: {pairs.Items.Count} begin");
+            
             foreach (var pair in pairs.Items)
             {
                 await _tradePairAppService.UpdateTotalSupplyAsync(pair.Id, pair.ChainId);
             }
+            
+            _logger.LogInformation($"update trade pair supply count: {pairs.Items.Count} end");
 
             return 0;
         }

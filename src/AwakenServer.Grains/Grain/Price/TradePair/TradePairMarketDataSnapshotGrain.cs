@@ -88,11 +88,9 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         TradePairMarketDataSnapshotGrainDto dto,
         TradePairMarketDataSnapshotGrainDto lastDto)
     {
-        if (dto.TotalSupply == "0")
-        {
-            dto.TotalSupply = (BigDecimal.Parse(lastDto.TotalSupply) + dto.LpTokenAmount).ToNormalizeString();
-        }
-        
+        dto.TotalSupply = (BigDecimal.Parse(lastDto.TotalSupply) + BigDecimal.Parse(dto.TotalSupply))
+            .ToNormalizeString();
+
         if (dto.Price > 0)
         {
             dto.PriceHigh = Math.Max(lastDto.PriceHigh, dto.Price);
@@ -149,17 +147,11 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         TradePairMarketDataSnapshotGrainDto updateDto,
         TradePairMarketDataSnapshotGrainDto lastDto)
     {
-        
-        if (updateDto.TotalSupply == "0")
+        if (updateDto.TotalSupply != "0")
         {
-            lastDto.TotalSupply = (BigDecimal.Parse(lastDto.TotalSupply) + updateDto.LpTokenAmount)
+            lastDto.TotalSupply = (BigDecimal.Parse(lastDto.TotalSupply) + BigDecimal.Parse(updateDto.TotalSupply))
                 .ToNormalizeString();
         }
-        else
-        {
-            lastDto.TotalSupply = updateDto.TotalSupply;
-        }
-    
 
         if (updateDto.Volume != 0)
         {
@@ -241,10 +233,6 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         }
         else
         {
-            if (updateDto.TotalSupply == "0")
-            {
-                updateDto.TotalSupply = updateDto.LpTokenAmount.ToNormalizeString();
-            }
             State = _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(updateDto);
         }
 
