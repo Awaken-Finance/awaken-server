@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using AwakenServer.Chains;
 using AwakenServer.CMS;
 using AwakenServer.Common;
 using AwakenServer.Grains;
@@ -45,6 +46,7 @@ namespace AwakenServer.Trade
         private readonly IGraphQLProvider _graphQlProvider;
         private readonly IBus _bus;
         private readonly IRevertProvider _revertProvider;
+        private readonly IAElfClientProvider _aelfClientProvider;
 
 
         private const string ASC = "asc";
@@ -65,6 +67,7 @@ namespace AwakenServer.Trade
             IDistributedEventBus distributedEventBus,
             IGraphQLProvider graphQlProvider,
             IBus bus,
+            IAElfClientProvider aefClientProvider,
             IRevertProvider revertProvider)
         {
             _tradeRecordIndexRepository = tradeRecordIndexRepository;
@@ -79,8 +82,41 @@ namespace AwakenServer.Trade
             _graphQlProvider = graphQlProvider;
             _bus = bus;
             _revertProvider = revertProvider;
+            _aelfClientProvider = aefClientProvider;
         }
-        
+
+        public async Task<TradeRecordIndexDto> GetRecordAsync(string transactionId)
+        {
+            var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.TransactionHash).Value(transactionId)));
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
+
+            QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
+
+
+            var record = await _tradeRecordIndexRepository.GetAsync(Filter);
+
+            if (record == null)
+            {
+                return null;
+            }
+
+            return ObjectMapper.Map<Index.TradeRecord, TradeRecordIndexDto>(record);
+        }
+
+        public async Task<TradeRecordIndexDto> GetRecordFromGrainAsync(string chainId, string transactionId)
+        {
+            var tradeRecordGrain =
+                _clusterClient.GetGrain<ITradeRecordGrain>(GrainIdHelper.GenerateGrainId(chainId, transactionId));
+            var result = await tradeRecordGrain.GetAsync();
+            if (!result.Success)
+            {
+                return null;
+            }
+
+            return ObjectMapper.Map<TradeRecordGrainDto, TradeRecordIndexDto>(result.Data);
+        }
+
 
         public async Task<PagedResultDto<TradeRecordIndexDto>> GetListAsync(GetTradeRecordsInput input)
         {
@@ -345,6 +381,61 @@ namespace AwakenServer.Trade
         }
 
 
+        public async Task FillRecord(SwapRecordDto dto)
+        {
+            var pair = await GetAsync(dto.ChainId, dto.PairAddress);
+            if (pair == null)
+            {
+                _logger.LogInformation("swap can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                    dto.PairAddress);
+                return;
+            }
+
+            if (await GetRecordFromGrainAsync(dto.ChainId, dto.TransactionHash) != null)
+            {
+                _logger.LogInformation("FixTrade  record continue,blockHeight:{1}", dto.BlockHeight);
+                return;
+            }
+
+            var isSell = pair.Token0.Symbol == dto.SymbolIn;
+            var record = new TradeRecordCreateDto
+            {
+                ChainId = dto.ChainId,
+                TradePairId = pair.Id,
+                Address = dto.Sender,
+                TransactionHash = dto.TransactionHash,
+                Timestamp = dto.Timestamp,
+                Side = isSell ? TradeSide.Sell : TradeSide.Buy,
+                Token0Amount = isSell
+                    ? dto.AmountIn.ToDecimalsString(pair.Token0.Decimals)
+                    : dto.AmountOut.ToDecimalsString(pair.Token0.Decimals),
+                Token1Amount = isSell
+                    ? dto.AmountOut.ToDecimalsString(pair.Token1.Decimals)
+                    : dto.AmountIn.ToDecimalsString(pair.Token1.Decimals),
+                TotalFee = dto.TotalFee / Math.Pow(10, isSell ? pair.Token0.Decimals : pair.Token1.Decimals),
+                Channel = dto.Channel,
+                Sender = dto.Sender,
+                BlockHeight = dto.BlockHeight
+            };
+
+
+            _logger.LogInformation(
+                "FixTrade SwapEvent, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
+                "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
+                "blockHeight: {blockHeight}, totalFee: {totalFee}", dto.ChainId, pair.Id, dto.Sender,
+                dto.TransactionHash, dto.Timestamp,
+                record.Side, dto.Channel, record.Token0Amount, record.Token1Amount, dto.BlockHeight, dto.TotalFee);
+
+            var tradeRecord = ObjectMapper.Map<TradeRecordCreateDto, TradeRecord>(record);
+            tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
+            tradeRecord.Id = Guid.NewGuid();
+            var tradeRecordGrain = _clusterClient.GetGrain<ITradeRecordGrain>(tradeRecord.TransactionHash);
+            await tradeRecordGrain.InsertAsync(ObjectMapper.Map<TradeRecord, TradeRecordGrainDto>(tradeRecord));
+            await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradeRecordEto>(
+                ObjectMapper.Map<TradeRecord, TradeRecordEto>(tradeRecord)
+            ));
+        }
+
         public async Task DoRevertAsync(string chainId, List<string> needDeletedTradeRecords)
         {
             if (needDeletedTradeRecords.IsNullOrEmpty())
@@ -381,6 +472,40 @@ namespace AwakenServer.Trade
                         Items = listDto
                     }
                 });
+        }
+
+        public async Task BulkUpdateTxnFeeAsync(List<Index.TradeRecord> recordIndexes)
+        {
+            foreach (var tradeRecord in recordIndexes)
+            {
+                tradeRecord.TransactionFee = await _aelfClientProvider.GetTransactionFeeAsync(tradeRecord.ChainId, tradeRecord.TransactionHash) /
+                                             Math.Pow(10, 8);
+                _logger.LogInformation($"update trade record txn fee, {tradeRecord.TransactionHash}, {tradeRecord.TransactionFee}");
+                
+            }
+                
+            await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(recordIndexes);
+        }
+        
+        public async Task UpdateAllTxnFeeAsync(string chainId)
+        {
+            int pageSize = 1000; 
+            int skipCount = 0;
+            
+            while (true)
+            {
+                List<Index.TradeRecord> pageData = await GetListAsync(chainId, skipCount, pageSize);
+
+                if (pageData.Count == 0)
+                {
+                    break;
+                }
+
+                await BulkUpdateTxnFeeAsync(pageData);
+                skipCount += pageData.Count;
+            }
+            
+            _logger.LogInformation($"update all trade record txn fee end, affected records: {skipCount}");
         }
         
         public async Task RevertTradeRecordAsync(string chainId)
@@ -441,6 +566,34 @@ namespace AwakenServer.Trade
 
             QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> f) => f.Bool(b => b.Must(mustQuery));
             return await _tradePairIndexRepository.GetAsync(Filter);
+        }
+
+        private async Task<List<Index.TradeRecord>> GetListAsync(string chainId, long blockHeight, int skipCount,
+            int maxResultCount)
+        {
+            var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsConfirmed).Value(false)));
+            mustQuery.Add(q => q.Range(i => i.Field(f => f.BlockHeight).LessThanOrEquals(blockHeight)));
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
+            
+            QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
+            var list = await _tradeRecordIndexRepository.GetListAsync(Filter, limit: maxResultCount, skip: skipCount,
+                sortExp: m => m.BlockHeight);
+            return list.Item2;
+        }
+
+        private async Task<List<Index.TradeRecord>> GetListAsync(string chainId, int skipCount,
+            int maxResultCount)
+        {
+            var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
+            
+            QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
+            var list = await _tradeRecordIndexRepository.GetListAsync(Filter, limit: maxResultCount, skip: skipCount,
+                sortExp: m => m.BlockHeight);
+            return list.Item2;
         }
         
         private async Task<List<Index.TradeRecord>> GetRecordAsync(string chainId, List<string> transactionHashs, int maxResultCount)
