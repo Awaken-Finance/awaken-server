@@ -490,20 +490,22 @@ namespace AwakenServer.Trade
         public async Task UpdateAllTxnFeeAsync(string chainId)
         {
             int pageSize = 1000; 
-            int skipCount = 0; 
-
+            int skipCount = 0;
+            
             while (true)
             {
                 List<Index.TradeRecord> pageData = await GetListAsync(chainId, skipCount, pageSize);
 
                 if (pageData.Count == 0)
                 {
-                    break; 
+                    break;
                 }
 
                 await BulkUpdateTxnFeeAsync(pageData);
                 skipCount += pageData.Count;
             }
+            
+            _logger.LogInformation($"update all trade record txn fee end, affected records: {skipCount}");
         }
         
         public async Task RevertTradeRecordAsync(string chainId)

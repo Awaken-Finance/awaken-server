@@ -42,14 +42,14 @@ namespace AwakenServer.Worker
                 MaxResultCount = 1000
             });
             
-            _logger.LogInformation($"update trade pair supply count: {pairs.Items.Count} begin");
+            _logger.LogInformation($"update trade pair supply begin, affected trade pairs: {pairs.Items.Count}");
             
             foreach (var pair in pairs.Items)
             {
                 await _tradePairAppService.UpdateTotalSupplyAsync(pair.Id, pair.ChainId);
             }
             
-            _logger.LogInformation($"update trade pair supply count: {pairs.Items.Count} end");
+            _logger.LogInformation($"update trade pair supply end, affected trade pairs: {pairs.Items.Count}");
 
             return 0;
         }

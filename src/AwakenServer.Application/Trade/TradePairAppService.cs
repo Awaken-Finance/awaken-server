@@ -529,7 +529,7 @@ namespace AwakenServer.Trade
                 return;
             }
             
-            _logger.LogDebug($"update total supply, publishAsync TradePairEto: {JsonConvert.SerializeObject(result.Data.TradePairDto)}");
+            _logger.LogInformation($"update total supply, publishAsync TradePairEto: {JsonConvert.SerializeObject(result.Data.TradePairDto)}");
 
             await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairEto>(
                 _objectMapper.Map<TradePairGrainDto, TradePairEto>(
@@ -538,7 +538,7 @@ namespace AwakenServer.Trade
 
             if (result.Data.SnapshotDto != null)
             {
-                _logger.LogDebug($"update total supply, publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.SnapshotDto)}");
+                _logger.LogInformation($"update total supply, publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.SnapshotDto)}");
             
                 await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairMarketDataSnapshotEto>(
                     _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>(
