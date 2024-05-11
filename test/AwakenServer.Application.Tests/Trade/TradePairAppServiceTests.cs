@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
@@ -1157,5 +1158,38 @@ namespace AwakenServer.Trade
             result.Items[1].Token1.Symbol.ShouldBe("ETH");
         }
         
+        
+        [Fact]
+        public async Task RevertTest()
+        {
+            var newPairDto = new TradePairInfoDto
+            {
+                ChainId = "tDVV",
+                BlockHeight = 99,
+                TransactionHash = "0x1",
+                Token0Symbol = "BTC",
+                Token1Symbol = "USDT",
+                Id = Guid.NewGuid().ToString(),
+                Address = "0x2"
+            };
+            await _tradePairAppService.SyncPairAsync(newPairDto, new ChainDto
+            {
+                Name = ChainId,
+                Id = ChainId
+            });
+            Thread.Sleep(3000);
+            var result = await _tradePairAppService.GetAsync(Guid.Parse(newPairDto.Id));
+            result.Id.ShouldBe(Guid.Parse(newPairDto.Id));
+            
+            await _tradePairAppService.DoRevertAsync(ChainId, new List<string>
+            {
+                newPairDto.TransactionHash
+            });
+            Thread.Sleep(3000);
+            
+            var pairResult = await _tradePairAppService.GetTradePairAsync(ChainName, newPairDto.Address);
+            pairResult.ShouldBeNull();
+            
+        }
     }
 }

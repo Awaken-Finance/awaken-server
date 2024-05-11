@@ -362,39 +362,6 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         };
     }
 
-    public async Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> UpdateTotalSupplyAsync(string totalSupply)
-    {
-        State.TotalSupply = totalSupply;
-        
-        _logger.LogInformation($"update trade pair total supply, id: {State.Id}, address: {State.Address}, total supply: {totalSupply}");
-
-        await WriteStateAsync();
-        
-        var latestSnapshotGrain = await GetLatestSnapshotGrainAsync();
-        if (latestSnapshotGrain != null)
-        {
-            var updateSnapshotResult = await latestSnapshotGrain.UpdateTotalSupplyAsync(totalSupply);
-            return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
-            {
-                Success = true,
-                Data = new TradePairMarketDataSnapshotUpdateResult
-                {
-                    TradePairDto = _objectMapper.Map<TradePairState, TradePairGrainDto>(State),
-                    SnapshotDto = updateSnapshotResult.Data
-                }
-            };
-        }
-        
-        return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
-        {
-            Success = true,
-            Data = new TradePairMarketDataSnapshotUpdateResult
-            {
-                TradePairDto = _objectMapper.Map<TradePairState, TradePairGrainDto>(State),
-            }
-        };
-    }
-
     public async Task<GrainResultDto<TradePairGrainDto>> UpdateAsync(DateTime timestamp,
         int userTradeAddressCount,
         string totalSupply)
