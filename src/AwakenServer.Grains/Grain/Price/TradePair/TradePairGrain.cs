@@ -221,6 +221,122 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         return updateResult;
     }
 
+    public async Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> AlignPriceAsync24h(List<SyncRecordGrainDto> dtos)
+    {
+        Dictionary<DateTime, Tuple<double, double, double, double>> snapshotPriceHighLow = new Dictionary<DateTime, Tuple<double, double, double, double>>();
+        foreach (var dto in dtos)
+        {
+            var isReversed = State.Token0.Symbol == dto.SymbolB;
+            var token0Amount = isReversed
+                ? dto.ReserveB.ToDecimalsString(State.Token0.Decimals)
+                : dto.ReserveA.ToDecimalsString(State.Token0.Decimals);
+            var token1Amount = isReversed
+                ? dto.ReserveA.ToDecimalsString(State.Token1.Decimals)
+                : dto.ReserveB.ToDecimalsString(State.Token1.Decimals);
+
+            _logger.LogInformation(
+                "AlignPriceAsync, input chainId: {chainId}, isReversed: {isReversed}, token0Amount: {token0Amount}, " +
+                "token1Amount: {token1Amount}, tradePairId: {tradePairId}, timestamp: {timestamp}, blockHeight: {blockHeight}",
+                dto.ChainId,
+                isReversed, token0Amount, token1Amount, State.Id, dto.Timestamp, dto.BlockHeight);
+
+            var timestamp = DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp);
+            var price = double.Parse(token1Amount) / double.Parse(token0Amount);
+
+            var token0PriceResult = await _clusterClient.GetGrain<ITokenPriceGrain>(State.Token0.Symbol)
+                .GetCurrentPriceAsync(State.Token0.Symbol);
+            if (!token0PriceResult.Success)
+            {
+                _logger.LogError($"get token price from token price grain failed. token symbol: {State.Token0.Symbol}");
+            }
+
+            var token1PriceResult = await _clusterClient.GetGrain<ITokenPriceGrain>(State.Token1.Symbol)
+                .GetCurrentPriceAsync(State.Token1.Symbol);
+            if (!token1PriceResult.Success)
+            {
+                _logger.LogError($"get token price from token price grain failed. token symbol: {State.Token1.Symbol}");
+            }
+
+            var priceUSD0 = (double)token0PriceResult.Data.PriceInUsd;
+            var priceUSD1 = (double)token1PriceResult.Data.PriceInUsd;
+            
+            var priceUSD = priceUSD1 != 0 ? price * priceUSD1 : priceUSD0;
+            var snapshotTime = GetSnapshotTime(timestamp);
+            if (!snapshotPriceHighLow.ContainsKey(snapshotTime))
+            {
+                snapshotPriceHighLow[snapshotTime] =
+                    new Tuple<double, double, double, double>(price, price, priceUSD, priceUSD);
+            }
+            else
+            {
+                var priceHigh = Math.Max(snapshotPriceHighLow[snapshotTime].Item1, price);
+                var priceLow = snapshotPriceHighLow[snapshotTime].Item2 == 0 ? price : Math.Min(snapshotPriceHighLow[snapshotTime].Item2, price);
+                var priceUSDHigh = Math.Max(snapshotPriceHighLow[snapshotTime].Item3, priceUSD);
+                var priceUSDLow = snapshotPriceHighLow[snapshotTime].Item4 == 0 ? priceUSD : Math.Min(snapshotPriceHighLow[snapshotTime].Item4, priceUSD);
+                snapshotPriceHighLow[snapshotTime] =
+                    new Tuple<double, double, double, double>(priceHigh, priceLow, priceUSDHigh, priceUSDLow);
+            }
+            
+        }
+
+        var latestSnapshotResult = new GrainResultDto<TradePairMarketDataSnapshotGrainDto>();
+        bool flag = true;
+        foreach (var hourSnapshot in snapshotPriceHighLow)
+        {
+            var result = await AlignSnapshotAsync(new TradePairMarketDataSnapshotGrainDto
+            {
+                Id = Guid.NewGuid(),
+                ChainId = State.ChainId,
+                TradePairId = State.Id,
+                PriceHigh = hourSnapshot.Value.Item1,
+                PriceLow = hourSnapshot.Value.Item2,
+                PriceHighUSD = hourSnapshot.Value.Item3,
+                PriceLowUSD = hourSnapshot.Value.Item4,
+                Timestamp = hourSnapshot.Key,
+            });
+
+            if (!result.Success)
+            {
+                _logger.LogError($"AlignSnapshotAsync failed. trade pair id: {State.Id}");
+                return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
+                {
+                    Success = false
+                };    
+            }
+            
+            if (result.Success && flag)
+            {
+                latestSnapshotResult = result;
+                flag = false;
+                _logger.LogInformation($"align snapshot, trade pair id: {State.Id} latest time: {latestSnapshotResult.Data.Timestamp}, PriceHigh: {latestSnapshotResult.Data.PriceHigh}, PriceLow: {latestSnapshotResult.Data.PriceLow}, PriceHighUSD: {latestSnapshotResult.Data.PriceHighUSD}, PriceLowUSD: {latestSnapshotResult.Data.PriceLowUSD}");
+            } 
+            else if (result.Success && result.Data.Timestamp > latestSnapshotResult.Data.Timestamp)
+            {
+                latestSnapshotResult = result;
+                _logger.LogInformation($"align snapshot, trade pair id: {State.Id} latest time: {latestSnapshotResult.Data.Timestamp}, PriceHigh: {latestSnapshotResult.Data.PriceHigh}, PriceLow: {latestSnapshotResult.Data.PriceLow}, PriceHighUSD: {latestSnapshotResult.Data.PriceHighUSD}, PriceLowUSD: {latestSnapshotResult.Data.PriceLowUSD}");
+            }
+        }
+
+        if (latestSnapshotResult.Success)
+        {
+            var updateTradePairResult = await UpdatePrice24hHighLowAsync(latestSnapshotResult.Data);
+            return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
+            {
+                Success = true,
+                Data = new TradePairMarketDataSnapshotUpdateResult
+                {
+                    TradePairDto = updateTradePairResult.Data,
+                    SnapshotDto = latestSnapshotResult.Data
+                }
+            };
+        }
+        
+        return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
+        {
+            Success = false
+        };
+    }
+    
     public async Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>>
         UpdatePriceAsync(SyncRecordGrainDto dto)
     {
@@ -281,6 +397,52 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         });
     }
 
+    public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AlignSnapshotAsync(
+        TradePairMarketDataSnapshotGrainDto snapshotDto)
+    {
+        if (State.Id == Guid.Empty || State.Token0 == null || State.Token1 == null)
+        {
+            _logger.LogError($"add snapshot to an error trade pair, id: {snapshotDto.TradePairId}, " +
+                             $"timestamp: {snapshotDto.Timestamp}");
+            return new GrainResultDto<TradePairMarketDataSnapshotGrainDto>
+            {
+                Success = false
+            };
+        }
+
+        snapshotDto.Timestamp = GetSnapshotTime(snapshotDto.Timestamp);
+
+        _logger.LogInformation(
+            $"align snapshot id:{State.Id},{State.Token0.Symbol}-{State.Token1.Symbol}, " +
+            $"timestamp:{snapshotDto.Timestamp} " +
+            $"fee:{State.FeeRate},price:{State.Price}-priceUSD:{State.PriceUSD}, " +
+            $"tvl:{State.TVL}");
+
+        var snapshotGrain = _clusterClient.GetGrain<ITradePairMarketDataSnapshotGrain>(
+            GrainIdHelper.GenerateGrainId(snapshotDto.ChainId, snapshotDto.TradePairId, snapshotDto.Timestamp));
+
+        var snapshotResultDto = await snapshotGrain.GetAsync();
+        if (snapshotResultDto.Success)
+        {
+            // update snapshot grain
+            var updateSnapshotResult = await snapshotGrain.AlignAsync(snapshotDto);
+        
+            return new GrainResultDto<TradePairMarketDataSnapshotGrainDto>
+            {
+                Success = true,
+                Data = updateSnapshotResult.Data
+            };
+        }
+     
+        _logger.LogError($"align snapshot price failed, can't find snapshot: {GrainIdHelper.GenerateGrainId(snapshotDto.ChainId, snapshotDto.TradePairId, snapshotDto.Timestamp)}");
+        
+        return new GrainResultDto<TradePairMarketDataSnapshotGrainDto>
+        {
+            Success = false
+        };
+        
+    }
+    
     public async Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>>
         AddOrUpdateSnapshotAsync(TradePairMarketDataSnapshotGrainDto snapshotDto)
     {
@@ -472,6 +634,60 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             State.Token0.Symbol, State.Token1.Symbol, State.FeeRate, State.Price, State.PriceUSD, State.Token1.Symbol,
             priceUSD1);
 
+        await WriteStateAsync();
+
+        return new GrainResultDto<TradePairGrainDto>
+        {
+            Success = true,
+            Data = _objectMapper.Map<TradePairState, TradePairGrainDto>(State)
+        };
+    }
+
+    public async Task<GrainResultDto<TradePairGrainDto>> UpdatePrice24hHighLowAsync(TradePairMarketDataSnapshotGrainDto dto)
+    {
+        var previous7DaysSnapshotDtos = await GetPrevious7DaysSnapshotsDtoAsync();
+        
+        var priceHigh24h = dto.PriceHigh;
+        var priceLow24h = dto.PriceLow;
+        var priceHigh24hUSD = dto.PriceHighUSD;
+        var priceLow24hUSD = dto.PriceLowUSD;
+
+        var daySnapshot = previous7DaysSnapshotDtos.Where(s => s.Timestamp > dto.Timestamp.AddDays(-1)).ToList();
+        foreach (var snapshot in daySnapshot)
+        {
+            _logger.LogInformation($"align snapshot, trade pair id: {State.Id} snapshot info, time: {snapshot.Timestamp}, PriceHigh: {snapshot.PriceHigh}, PriceLow: {snapshot.PriceLow}, PriceHighUSD: {snapshot.PriceHighUSD}, PriceLowUSD: {snapshot.PriceLowUSD}");
+            
+            if (priceLow24h == 0)
+            {
+                priceLow24h = snapshot.PriceLow;
+            }
+
+            if (snapshot.PriceLow != 0)
+            {
+                priceLow24h = Math.Min(priceLow24h, snapshot.PriceLow);
+            }
+
+            if (priceLow24hUSD == 0)
+            {
+                priceLow24hUSD = snapshot.PriceLowUSD;
+            }
+
+            if (snapshot.PriceLowUSD != 0)
+            {
+                priceLow24hUSD = Math.Min(priceLow24hUSD, snapshot.PriceLowUSD);
+            }
+
+            priceHigh24hUSD = Math.Max(priceHigh24hUSD, snapshot.PriceHighUSD);
+            priceHigh24h = Math.Max(priceHigh24h, snapshot.PriceHigh);
+            
+            _logger.LogInformation($"align snapshot, current trade pair id: {State.Id} priceHigh24h: {priceHigh24h}, priceLow24h: {priceLow24h}, priceHigh24hUSD: {priceHigh24hUSD}, priceLow24hUSD: {priceLow24hUSD}");
+        }
+        
+        State.PriceHigh24h = priceHigh24h;
+        State.PriceLow24h = priceLow24h;
+        State.PriceHigh24hUSD = priceHigh24hUSD;
+        State.PriceLow24hUSD = priceLow24hUSD;
+        
         await WriteStateAsync();
 
         return new GrainResultDto<TradePairGrainDto>

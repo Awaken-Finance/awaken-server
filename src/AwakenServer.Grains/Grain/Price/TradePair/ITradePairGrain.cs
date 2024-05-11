@@ -28,11 +28,15 @@ public interface ITradePairGrain : IGrainWithStringKey
     
     public Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> UpdatePriceAsync(SyncRecordGrainDto dto);
     
+    public Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> AlignPriceAsync24h(List<SyncRecordGrainDto> dtos);
+    
     public Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> UpdateTotalSupplyAsync(LiquidityRecordGrainDto dto);
     
     public Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> UpdateTradeRecordAsync(TradeRecordGrainDto dto, int tradeAddressCount24h);
     
     public Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> AddOrUpdateSnapshotAsync(TradePairMarketDataSnapshotGrainDto snapshotDto);
+    
+    public Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AlignSnapshotAsync(TradePairMarketDataSnapshotGrainDto snapshotDto);
     
     public Task<TradePairMarketDataSnapshotGrainDto> GetLatestSnapshotAsync();
     

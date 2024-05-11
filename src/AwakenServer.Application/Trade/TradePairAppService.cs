@@ -422,6 +422,7 @@ namespace AwakenServer.Trade
             await grain.AddAsync(_objectMapper.Map<SyncRecordDto, SyncRecordsGrainDto>(dto));
         }
         
+
         
         public async Task CreateTradePairIndexAsync(TradePairInfoDto input, TokenDto token0, TokenDto token1,
             ChainDto chain)
@@ -461,6 +462,8 @@ namespace AwakenServer.Trade
                 return null;
             }
         }
+        
+        
 
         public async Task UpdateTotalSupplyAsync(Guid id, string chainId)
         {
@@ -883,6 +886,8 @@ namespace AwakenServer.Trade
                     return descriptor => descriptor.Ascending(f => f.Token0.Symbol);
             }
         }
+
+        
         
     }
 }
