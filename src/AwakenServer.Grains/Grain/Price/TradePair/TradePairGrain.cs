@@ -279,7 +279,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             
         }
 
-        var lastSnapshotResult = new GrainResultDto<TradePairMarketDataSnapshotGrainDto>();
+        var latestSnapshotResult = new GrainResultDto<TradePairMarketDataSnapshotGrainDto>();
+        bool flag = true;
         foreach (var hourSnapshot in snapshotPriceHighLow)
         {
             var result = await AlignSnapshotAsync(new TradePairMarketDataSnapshotGrainDto
@@ -294,9 +295,10 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 Timestamp = hourSnapshot.Key,
             });
 
-            if (result.Success)
+            if (result.Success && flag)
             {
-                lastSnapshotResult = result;
+                latestSnapshotResult = result;
+                flag = false;
             }
             else
             {
@@ -307,16 +309,16 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             }
         }
 
-        if (lastSnapshotResult.Success)
+        if (latestSnapshotResult.Success)
         {
-            var updateTradePairResult = await UpdatePrice24hHighLowAsync(lastSnapshotResult.Data);
+            var updateTradePairResult = await UpdatePrice24hHighLowAsync(latestSnapshotResult.Data);
             return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
             {
                 Success = true,
                 Data = new TradePairMarketDataSnapshotUpdateResult
                 {
                     TradePairDto = updateTradePairResult.Data,
-                    SnapshotDto = lastSnapshotResult.Data
+                    SnapshotDto = latestSnapshotResult.Data
                 }
             };
         }
@@ -642,7 +644,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         var priceHigh24hUSD = dto.PriceHighUSD;
         var priceLow24hUSD = dto.PriceLowUSD;
 
-        var daySnapshot = previous7DaysSnapshotDtos.Where(s => s.Timestamp >= dto.Timestamp.AddDays(-1)).ToList();
+        var daySnapshot = previous7DaysSnapshotDtos.Where(s => s.Timestamp > dto.Timestamp.AddDays(-1)).ToList();
         foreach (var snapshot in daySnapshot)
         {
             

@@ -43,7 +43,8 @@ public class TradePairPriceUpdateWorker : AwakenServerWorkerBase
         Dictionary<string, List<SyncRecordDto>> pair2syncs = new Dictionary<string, List<SyncRecordDto>>();
         
         long blockHeight = -1;
-
+        long allSyncCount = 0;
+        
         while (true)
         {
             var queryList = await _graphQlProvider.GetSyncRecordsAsync(chain.Id, blockHeight+1, 0, 0, _workerOptions.QueryOnceLimit);
@@ -51,10 +52,11 @@ public class TradePairPriceUpdateWorker : AwakenServerWorkerBase
             {
                 break;
             }
-            _logger.LogInformation("sync queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Id);
+            _logger.LogInformation("align trade pair price queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Id);
         
             try
             {
+                allSyncCount += queryList.Count;
                 foreach (var queryDto in queryList)
                 {
                     if (!pair2syncs.ContainsKey(queryDto.PairAddress))
@@ -71,6 +73,8 @@ public class TradePairPriceUpdateWorker : AwakenServerWorkerBase
             }
 
         }
+        
+        _logger.LogInformation($"align trade pair 24h price high and low begin, sync record count: {allSyncCount}");
         
         var affected = await _tradePairAppService.Update24hPriceAsync(pair2syncs);
         

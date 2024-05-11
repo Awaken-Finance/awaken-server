@@ -497,6 +497,7 @@ namespace AwakenServer.Trade
             TradePairMarketDataSnapshotGrainDto lastSnapshot = new TradePairMarketDataSnapshotGrainDto();
             foreach (var dtos24h in dtosGroupBy24h)
             {
+                
                 var result =
                     await grain.AlignPriceAsync24h(
                         _objectMapper.Map<List<SyncRecordDto>, List<SyncRecordGrainDto>>(dtos24h));
