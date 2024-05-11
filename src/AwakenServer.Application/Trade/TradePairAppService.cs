@@ -429,6 +429,96 @@ namespace AwakenServer.Trade
             
             await grain.AddAsync(_objectMapper.Map<SyncRecordDto, SyncRecordsGrainDto>(dto));
         }
+        
+        public async Task Update24hPriceAsync(Dictionary<string, List<SyncRecordDto>> pairSyncs)
+        {
+            foreach (var pair in pairSyncs)
+            {
+                if (pairSyncs.Values.Count == 0)
+                {
+                    continue;
+                }
+                AlignSyncAsync(pair.Value);
+            }
+        }
+        
+        public async Task AlignSyncAsync(List<SyncRecordDto> dtos)
+        {
+            var record = dtos.First();
+            var pair = await GetAsync(record.ChainId, record.PairAddress);
+            if (pair == null)
+            {
+                _logger.LogError($"get pair: {record.PairAddress} failed in chain: {record.ChainId}");
+                return;
+            }
+
+            foreach (var dto in dtos)
+            {
+                dto.PairId = pair.Id;
+            }
+
+            
+            List<SyncRecordDto> sortedDtos = dtos.OrderByDescending(dto => dto.Timestamp).ToList();
+
+            long lastTimestamp = sortedDtos[0].Timestamp;
+            DateTimeOffset lastDate = DateTimeOffset.FromUnixTimeMilliseconds(lastTimestamp).Date;
+
+            List<List<SyncRecordDto>> dtosGroupBy24h = new List<List<SyncRecordDto>>();
+            List<SyncRecordDto> group = new List<SyncRecordDto>();
+
+            foreach (var dto in sortedDtos)
+            {
+                DateTimeOffset dtoDate = DateTimeOffset.FromUnixTimeMilliseconds(dto.Timestamp).Date;
+                if (lastDate - dtoDate >= TimeSpan.FromDays(1))
+                {
+                    dtosGroupBy24h.Add(group);
+                    group = new List<SyncRecordDto>();
+                    lastDate = dtoDate;
+                }
+                group.Add(dto);
+            }
+
+            dtosGroupBy24h.Add(group);
+            
+            var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(pair.Id));
+            if (!(await grain.GetAsync()).Success)
+            {
+                _logger.LogInformation($"trade pair: {pair.Id} not exist");
+                return;
+            }
+
+            TradePairMarketDataSnapshotGrainDto lastSnapshot = new TradePairMarketDataSnapshotGrainDto();
+            foreach (var dtos24h in dtosGroupBy24h)
+            {
+                var result =
+                    await grain.AlignPriceAsync24h(
+                        _objectMapper.Map<List<SyncRecordDto>, List<SyncRecordGrainDto>>(dtos24h));
+
+                if (result.Success)
+                {
+                    _logger.LogDebug($"from AlignPriceAsync24h publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.SnapshotDto)}");
+            
+                    await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairMarketDataSnapshotEto>(
+                        _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>(
+                            result.Data.SnapshotDto)
+                    ));
+                
+                    _logger.LogDebug($"from AlignPriceAsync24h publishAsync TradePairEto: {JsonConvert.SerializeObject(result.Data.TradePairDto)}");
+
+                    await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairEto>(
+                        _objectMapper.Map<TradePairGrainDto, TradePairEto>(
+                            result.Data.TradePairDto)
+                    ));
+                }
+                else
+                {
+                    _logger.LogError($"align trade pair price failed, {pair.Id}");
+                }
+                
+                // only update latest 24h
+                break;
+            }
+        }
 
         
         public async Task RevertSyncAsync(string chainId, int queryOnceLimit)
@@ -509,6 +599,8 @@ namespace AwakenServer.Trade
                 return null;
             }
         }
+        
+        
 
         public async Task UpdateTotalSupplyAsync(Guid id, string chainId)
         {
@@ -931,6 +1023,8 @@ namespace AwakenServer.Trade
                     return descriptor => descriptor.Ascending(f => f.Token0.Symbol);
             }
         }
+
+        
         
     }
 }
