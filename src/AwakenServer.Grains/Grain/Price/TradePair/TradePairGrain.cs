@@ -295,17 +295,25 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 Timestamp = hourSnapshot.Key,
             });
 
+            if (!result.Success)
+            {
+                _logger.LogError($"AlignSnapshotAsync failed. trade pair id: {State.Id}");
+                return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
+                {
+                    Success = false
+                };    
+            }
+            
             if (result.Success && flag)
             {
                 latestSnapshotResult = result;
                 flag = false;
-            }
-            else
+                _logger.LogInformation($"align snapshot, trade pair id: {State.Id} latest time: {latestSnapshotResult.Data.Timestamp}, PriceHigh: {latestSnapshotResult.Data.PriceHigh}, PriceLow: {latestSnapshotResult.Data.PriceLow}, PriceHighUSD: {latestSnapshotResult.Data.PriceHighUSD}, PriceLowUSD: {latestSnapshotResult.Data.PriceLowUSD}");
+            } 
+            else if (result.Success && result.Data.Timestamp > latestSnapshotResult.Data.Timestamp)
             {
-                return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
-                {
-                    Success = false
-                };
+                latestSnapshotResult = result;
+                _logger.LogInformation($"align snapshot, trade pair id: {State.Id} latest time: {latestSnapshotResult.Data.Timestamp}, PriceHigh: {latestSnapshotResult.Data.PriceHigh}, PriceLow: {latestSnapshotResult.Data.PriceLow}, PriceHighUSD: {latestSnapshotResult.Data.PriceHighUSD}, PriceLowUSD: {latestSnapshotResult.Data.PriceLowUSD}");
             }
         }
 
@@ -647,6 +655,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         var daySnapshot = previous7DaysSnapshotDtos.Where(s => s.Timestamp > dto.Timestamp.AddDays(-1)).ToList();
         foreach (var snapshot in daySnapshot)
         {
+            _logger.LogInformation($"align snapshot, trade pair id: {State.Id} snapshot info, time: {snapshot.Timestamp}, PriceHigh: {snapshot.PriceHigh}, PriceLow: {snapshot.PriceLow}, PriceHighUSD: {snapshot.PriceHighUSD}, PriceLowUSD: {snapshot.PriceLowUSD}");
             
             if (priceLow24h == 0)
             {
@@ -670,6 +679,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 
             priceHigh24hUSD = Math.Max(priceHigh24hUSD, snapshot.PriceHighUSD);
             priceHigh24h = Math.Max(priceHigh24h, snapshot.PriceHigh);
+            
+            _logger.LogInformation($"align snapshot, current trade pair id: {State.Id} priceHigh24h: {priceHigh24h}, priceLow24h: {priceLow24h}, priceHigh24hUSD: {priceHigh24hUSD}, priceLow24hUSD: {priceLow24hUSD}");
         }
         
         State.PriceHigh24h = priceHigh24h;
