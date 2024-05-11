@@ -64,7 +64,6 @@ public class TradePairPriceUpdateWorker : AwakenServerWorkerBase
                     pair2syncs[queryDto.PairAddress].Add(queryDto);
                     blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
                 }
-            
             }
             catch (Exception e)
             {
@@ -73,7 +72,10 @@ public class TradePairPriceUpdateWorker : AwakenServerWorkerBase
 
         }
         
-        await _tradePairAppService.Update24hPriceAsync(pair2syncs);
+        var affected = await _tradePairAppService.Update24hPriceAsync(pair2syncs);
+        
+        _logger.LogInformation($"align trade pair 24h price high and low end, affected trade pairs: {affected}");
+        
         return blockHeight;
     }
     

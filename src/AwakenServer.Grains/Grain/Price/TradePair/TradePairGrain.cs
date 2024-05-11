@@ -309,7 +309,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 
         if (lastSnapshotResult.Success)
         {
-            var updateTradePairResult = await UpdateFromSnapshotAsync(lastSnapshotResult.Data);
+            var updateTradePairResult = await UpdatePrice24hHighLowAsync(lastSnapshotResult.Data);
             return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
             {
                 Success = true,
@@ -624,6 +624,57 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             State.Token0.Symbol, State.Token1.Symbol, State.FeeRate, State.Price, State.PriceUSD, State.Token1.Symbol,
             priceUSD1);
 
+        await WriteStateAsync();
+
+        return new GrainResultDto<TradePairGrainDto>
+        {
+            Success = true,
+            Data = _objectMapper.Map<TradePairState, TradePairGrainDto>(State)
+        };
+    }
+
+    public async Task<GrainResultDto<TradePairGrainDto>> UpdatePrice24hHighLowAsync(TradePairMarketDataSnapshotGrainDto dto)
+    {
+        var previous7DaysSnapshotDtos = await GetPrevious7DaysSnapshotsDtoAsync();
+        
+        var priceHigh24h = dto.PriceHigh;
+        var priceLow24h = dto.PriceLow;
+        var priceHigh24hUSD = dto.PriceHighUSD;
+        var priceLow24hUSD = dto.PriceLowUSD;
+
+        var daySnapshot = previous7DaysSnapshotDtos.Where(s => s.Timestamp >= dto.Timestamp.AddDays(-1)).ToList();
+        foreach (var snapshot in daySnapshot)
+        {
+            
+            if (priceLow24h == 0)
+            {
+                priceLow24h = snapshot.PriceLow;
+            }
+
+            if (snapshot.PriceLow != 0)
+            {
+                priceLow24h = Math.Min(priceLow24h, snapshot.PriceLow);
+            }
+
+            if (priceLow24hUSD == 0)
+            {
+                priceLow24hUSD = snapshot.PriceLowUSD;
+            }
+
+            if (snapshot.PriceLowUSD != 0)
+            {
+                priceLow24hUSD = Math.Min(priceLow24hUSD, snapshot.PriceLowUSD);
+            }
+
+            priceHigh24hUSD = Math.Max(priceHigh24hUSD, snapshot.PriceHighUSD);
+            priceHigh24h = Math.Max(priceHigh24h, snapshot.PriceHigh);
+        }
+        
+        State.PriceHigh24h = priceHigh24h;
+        State.PriceLow24h = priceLow24h;
+        State.PriceHigh24hUSD = priceHigh24hUSD;
+        State.PriceLow24hUSD = priceLow24hUSD;
+        
         await WriteStateAsync();
 
         return new GrainResultDto<TradePairGrainDto>

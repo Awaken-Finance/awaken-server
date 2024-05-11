@@ -430,26 +430,33 @@ namespace AwakenServer.Trade
             await grain.AddAsync(_objectMapper.Map<SyncRecordDto, SyncRecordsGrainDto>(dto));
         }
         
-        public async Task Update24hPriceAsync(Dictionary<string, List<SyncRecordDto>> pairSyncs)
+        public async Task<int> Update24hPriceAsync(Dictionary<string, List<SyncRecordDto>> pairSyncs)
         {
+            int affected = 0;
             foreach (var pair in pairSyncs)
             {
                 if (pairSyncs.Values.Count == 0)
                 {
                     continue;
                 }
-                AlignSyncAsync(pair.Value);
+                var suc = await AlignSyncAsync(pair.Value);
+                if (suc)
+                {
+                    affected++;
+                }
             }
+
+            return affected;
         }
         
-        public async Task AlignSyncAsync(List<SyncRecordDto> dtos)
+        public async Task<bool> AlignSyncAsync(List<SyncRecordDto> dtos)
         {
             var record = dtos.First();
             var pair = await GetAsync(record.ChainId, record.PairAddress);
             if (pair == null)
             {
                 _logger.LogError($"get pair: {record.PairAddress} failed in chain: {record.ChainId}");
-                return;
+                return false;
             }
 
             foreach (var dto in dtos)
@@ -484,7 +491,7 @@ namespace AwakenServer.Trade
             if (!(await grain.GetAsync()).Success)
             {
                 _logger.LogInformation($"trade pair: {pair.Id} not exist");
-                return;
+                return false;
             }
 
             TradePairMarketDataSnapshotGrainDto lastSnapshot = new TradePairMarketDataSnapshotGrainDto();
@@ -509,15 +516,19 @@ namespace AwakenServer.Trade
                         _objectMapper.Map<TradePairGrainDto, TradePairEto>(
                             result.Data.TradePairDto)
                     ));
+                    
+                    _logger.LogInformation($"align trade pair price: {result.Data.TradePairDto.Id}, {result.Data.TradePairDto.PriceHigh24h}, {result.Data.TradePairDto.PriceLow24h}, {result.Data.TradePairDto.PriceHigh24hUSD}, {result.Data.TradePairDto.PriceLow24hUSD}");
                 }
                 else
                 {
                     _logger.LogError($"align trade pair price failed, {pair.Id}");
+                    return false;
                 }
                 
                 // only update latest 24h
                 break;
             }
+            return true;
         }
 
         
