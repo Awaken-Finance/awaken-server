@@ -17,6 +17,7 @@ using Nest;
 using Nethereum.Util;
 using Orleans;
 using Volo.Abp.ObjectMapping;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 namespace AwakenServer.Grains.Grain.Price.TradePair;
 
@@ -539,6 +540,10 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         int userTradeAddressCount,
         string totalSupply)
     {
+        _logger.LogInformation($"Scheduled trade pair update begin, id: {State.Id}, " +
+                               $"timestamp: {timestamp}, " +
+                               $"current trade pair: {JsonConvert.SerializeObject(State)}");
+        
         var previous7DaysSnapshotDtos = await GetPrevious7DaysSnapshotsDtoAsync();
 
         var volume24h = 0d;
@@ -549,8 +554,13 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         var priceHigh24hUSD = State.PriceUSD;
         var priceLow24hUSD = State.PriceUSD;
         var daySnapshot = previous7DaysSnapshotDtos.Where(s => s.Timestamp >= timestamp.AddDays(-1)).ToList();
+        var snaoshotCount = 0;
         foreach (var snapshot in daySnapshot)
         {
+            _logger.LogInformation($"Scheduled trade pair update, " +
+                                   $"daySnapshot : {snaoshotCount}, " +
+                                   $"snapshot: {snapshot}");
+            snaoshotCount++;
             volume24h += snapshot.Volume;
             tradeValue24h += snapshot.TradeValue;
             tradeCount24h += snapshot.TradeCount;
@@ -563,6 +573,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         var lastDaySnapshot = previous7DaysSnapshotDtos
             .Where(s => s.Timestamp >= timestamp.AddDays(-2) && s.Timestamp < timestamp.AddDays(-1))
             .OrderByDescending(s => s.Timestamp).ToList();
+        
         var lastDayVolume24h = lastDaySnapshot.Sum(snapshot => snapshot.Volume);
         var lastDayTvl = 0d;
         var lastDayPriceUSD = 0d;
@@ -582,6 +593,12 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 lastDayPriceUSD = snapshot.PriceUSD;
             }
         }
+        
+        _logger.LogInformation($"Scheduled trade pair update, " +
+                               $"lastDaySnapshot count: {lastDaySnapshot.Count}, " +
+                               $"lastDayVolume24h: {lastDayVolume24h}, " +
+                               $"lastDayTvl: {lastDayTvl}, " +
+                               $"lastDayPriceUSD: {lastDayPriceUSD}");
 
         var token0PriceResult = await _clusterClient.GetGrain<ITokenPriceGrain>(State.Token0.Symbol)
             .GetCurrentPriceAsync(State.Token0.Symbol);
@@ -629,10 +646,9 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         State.TradeAddressCount24h = userTradeAddressCount;
         State.TotalSupply = totalSupply;
         
-        _logger.LogInformation(
-            "updatePairTimer token:{token0Symbol}-{token1Symbol},fee:{fee}-price:{price}-priceUSD:{priceUSD},token1:{token1}-priceUSD1:{priceUSD1}",
-            State.Token0.Symbol, State.Token1.Symbol, State.FeeRate, State.Price, State.PriceUSD, State.Token1.Symbol,
-            priceUSD1);
+        _logger.LogInformation($"Scheduled trade pair update end, id: {State.Id}, " +
+                               $"timestamp: {timestamp}, " +
+                               $"after update, trade pair: {JsonConvert.SerializeObject(State)}");
 
         await WriteStateAsync();
 
