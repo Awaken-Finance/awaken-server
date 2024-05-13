@@ -9,6 +9,7 @@ using AElf.Types;
 using AwakenServer.Tokens;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
+using TransactionFeeCharged = AElf.Contracts.MultiToken.TransactionFeeCharged;
 
 namespace AwakenServer.Chains
 {
@@ -90,7 +91,8 @@ namespace AwakenServer.Chains
                 {
                     return 0;
                 }
-                var transactionFeeCharged = TransactionFeeCharged.Parser.ParseFrom(ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
+                var transactionFeeCharged = TransactionFeeCharged.Parser.
+                    ParseFrom(ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
                 return transactionFeeCharged.Amount;
             }
             catch (Exception e)
