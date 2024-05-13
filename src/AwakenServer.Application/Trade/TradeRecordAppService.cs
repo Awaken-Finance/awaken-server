@@ -515,7 +515,7 @@ namespace AwakenServer.Trade
         {
             int pageSize = 1000; 
             int skipCount = 0;
-            DateTime timeOffset = DateTime.Parse("2024-05-13 18:00:00");
+            DateTime timeOffset = DateTime.Parse("2024-05-12 18:00:00");
                 
             Dictionary<string, List<Index.TradeRecord>> txnHashToList = new Dictionary<string, List<Index.TradeRecord>>();
             while (true)
@@ -531,6 +531,10 @@ namespace AwakenServer.Trade
                 
                 foreach (var record in pageData)
                 {
+                    if (record.Timestamp < timeOffset)
+                    {
+                        continue;
+                    }
                     if (!txnHashToList.ContainsKey(record.TransactionHash))
                     {
                         txnHashToList[record.TransactionHash] = new List<Index.TradeRecord>();
