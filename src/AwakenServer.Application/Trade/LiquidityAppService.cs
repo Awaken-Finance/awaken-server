@@ -144,6 +144,7 @@ namespace AwakenServer.Trade
                 indexDto.TransactionFee =
                     await _aelfClientProvider.GetTransactionFeeAsync(qlQueryInput.ChainId, recordDto.TransactionHash) /
                     Math.Pow(10, 8);
+                _logger.LogInformation($"liquidity record index, txn hash :{indexDto.TransactionHash}, Txn fee{indexDto.TransactionFee}");
                 dataList.Add(indexDto);
             }
 
@@ -276,9 +277,9 @@ namespace AwakenServer.Trade
                 indexDto.TradePair = tradePairIndex;
                 indexDto.LpTokenAmount = dto.LpTokenAmount.ToDecimalsString(8);
                 
-                var token = await GetTokenInfoAsync(tradePairIndex.Id, tradePairIndex.ChainId);
-                var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
-                tradePairIndex.TotalSupply = supply;
+                // var token = await GetTokenInfoAsync(tradePairIndex.Id, tradePairIndex.ChainId);
+                // var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
+                // tradePairIndex.TotalSupply = supply;
                 
                 var prop = tradePairIndex.TotalSupply == null || tradePairIndex.TotalSupply == "0"
                     ? 0

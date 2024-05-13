@@ -244,13 +244,14 @@ namespace AwakenServer.Trade
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
             if (await tradeRecordGrain.Exist())
             {
-                var recordResultDto = await tradeRecordGrain.GetAsync();
-                var tradeRecordIndex = await _tradeRecordIndexRepository.GetAsync(recordResultDto.Data.Id);
-                if (tradeRecordIndex != null)
-                {
-                    return true;
-                }
-                _logger.LogInformation($"swap record exist in grain does exist in es: {dto.Sender}, {dto.TransactionHash}");
+                return true;
+                // var recordResultDto = await tradeRecordGrain.GetAsync();
+                // var tradeRecordIndex = await _tradeRecordIndexRepository.GetAsync(recordResultDto.Data.Id);
+                // if (tradeRecordIndex != null)
+                // {
+                //     return true;
+                // }
+                // _logger.LogInformation($"swap record exist in grain does exist in es: {dto.Sender}, {dto.TransactionHash}");
             }
             
             await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
@@ -386,25 +387,16 @@ namespace AwakenServer.Trade
                     }
                 });
         }
-
-        public async Task BulkUpdateTxnFeeAsync(List<Index.TradeRecord> recordIndexes)
-        {
-            foreach (var tradeRecord in recordIndexes)
-            {
-                tradeRecord.TransactionFee = await _aelfClientProvider.GetTransactionFeeAsync(tradeRecord.ChainId, tradeRecord.TransactionHash) /
-                                             Math.Pow(10, 8);
-                _logger.LogInformation($"update trade record txn fee, {tradeRecord.TransactionHash}, {tradeRecord.TransactionFee}");
-                
-            }
-                
-            await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(recordIndexes);
-        }
         
-        public async Task UpdateAllTxnFeeAsync(string chainId)
+        
+        public async Task UpdateAllTxnFeeAsync(string chainId, Dictionary<string, double> transactions)
         {
+            _logger.LogInformation($"update all trade record txn fee begin, chain: {chainId}");
+            
             int pageSize = 1000; 
             int skipCount = 0;
-            
+            int affected = 0;
+            // HashSet<string> allRecordSet = new HashSet<string>();
             while (true)
             {
                 List<Index.TradeRecord> pageData = await GetListAsync(chainId, skipCount, pageSize);
@@ -414,11 +406,92 @@ namespace AwakenServer.Trade
                     break;
                 }
 
-                await BulkUpdateTxnFeeAsync(pageData);
+                List<Index.TradeRecord> needUpdateRecords = new List<Index.TradeRecord>();
+                foreach (var tradeRecord in pageData)
+                {
+                    // allRecordSet.Add(tradeRecord.TransactionHash);
+                    if (transactions.ContainsKey(tradeRecord.TransactionHash))
+                    {
+                        tradeRecord.TransactionFee = transactions[tradeRecord.TransactionHash];
+                        needUpdateRecords.Add(tradeRecord);
+                        _logger.LogInformation($"update trade record txn fee, {tradeRecord.TransactionHash}, {tradeRecord.TransactionFee}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"update trade record txn fee, can't get hash from json file, skip: {tradeRecord.TransactionHash}");
+                    }
+                }
+
+                affected += needUpdateRecords.Count;
                 skipCount += pageData.Count;
+                
+                _logger.LogInformation($"update trade record txn fee, BulkAddOrUpdateAsync begin, size: {needUpdateRecords.Count}");
+                if (needUpdateRecords.Count > 0)
+                {
+                    await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(needUpdateRecords);
+                }
+                _logger.LogInformation($"update trade record txn fee, BulkAddOrUpdateAsync end, size: {needUpdateRecords.Count}");
             }
             
-            _logger.LogInformation($"update all trade record txn fee end, affected records: {skipCount}");
+            _logger.LogInformation($"update all trade record txn fee end, chain: {chainId}, all record count: {skipCount} affected records: {affected}");
+        }
+        
+        
+        public async Task RemoveDuplicatesAsync(string chainId)
+        {
+            int pageSize = 1000; 
+            int skipCount = 0;
+            DateTime timeOffset = DateTime.Parse("2024-05-12 18:00:00");
+                
+            Dictionary<string, List<Index.TradeRecord>> txnHashToList = new Dictionary<string, List<Index.TradeRecord>>();
+            while (true)
+            {
+                List<Index.TradeRecord> pageData = await GetListAsync(chainId, skipCount, pageSize);
+
+                if (pageData.Count == 0)
+                {
+                    break;
+                }
+                
+                skipCount += pageData.Count;
+                
+                foreach (var record in pageData)
+                {
+                    if (record.Timestamp < timeOffset)
+                    {
+                        continue;
+                    }
+                    if (!txnHashToList.ContainsKey(record.TransactionHash))
+                    {
+                        txnHashToList[record.TransactionHash] = new List<Index.TradeRecord>();
+                    }
+                    txnHashToList[record.TransactionHash].Add(record);
+                    _logger.LogInformation($"txn: {record.TransactionHash}, add: {record.Id}");
+                }
+            }
+
+            List<Index.TradeRecord> duplicatesList = new List<Index.TradeRecord>();
+            foreach (var record in txnHashToList)
+            {
+                if (record.Value.Count > 1)
+                {
+                    _logger.LogInformation($"txn :{record.Key}, count: {record.Value.Count}");
+                    _logger.LogInformation($"txn :{record.Key}, keep: {record.Value[0].Id}");
+                    for (int i = 1; i < record.Value.Count; i++)
+                    {
+                        var value = record.Value[i];
+                        value.IsDeleted = true;
+                        _logger.LogInformation($"txn :{record.Key}, remove: {value.Id}");
+                        duplicatesList.Add(value);
+                    }
+                }
+            }
+            _logger.LogInformation($"RemoveDuplicatesAsync BulkAddOrUpdateAsync begin, affected records: {duplicatesList.Count}");
+            if (duplicatesList.Count > 0)
+            {
+                await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(duplicatesList);
+            }
+            _logger.LogInformation($"RemoveDuplicatesAsync BulkAddOrUpdateAsync end, affected records: {duplicatesList.Count}");
         }
         
         public async Task RevertTradeRecordAsync(string chainId)

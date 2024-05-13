@@ -70,7 +70,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             Data = _objectMapper.Map<TradePairMarketDataSnapshotState, TradePairMarketDataSnapshotGrainDto>(State)
         };
     }
-
+    
     public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> UpdateTotalSupplyAsync(string supply)
     {
         State.TotalSupply = supply;
@@ -83,7 +83,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             Data = _objectMapper.Map<TradePairMarketDataSnapshotState, TradePairMarketDataSnapshotGrainDto>(State)
         };
     }
-
+    
     public async Task InitNewAsync(
         TradePairMarketDataSnapshotGrainDto dto,
         TradePairMarketDataSnapshotGrainDto lastDto)
@@ -239,7 +239,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             State = _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(updateDto);
         }
 
-        _logger.LogInformation("UpdateTotalSupplyAsync: totalSupply:{supply}", State.TotalSupply);
+        _logger.LogInformation("UpdateTotalSupplyAsync: totalSupply: {supply}", State.TotalSupply);
 
         await WriteStateAsync();
 
