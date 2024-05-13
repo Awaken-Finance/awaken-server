@@ -144,6 +144,7 @@ namespace AwakenServer.Trade
                 indexDto.TransactionFee =
                     await _aelfClientProvider.GetTransactionFeeAsync(qlQueryInput.ChainId, recordDto.TransactionHash) /
                     Math.Pow(10, 8);
+                _logger.LogInformation($"liquidity record index, txn hash :{indexDto.TransactionHash}, Txn fee{indexDto.TransactionFee}");
                 dataList.Add(indexDto);
             }
 

@@ -6,11 +6,8 @@ public enum WorkerBusinessType
     SwapEvent,
     SyncEvent,
     TradePairEvent,
-    TradeRecordRevert, 
     TradePairUpdate,
-    TradePairTotalSupplyUpdate,
     MarketSnapshot,
     TransactionRevert,
     TradeRecordUpdate,
-    TradePairPriceUpdate
 }

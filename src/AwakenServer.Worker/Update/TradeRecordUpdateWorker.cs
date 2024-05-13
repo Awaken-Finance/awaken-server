@@ -36,7 +36,8 @@ namespace AwakenServer.Worker
 
         public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
         {
-            await _tradeRecordAppService.UpdateAllTxnFeeAsync(chain.Name);
+            // await _tradeRecordAppService.UpdateAllTxnFeeAsync(chain.Name);
+            await _tradeRecordAppService.RemoveDuplicatesAsync(chain.Name);
             return 0;
         }
         

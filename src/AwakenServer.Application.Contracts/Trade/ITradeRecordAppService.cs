@@ -14,6 +14,8 @@ namespace AwakenServer.Trade
         public Task<TradeRecordIndexDto> GetRecordFromGrainAsync(string chainId, string transactionId);
 
         public Task UpdateAllTxnFeeAsync(string chainId);
+
+        public Task RemoveDuplicatesAsync(string chainId);
         
         Task<PagedResultDto<TradeRecordIndexDto>> GetListAsync(GetTradeRecordsInput input);
 
