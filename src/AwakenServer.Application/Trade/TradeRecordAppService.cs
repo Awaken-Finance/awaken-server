@@ -276,13 +276,14 @@ namespace AwakenServer.Trade
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
             if (await tradeRecordGrain.Exist())
             {
-                var recordResultDto = await tradeRecordGrain.GetAsync();
-                var tradeRecordIndex = await _tradeRecordIndexRepository.GetAsync(recordResultDto.Data.Id);
-                if (tradeRecordIndex != null)
-                {
-                    return true;
-                }
-                _logger.LogInformation($"swap record exist in grain does exist in es: {dto.Sender}, {dto.TransactionHash}");
+                return true;
+                // var recordResultDto = await tradeRecordGrain.GetAsync();
+                // var tradeRecordIndex = await _tradeRecordIndexRepository.GetAsync(recordResultDto.Data.Id);
+                // if (tradeRecordIndex != null)
+                // {
+                //     return true;
+                // }
+                // _logger.LogInformation($"swap record exist in grain does exist in es: {dto.Sender}, {dto.TransactionHash}");
             }
             
             await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
@@ -530,10 +531,6 @@ namespace AwakenServer.Trade
                 
                 foreach (var record in pageData)
                 {
-                    if (record.Timestamp < timeOffset)
-                    {
-                        continue;
-                    }
                     if (!txnHashToList.ContainsKey(record.TransactionHash))
                     {
                         txnHashToList[record.TransactionHash] = new List<Index.TradeRecord>();
@@ -560,7 +557,10 @@ namespace AwakenServer.Trade
                 }
             }
             _logger.LogInformation($"RemoveDuplicatesAsync BulkAddOrUpdateAsync begin, affected records: {duplicatesList.Count}");
-            await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(duplicatesList);
+            if (duplicatesList.Count > 0)
+            {
+                await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(duplicatesList);
+            }
             _logger.LogInformation($"RemoveDuplicatesAsync BulkAddOrUpdateAsync end, affected records: {duplicatesList.Count}");
         }
         
