@@ -190,6 +190,12 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         lpAmount = dto.Type == LiquidityType.Mint ? lpAmount : -lpAmount;
         lpAmount = dto.IsRevert ? -lpAmount : lpAmount;
         
+        _logger.LogInformation($"update total supply, " +
+                               $"txn hash: {dto.TransactionHash}, " +
+                               $"liquidity type: {dto.Type}, " +
+                               $"is revert: {dto.IsRevert}, " +
+                               $"lp amount: {lpAmount.ToNormalizeString()}");
+        
         var updateResult = await AddOrUpdateSnapshotAsync(
             new TradePairMarketDataSnapshotGrainDto
             {

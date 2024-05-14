@@ -103,7 +103,7 @@ namespace AwakenServer.Price
                         {
                             AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
                         });
-                    if (price.PriceInUsd == PriceOptions.DefaultPriceValue)
+                    if (price.PriceInUsd == PriceOptions.DefaultPriceValue || price.PriceInUsd == 0)
                     {
                         price.PriceInUsd = await _tokenPriceProvider.GetHistoryPriceAsync(input.Symbol, time);
                         await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions

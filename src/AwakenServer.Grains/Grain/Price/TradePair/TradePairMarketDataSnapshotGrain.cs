@@ -226,7 +226,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             State = _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(updateDto);
         }
 
-        _logger.LogInformation("UpdateTotalSupplyAsync: totalSupply:{supply}", State.TotalSupply);
+        _logger.LogInformation("UpdateTotalSupplyAsync: totalSupply: {supply}", State.TotalSupply);
 
         await WriteStateAsync();
 
