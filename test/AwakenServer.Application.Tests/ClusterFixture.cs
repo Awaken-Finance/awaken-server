@@ -35,15 +35,30 @@ public class ClusterFixture : IDisposable, ISingletonDependency
     public ClusterFixture()
     {
         var builder = new TestClusterBuilder();
+        
+        builder.ConfigureHostConfiguration(configBuilder =>
+        {
+            configBuilder.AddInMemoryCollection(new Dictionary<string, string>
+            {
+                ["Orleans:SiloOptions:GatewayListeningPort"] = "0",
+                ["Orleans:SiloOptions:SiloListeningPort"] = "0",
+            });
+        });
+        
         builder.AddSiloBuilderConfigurator<TestSiloConfigurations>();
         builder.AddClientBuilderConfigurator<TestClientBuilderConfigurator>();
+        
         Cluster = builder.Build();
         Cluster.Deploy();
     }
 
     public void Dispose()
     {
-        Cluster.StopAllSilos();
+        if (Cluster != null)
+        {
+            Cluster.StopAllSilos();
+            Cluster.Dispose();
+        }
     }
 
     public TestCluster Cluster { get; private set; }

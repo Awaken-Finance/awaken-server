@@ -33,7 +33,7 @@ namespace AwakenServer.Controllers.Trade
         [Route("user-liquidity")]
         public virtual Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityAsync(GetUserLiquidityInput input)
         {
-            return _liquidityAppService.GetUserLiquidityAsync(input);
+            return _liquidityAppService.GetUserLiquidityFromGraphQLAsync(input);
         }
         
         [HttpGet]

@@ -39,7 +39,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         timer.Period = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).TimePeriod;
         
         _workerOptions.OpenSwitch = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
-            optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).OpenSwitch : true;
+            optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).OpenSwitch : false;
         
         _workerOptions.ResetBlockHeightFlag = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
             optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).ResetBlockHeightFlag : false;

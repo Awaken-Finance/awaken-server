@@ -13,15 +13,15 @@ using Volo.Abp.Threading;
 
 namespace AwakenServer.Worker
 {
-    public class TradePairUpdateWorker : AwakenServerWorkerBase
+    public class TradePairTotalSupplyUpdateWorker : AwakenServerWorkerBase
     {
-        protected override WorkerBusinessType _businessType => WorkerBusinessType.TradePairUpdate;
+        protected override WorkerBusinessType _businessType => WorkerBusinessType.TradePairTotalSupplyUpdate;
         
         protected readonly IChainAppService _chainAppService;
         protected readonly IGraphQLProvider _graphQlProvider;
         private readonly ITradePairAppService _tradePairAppService;
         
-        public TradePairUpdateWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
+        public TradePairTotalSupplyUpdateWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
             ITradePairAppService tradePairAppService, IChainAppService chainAppService,
             IGraphQLProvider graphQlProvider,
             IOptionsMonitor<WorkerOptions> optionsMonitor,
@@ -41,10 +41,15 @@ namespace AwakenServer.Worker
                 ChainId = chain.Name,
                 MaxResultCount = 1000
             });
+            
+            _logger.LogInformation($"update trade pair supply begin, affected trade pairs: {pairs.Items.Count}");
+            
             foreach (var pair in pairs.Items)
             {
-                await _tradePairAppService.UpdateTradePairAsync(pair.Id);
+                await _tradePairAppService.UpdateTotalSupplyAsync(pair.Id, pair.ChainId);
             }
+            
+            _logger.LogInformation($"update trade pair supply end, affected trade pairs: {pairs.Items.Count}");
 
             return 0;
         }

@@ -41,20 +41,17 @@ namespace AwakenServer.Worker
             _tradeRecordAppService = tradeRecordAppService;
         }
 
-        public override Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
         {
-            throw new System.NotImplementedException();
+            await _tradeRecordAppService.RevertTradeRecordAsync(chain.Id);
+            await _liquidityService.RevertLiquidityAsync(chain.Id);
+            await _tradePairAppService.RevertTradePairAsync(chain.Id);
+            return 0;
         }
         
         protected override async Task DoWorkAsync(PeriodicBackgroundWorkerContext workerContext)
         {
-            var chains = await _chainAppService.GetListAsync(new GetChainInput());
-            foreach (var chain in chains.Items)
-            {
-                await _tradeRecordAppService.RevertTradeRecordAsync(chain.Id);
-                await _liquidityService.RevertLiquidityAsync(chain.Id);
-                await _tradePairAppService.RevertTradePairAsync(chain.Id);
-            }
+            await DealDataAsync();
         }
     }
 }

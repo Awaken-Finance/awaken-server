@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.Client.MultiToken;
 using Volo.Abp.ObjectMapping;
 using AwakenServer.Chains;
 using AwakenServer.Common;
@@ -12,11 +13,13 @@ using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
 using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.EventBus.Local;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 namespace AwakenServer.Trade
 {
@@ -33,7 +36,8 @@ namespace AwakenServer.Trade
         private readonly ILogger<LiquidityAppService> _logger;
         private readonly IRevertProvider _revertProvider;
         private readonly IObjectMapper _objectMapper;
-
+        private readonly IAElfClientProvider _blockchainClientProvider;
+        private readonly ContractsTokenOptions _contractsTokenOptions;
         
         private const string ASC = "asc";
         private const string ASCEND = "ascend";
@@ -50,7 +54,9 @@ namespace AwakenServer.Trade
             ILocalEventBus localEventBus,
             ILogger<LiquidityAppService> logger,
             IRevertProvider revertProvider,
-            IObjectMapper objectMapper)
+            IObjectMapper objectMapper,
+            IAElfClientProvider blockchainClientProvider,
+            IOptions<ContractsTokenOptions> contractsTokenOptions)
         {
             _tokenPriceProvider = tokenPriceProvider;
             _tradePairAppService = tradePairAppService;
@@ -62,21 +68,37 @@ namespace AwakenServer.Trade
             _logger = logger;
             _revertProvider = revertProvider;
             _objectMapper = objectMapper;
+            _blockchainClientProvider = blockchainClientProvider;
+            _contractsTokenOptions = contractsTokenOptions.Value;
         }
 
         
         public async Task<PagedResultDto<LiquidityRecordIndexDto>> GetRecordsAsync(GetLiquidityRecordsInput input)
         {
+            _logger.LogInformation($"GetRecordsAsync, {JsonConvert.SerializeObject(input)}");
+            
             var qlQueryInput = new GetLiquidityRecordIndexInput();
-            ObjectMapper.Map(input, qlQueryInput);
-            if (input.TradePairId.HasValue)
-            {
-                var tradePairIndexDto = await _tradePairAppService.GetFromGrainAsync(input.TradePairId.Value);
-                qlQueryInput.Pair = tradePairIndexDto?.Address;
-            }
 
+            try
+            {
+                ObjectMapper.Map(input, qlQueryInput);
+                if (input.TradePairId.HasValue)
+                {
+                    var tradePairIndexDto = await _tradePairAppService.GetFromGrainAsync(input.TradePairId.Value);
+                    qlQueryInput.Pair = tradePairIndexDto?.Address;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Get tradePairIndexDto failed.");
+                throw;
+            }
+            
             var queryResult = await _graphQlProvider.QueryLiquidityRecordAsync(qlQueryInput);
             var dataList = new List<LiquidityRecordIndexDto>();
+            
+            _logger.LogInformation($"QueryLiquidityRecordAsync data count: {queryResult.Data.Count}");
+            
             if (queryResult.TotalCount == 0 || queryResult.Data.IsNullOrEmpty())
             {
                 return new PagedResultDto<LiquidityRecordIndexDto>
@@ -88,9 +110,12 @@ namespace AwakenServer.Trade
 
             var pairAddresses = queryResult.Data.Select(i => i.Pair).Distinct().ToList();
             var pairs =
-                (await _tradePairAppService.GetListAsync(input.ChainId, pairAddresses)).GroupBy(t => t.Address)
+                (await _tradePairAppService.GetListFromEsAsync(input.ChainId, pairAddresses)).GroupBy(t => t.Address)
                 .Select(g => g.First()).ToDictionary(t => t.Address,
                     t => t);
+            
+            
+            _logger.LogInformation($"get trade pairs: {JsonConvert.SerializeObject(pairs)}");
             foreach (var recordDto in queryResult.Data)
             {
                 var indexDto = new LiquidityRecordIndexDto();
@@ -99,6 +124,7 @@ namespace AwakenServer.Trade
                 indexDto.TradePair = pairs.GetValueOrDefault(recordDto.Pair, null);
                 if (indexDto.TradePair == null)
                 {
+                    _logger.LogError($"can't find trade pair {recordDto.Pair}");
                     continue;
                 }
 
@@ -189,11 +215,39 @@ namespace AwakenServer.Trade
             };
         }
 
+        private async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
+        {
+            try
+            {
+                var tradePairIndexDto = await _tradePairAppService.GetAsync(tradePairId);
+                
+                if (tradePairIndexDto == null || !_contractsTokenOptions.Contracts.TryGetValue(
+                        tradePairIndexDto.FeeRate.ToString(),
+                        out var address))
+                {
+                    _logger.LogError("GetTokenInfoAsync, Get tradePairIndexDto failed");
+                    return null;
+                }
+
+                var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
+                    TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
+                _logger.LogInformation($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
+                return token;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Get token info failed");
+                return null;
+            }
+        }
+        
         public async Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityFromGraphQLAsync(GetUserLiquidityInput input)
         {
             var dataList = new List<UserLiquidityIndexDto>();
 
             var queryResult = await _graphQlProvider.QueryUserLiquidityAsync(input);
+            _logger.LogInformation($"GetUserLiquidityFromGraphQLAsync data count: {queryResult.Data.Count}");
+            
             if (queryResult.TotalCount == 0 || queryResult.Data.IsNullOrEmpty())
             {
                 return new PagedResultDto<UserLiquidityIndexDto>
@@ -205,7 +259,7 @@ namespace AwakenServer.Trade
 
             var pairAddresses = queryResult.Data.Select(i => i.Pair).Distinct().ToList();
             var pairs =
-                (await _tradePairAppService.GetListAsync(input.ChainId, pairAddresses)).GroupBy(t => t.Address)
+                (await _tradePairAppService.GetListFromEsAsync(input.ChainId, pairAddresses)).GroupBy(t => t.Address)
                 .Select(g => g.First()).ToDictionary(t => t.Address,
                     t => t);
             foreach (var dto in queryResult.Data)
@@ -215,21 +269,43 @@ namespace AwakenServer.Trade
                 var tradePairIndex = pairs.GetValueOrDefault(dto.Pair, null);
                 if (tradePairIndex == null)
                 {
+                    _logger.LogError($"can't find trade pair {dto.Pair}");
                     continue;
                 }
 
                 indexDto.TradePair = tradePairIndex;
                 indexDto.LpTokenAmount = dto.LpTokenAmount.ToDecimalsString(8);
-
+                
+                var token = await GetTokenInfoAsync(tradePairIndex.Id, tradePairIndex.ChainId);
+                var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
+                tradePairIndex.TotalSupply = supply;
+                
                 var prop = tradePairIndex.TotalSupply == null || tradePairIndex.TotalSupply == "0"
                     ? 0
                     : dto.LpTokenAmount / double.Parse(tradePairIndex.TotalSupply);
+                
+                
                 _logger.LogInformation(
-                    "User liquidity token0:{token0} decimal:{token0Decimal},token1:{token1} decimal:{token1Decimal},token0 amount:{amount0},token1 amount:{amoun1}",
-                    tradePairIndex.Token0.Symbol, tradePairIndex.Token0.Decimals,
-                    tradePairIndex.Token1.Symbol, tradePairIndex.Token1.Decimals, tradePairIndex.ValueLocked0,
+                    "User liquidity, tradePairIndex.TotalSupply: {supply}, " +
+                    "dto.LpTokenAmount: {LpTokenAmount}, " +
+                    "prop:{prop}, " +
+                    "token0:{token0} " +
+                    "decimal:{token0Decimal}," +
+                    "token1:{token1} " +
+                    "decimal:{token1Decimal}," +
+                    "token0 amount:{amount0}," +
+                    "token1 amount:{amoun1}",
+                    tradePairIndex.TotalSupply, 
+                    dto.LpTokenAmount, 
+                    prop, 
+                    tradePairIndex.Token0.Symbol, 
+                    tradePairIndex.Token0.Decimals,
+                    tradePairIndex.Token1.Symbol, 
+                    tradePairIndex.Token1.Decimals, 
+                    tradePairIndex.ValueLocked0,
                     tradePairIndex.ValueLocked1);
-
+                
+                
 
                 indexDto.Token0Amount = tradePairIndex.Token0.Decimals == 0
                     ? Math.Floor(prop / Math.Pow(10, 8) * tradePairIndex.ValueLocked0).ToString()
@@ -305,6 +381,7 @@ namespace AwakenServer.Trade
             };
         }
 
+        
         public async Task UpdateTradePairFieldAsync(LiquidityRecordDto input)
         {
             var tradePair = await _tradePairAppService.GetTradePairAsync(input.ChainId, input.Pair);

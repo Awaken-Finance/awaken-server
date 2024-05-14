@@ -40,7 +40,10 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
         CreateMap<UserTradeSummaryGrainDto, UserTradeSummaryState>().ReverseMap();
         CreateMap<UserLiquidityGrainDto, Liquidity>().ReverseMap();
         CreateMap<Token, TokenDto>().ReverseMap();
-        CreateMap<LiquidityRecordGrainDto, LiquidityRecordState>().ReverseMap();
+        CreateMap<LiquidityRecordGrainDto, LiquidityRecordState>()
+            .ForMember(dest => dest.PairAddress, opt => opt.MapFrom(src => src.Pair));
+        CreateMap<LiquidityRecordState, LiquidityRecordGrainDto>()
+            .ForMember(dest => dest.Pair, opt => opt.MapFrom(src => src.PairAddress));
         CreateMap<SyncRecordsGrainDto, SyncRecordsState>().ReverseMap();
         CreateMap<UnconfirmedTransactionsGrainDto, ToBeConfirmRecord>().ReverseMap();
     }
