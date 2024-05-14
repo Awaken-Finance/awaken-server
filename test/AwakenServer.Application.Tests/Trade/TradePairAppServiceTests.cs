@@ -55,6 +55,9 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task CreateTest()
         {
+            var grainResult = await _tradePairAppService.GetFromGrainAsync(Guid.NewGuid());
+            grainResult.ShouldBeNull();
+            
             var pairDto = new TradePairCreateDto
             {
                 ChainId = ChainId,
@@ -117,6 +120,9 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task GetByAddressTest()
         {
+            var notExistResult = await _tradePairAppService.GetByAddressAsync(Guid.NewGuid(), "");
+            notExistResult.Id.ShouldBe(Guid.Empty);
+            
             var pairDto = new TradePairCreateDto
             {
                 ChainId = ChainId,
@@ -762,6 +768,9 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task GetByIdsTest()
         {
+            var emptyResult = await _tradePairAppService.GetByIdsAsync(new GetTradePairByIdsInput());
+            emptyResult.Items.Count.ShouldBe(0);
+            
             var pairs = await _tradePairAppService.GetByIdsAsync(new GetTradePairByIdsInput
             {
                 Ids = new List<Guid> { TradePairEthUsdtId }
@@ -1128,5 +1137,25 @@ namespace AwakenServer.Trade
 
             return;
         }
+        
+        [Fact]
+        public async Task GetTradePairByIdsTest()
+        {
+            var result = await _tradePairAppService.GetByIdsFromGrainAsync(new GetTradePairByIdsInput
+            {
+                Ids = new List<Guid>
+                {
+                    TradePairEthUsdtId,
+                    TradePairBtcEthId
+                }
+            });
+            
+            result.Items.Count.ShouldBe(2);
+            result.Items[0].Token0.Symbol.ShouldBe("ETH");
+            result.Items[0].Token1.Symbol.ShouldBe("USDT");
+            result.Items[1].Token0.Symbol.ShouldBe("BTC");
+            result.Items[1].Token1.Symbol.ShouldBe("ETH");
+        }
+        
     }
 }

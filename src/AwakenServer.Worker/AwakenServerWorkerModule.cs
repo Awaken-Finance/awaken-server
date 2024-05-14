@@ -20,7 +20,6 @@ namespace AwakenServer.Worker
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<TradePairEventSyncWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<SyncEventSyncWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<TradeRecordEventSwapWorker>());
-            backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<MarketSnapshotWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<TransactionRevertWorker>());
         }
     }

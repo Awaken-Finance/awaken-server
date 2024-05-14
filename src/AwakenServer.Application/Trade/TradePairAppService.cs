@@ -106,15 +106,7 @@ namespace AwakenServer.Trade
             _revertProvider = revertProvider;
 
         }
-
-        public async Task<List<TradePairDto>> GetTradePairInfoListAsync(GetTradePairsInfoInput input)
-        {
-            var tradePairInfoDtoPageResultDto = await _graphQlProvider.GetTradePairInfoListAsync(input);
-            return tradePairInfoDtoPageResultDto.TradePairInfoDtoList.Data.Count == 0
-                ? new List<TradePairDto>()
-                : ObjectMapper.Map<List<TradePairInfoDto>, List<TradePairDto>>(tradePairInfoDtoPageResultDto
-                    .TradePairInfoDtoList.Data);
-        }
+        
 
         public async Task<PagedResultDto<TradePairIndexDto>> GetListAsync(GetTradePairsInput input)
         {
@@ -407,46 +399,6 @@ namespace AwakenServer.Trade
             
             await grain.AddAsync(_objectMapper.Map<SyncRecordDto, SyncRecordsGrainDto>(dto));
         }
-
-        
-        public async Task RevertSyncAsync(string chainId, int queryOnceLimit)
-        {
-            try
-            {
-                var needDeletedTradeRecords =
-                    await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.SyncEvent, chainId);
-
-                if (needDeletedTradeRecords.IsNullOrEmpty())
-                {
-                    return;
-                }
-
-                var needRevertDatas = new List<SyncRecordDto>();
-                foreach (var transactionHash in needDeletedTradeRecords)
-                {
-                    var grain = _clusterClient.GetGrain<ISyncRecordGrain>(GrainIdHelper.GenerateGrainId(chainId, transactionHash));
-                    var result = await grain.GetAsync();
-                    if (result.Success)
-                    {
-                        needRevertDatas.Add(_objectMapper.Map<SyncRecordsGrainDto, SyncRecordDto>(result.Data));
-                    }
-                }
-                
-                foreach (var revertData in needRevertDatas)
-                {
-                    revertData.IsRevert = true;
-                    await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(revertData.PairId, async grain =>
-                    {
-                        return await grain.UpdatePriceAsync(_objectMapper.Map<SyncRecordDto, SyncRecordGrainDto>(revertData));
-                    });
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError("Revert trade pair err:{0}", e);
-            }
-        }
-
         
         
         public async Task CreateTradePairIndexAsync(TradePairInfoDto input, TokenDto token0, TokenDto token1,
