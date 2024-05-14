@@ -106,15 +106,7 @@ namespace AwakenServer.Trade
             _revertProvider = revertProvider;
 
         }
-
-        public async Task<List<TradePairDto>> GetTradePairInfoListAsync(GetTradePairsInfoInput input)
-        {
-            var tradePairInfoDtoPageResultDto = await _graphQlProvider.GetTradePairInfoListAsync(input);
-            return tradePairInfoDtoPageResultDto.TradePairInfoDtoList.Data.Count == 0
-                ? new List<TradePairDto>()
-                : ObjectMapper.Map<List<TradePairInfoDto>, List<TradePairDto>>(tradePairInfoDtoPageResultDto
-                    .TradePairInfoDtoList.Data);
-        }
+        
 
         public async Task<PagedResultDto<TradePairIndexDto>> GetListAsync(GetTradePairsInput input)
         {

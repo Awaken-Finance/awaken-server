@@ -1128,5 +1128,24 @@ namespace AwakenServer.Trade
 
             return;
         }
+        
+        [Fact]
+        public async Task GetTradePairByIds()
+        {
+            var result = await _tradePairAppService.GetByIdsFromGrainAsync(new GetTradePairByIdsInput
+            {
+                Ids = new List<Guid>
+                {
+                    TradePairEthUsdtId,
+                    TradePairBtcEthId
+                }
+            });
+            
+            result.Items.Count.ShouldBe(2);
+            result.Items[0].Token0.Symbol.ShouldBe("ETH");
+            result.Items[0].Token1.Symbol.ShouldBe("USDT");
+            result.Items[1].Token0.Symbol.ShouldBe("BTC");
+            result.Items[1].Token1.Symbol.ShouldBe("ETH");
+        }
     }
 }
