@@ -84,6 +84,7 @@ public class TokenPriceProvider : ITokenPriceProvider, ITransientDependency
 
             if (coinData.MarketData == null)
             {
+                _logger.LogError($"unexpected coinGecko response");
                 return 0;
             }
 

@@ -277,9 +277,9 @@ namespace AwakenServer.Trade
                 indexDto.TradePair = tradePairIndex;
                 indexDto.LpTokenAmount = dto.LpTokenAmount.ToDecimalsString(8);
                 
-                var token = await GetTokenInfoAsync(tradePairIndex.Id, tradePairIndex.ChainId);
-                var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
-                tradePairIndex.TotalSupply = supply;
+                // var token = await GetTokenInfoAsync(tradePairIndex.Id, tradePairIndex.ChainId);
+                // var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
+                // tradePairIndex.TotalSupply = supply;
                 
                 var prop = tradePairIndex.TotalSupply == null || tradePairIndex.TotalSupply == "0"
                     ? 0
