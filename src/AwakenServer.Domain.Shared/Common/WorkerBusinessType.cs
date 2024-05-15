@@ -10,4 +10,5 @@ public enum WorkerBusinessType
     MarketSnapshot,
     TransactionRevert,
     TradeRecordUpdate,
+    TradePairTotalSupplyUpdate
 }
