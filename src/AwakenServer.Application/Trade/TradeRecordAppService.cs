@@ -478,10 +478,12 @@ namespace AwakenServer.Trade
         
         public async Task UpdateAllTxnFeeAsync(string chainId, Dictionary<string, double> transactions)
         {
+            _logger.LogInformation($"update all trade record txn fee begin, chain: {chainId}");
+            
             int pageSize = 1000; 
             int skipCount = 0;
             int affected = 0;
-            
+            HashSet<string> allRecordSet = new HashSet<string>();
             while (true)
             {
                 List<Index.TradeRecord> pageData = await GetListAsync(chainId, skipCount, pageSize);
@@ -494,6 +496,7 @@ namespace AwakenServer.Trade
                 List<Index.TradeRecord> needUpdateRecords = new List<Index.TradeRecord>();
                 foreach (var tradeRecord in pageData)
                 {
+                    allRecordSet.Add(tradeRecord.TransactionHash);
                     if (transactions.ContainsKey(tradeRecord.TransactionHash))
                     {
                         tradeRecord.TransactionFee = transactions[tradeRecord.TransactionHash];
@@ -507,15 +510,17 @@ namespace AwakenServer.Trade
                 }
 
                 affected += needUpdateRecords.Count;
+                skipCount += pageData.Count;
                 
                 _logger.LogInformation($"update trade record txn fee, BulkAddOrUpdateAsync begin, size: {needUpdateRecords.Count}");
-                await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(needUpdateRecords);
+                if (needUpdateRecords.Count > 0)
+                {
+                    await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(needUpdateRecords);
+                }
                 _logger.LogInformation($"update trade record txn fee, BulkAddOrUpdateAsync end, size: {needUpdateRecords.Count}");
-                
-                skipCount += pageData.Count;
             }
             
-            _logger.LogInformation($"update all trade record txn fee end, affected records: {skipCount}");
+            _logger.LogInformation($"update all trade record txn fee end, chain: {chainId}, all record count: {skipCount}, txn hash set count: {allRecordSet.Count}, affected records: {affected}");
         }
         
         

@@ -24,6 +24,7 @@ namespace AwakenServer.Worker
         protected readonly IChainAppService _chainAppService;
         protected readonly IGraphQLProvider _graphQlProvider;
         private readonly ITradeRecordAppService _tradeRecordAppService;
+        private bool Done = false;
         
         public TradeRecordUpdateWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
             ITradeRecordAppService tradeRecordAppService, IChainAppService chainAppService,
@@ -40,6 +41,16 @@ namespace AwakenServer.Worker
 
         public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
         {
+            if (Done)
+            {
+                return 0;
+            }
+
+            if (chain.Name != "tDVW" && chain.Name != "tDVV")
+            {
+                return 0;
+            }
+            
             string filePath = "txnFee240516.json";
         
             try
@@ -57,6 +68,7 @@ namespace AwakenServer.Worker
                 Console.WriteLine($"An error occurred: {ex.Message}");
             }
             
+            Done = true;
             // await _tradeRecordAppService.RemoveDuplicatesAsync(chain.Name);
             return 0;
         }
