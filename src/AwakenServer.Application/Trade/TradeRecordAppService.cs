@@ -393,7 +393,7 @@ namespace AwakenServer.Trade
         {
             _logger.LogInformation($"update all trade record txn fee begin, chain: {chainId}");
             
-            int pageSize = 1000; 
+            int pageSize = 10000;
             int skipCount = 0;
             int affected = 0;
             // HashSet<string> allRecordSet = new HashSet<string>();
@@ -435,64 +435,7 @@ namespace AwakenServer.Trade
             
             _logger.LogInformation($"update all trade record txn fee end, chain: {chainId}, all record count: {skipCount} affected records: {affected}");
         }
-        
-        
-        public async Task RemoveDuplicatesAsync(string chainId)
-        {
-            int pageSize = 1000; 
-            int skipCount = 0;
-            DateTime timeOffset = DateTime.Parse("2024-05-12 18:00:00");
-                
-            Dictionary<string, List<Index.TradeRecord>> txnHashToList = new Dictionary<string, List<Index.TradeRecord>>();
-            while (true)
-            {
-                List<Index.TradeRecord> pageData = await GetListAsync(chainId, skipCount, pageSize);
-
-                if (pageData.Count == 0)
-                {
-                    break;
-                }
-                
-                skipCount += pageData.Count;
-                
-                foreach (var record in pageData)
-                {
-                    if (record.Timestamp < timeOffset)
-                    {
-                        continue;
-                    }
-                    if (!txnHashToList.ContainsKey(record.TransactionHash))
-                    {
-                        txnHashToList[record.TransactionHash] = new List<Index.TradeRecord>();
-                    }
-                    txnHashToList[record.TransactionHash].Add(record);
-                    _logger.LogInformation($"txn: {record.TransactionHash}, add: {record.Id}");
-                }
-            }
-
-            List<Index.TradeRecord> duplicatesList = new List<Index.TradeRecord>();
-            foreach (var record in txnHashToList)
-            {
-                if (record.Value.Count > 1)
-                {
-                    _logger.LogInformation($"txn :{record.Key}, count: {record.Value.Count}");
-                    _logger.LogInformation($"txn :{record.Key}, keep: {record.Value[0].Id}");
-                    for (int i = 1; i < record.Value.Count; i++)
-                    {
-                        var value = record.Value[i];
-                        value.IsDeleted = true;
-                        _logger.LogInformation($"txn :{record.Key}, remove: {value.Id}");
-                        duplicatesList.Add(value);
-                    }
-                }
-            }
-            _logger.LogInformation($"RemoveDuplicatesAsync BulkAddOrUpdateAsync begin, affected records: {duplicatesList.Count}");
-            if (duplicatesList.Count > 0)
-            {
-                await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(duplicatesList);
-            }
-            _logger.LogInformation($"RemoveDuplicatesAsync BulkAddOrUpdateAsync end, affected records: {duplicatesList.Count}");
-        }
+      
         
         public async Task RevertTradeRecordAsync(string chainId)
         {
@@ -553,6 +496,7 @@ namespace AwakenServer.Trade
             QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> f) => f.Bool(b => b.Must(mustQuery));
             return await _tradePairIndexRepository.GetAsync(Filter);
         }
+
 
         
         private async Task<List<Index.TradeRecord>> GetRecordAsync(string chainId, List<string> transactionHashs, int maxResultCount)

@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using AutoMapper;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
+using CoinGecko.Entities.Response.Coins;
+using CoinGecko.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -71,7 +73,16 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                         .ReturnsAsync(1);
                     mockTokenProvider.Setup(o => o.GetHistoryPriceAsync(It.IsAny<string>(),It.IsAny<string>()))
                         .ReturnsAsync(1);
+
+                    var mockCoinGeckoProvider = new Mock<ICoinGeckoClient>();
+                    mockCoinGeckoProvider.Setup(o => o.CoinsClient.GetHistoryByCoinId("NO-PRICE", DateTime.Now.ToString("dd-MM-yyyy"), "false"))
+                        .ReturnsAsync(new CoinFullData
+                        {
+                            MarketData = null
+                        });
+                    
                     services.AddSingleton<ITokenPriceProvider>(mockTokenProvider.Object);
+                    services.AddSingleton<ICoinGeckoClient>(mockCoinGeckoProvider.Object);
                     
                     services.AddMemoryCache();
                     services.AddDistributedMemoryCache();
