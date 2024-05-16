@@ -30,5 +30,6 @@ namespace AwakenServer.Trade
         Task<TokenDto> SyncTokenAsync(string chainId, string symbol, ChainDto chain);
         Task<bool> SyncPairAsync(TradePairInfoDto pair, ChainDto chain);
         Task RevertTradePairAsync(string chainId);
+        Task DoRevertAsync(string chainId, List<string> needDeletedTradeRecords);
     }
 }
