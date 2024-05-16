@@ -664,7 +664,8 @@ namespace AwakenServer.Trade
             mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
             
             QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
-            var list = await _tradeRecordIndexRepository.GetListAsync(Filter, limit: maxResultCount, skip: skipCount);
+            var list = await _tradeRecordIndexRepository.GetListAsync(Filter, limit: maxResultCount, skip: skipCount,
+                sortExp: m => m.BlockHeight);
             return list.Item2;
         }
         
