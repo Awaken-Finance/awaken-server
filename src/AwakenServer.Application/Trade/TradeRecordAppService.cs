@@ -480,7 +480,7 @@ namespace AwakenServer.Trade
         {
             _logger.LogInformation($"update all trade record txn fee begin, chain: {chainId}");
             
-            int pageSize = 1000; 
+            int pageSize = 10000;
             int skipCount = 0;
             int affected = 0;
             // HashSet<string> allRecordSet = new HashSet<string>();
