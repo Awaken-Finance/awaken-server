@@ -13,7 +13,7 @@ namespace AwakenServer.Trade
 
         public Task<TradeRecordIndexDto> GetRecordFromGrainAsync(string chainId, string transactionId);
 
-        public Task UpdateAllTxnFeeAsync(string chainId);
+        public Task UpdateAllTxnFeeAsync(string chainId, Dictionary<string, double> transactions);
 
         public Task RemoveDuplicatesAsync(string chainId);
         

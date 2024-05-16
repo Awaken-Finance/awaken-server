@@ -474,25 +474,13 @@ namespace AwakenServer.Trade
                     }
                 });
         }
-
-        public async Task BulkUpdateTxnFeeAsync(List<Index.TradeRecord> recordIndexes)
-        {
-            foreach (var tradeRecord in recordIndexes)
-            {
-                tradeRecord.TransactionFee = await _aelfClientProvider.GetTransactionFeeAsync(tradeRecord.ChainId, tradeRecord.TransactionHash) /
-                                             Math.Pow(10, 8);
-                _logger.LogInformation($"update trade record txn fee, {tradeRecord.TransactionHash}, {tradeRecord.TransactionFee}");
-                
-            }
-                
-            await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(recordIndexes);
-        }
         
         
-        public async Task UpdateAllTxnFeeAsync(string chainId)
+        public async Task UpdateAllTxnFeeAsync(string chainId, Dictionary<string, double> transactions)
         {
             int pageSize = 1000; 
             int skipCount = 0;
+            int affected = 0;
             
             while (true)
             {
@@ -503,7 +491,27 @@ namespace AwakenServer.Trade
                     break;
                 }
 
-                await BulkUpdateTxnFeeAsync(pageData);
+                List<Index.TradeRecord> needUpdateRecords = new List<Index.TradeRecord>();
+                foreach (var tradeRecord in pageData)
+                {
+                    if (transactions.ContainsKey(tradeRecord.TransactionHash))
+                    {
+                        tradeRecord.TransactionFee = transactions[tradeRecord.TransactionHash];
+                        needUpdateRecords.Add(tradeRecord);
+                        _logger.LogInformation($"update trade record txn fee, {tradeRecord.TransactionHash}, {tradeRecord.TransactionFee}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"update trade record txn fee, can't get hash from json file, skip: {tradeRecord.TransactionHash}");
+                    }
+                }
+
+                affected += needUpdateRecords.Count;
+                
+                _logger.LogInformation($"update trade record txn fee, BulkAddOrUpdateAsync begin, size: {needUpdateRecords.Count}");
+                await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(needUpdateRecords);
+                _logger.LogInformation($"update trade record txn fee, BulkAddOrUpdateAsync end, size: {needUpdateRecords.Count}");
+                
                 skipCount += pageData.Count;
             }
             
@@ -651,8 +659,7 @@ namespace AwakenServer.Trade
             mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
             
             QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
-            var list = await _tradeRecordIndexRepository.GetListAsync(Filter, limit: maxResultCount, skip: skipCount,
-                sortExp: m => m.BlockHeight);
+            var list = await _tradeRecordIndexRepository.GetListAsync(Filter, limit: maxResultCount, skip: skipCount);
             return list.Item2;
         }
         
