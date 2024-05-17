@@ -379,8 +379,11 @@ namespace AwakenServer.Trade
                 var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
                 await grain.AddOrUpdateAsync(_objectMapper.Map<Index.TradePair, TradePairGrainDto>(tradePair));
             }
-                
-            await _tradePairIndexRepository.BulkAddOrUpdateAsync(needDeleteIndexes);
+
+            if (needDeleteIndexes.Count > 0)
+            {
+                await _tradePairIndexRepository.BulkAddOrUpdateAsync(needDeleteIndexes);
+            }
         }
         
         public async Task RevertTradePairAsync(string chainId)

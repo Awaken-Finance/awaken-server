@@ -441,24 +441,7 @@ namespace AwakenServer.Trade
             QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> f) => f.Bool(b => b.Must(mustQuery));
             return await _tradePairIndexRepository.GetAsync(Filter);
         }
-
-
-        private async Task<List<Index.TradeRecord>> GetListAsync(string chainId, long blockHeight, int skipCount,
-            int maxResultCount)
-        {
-            var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
-            mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
-            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsConfirmed).Value(false)));
-            mustQuery.Add(q => q.Range(i => i.Field(f => f.BlockHeight).LessThanOrEquals(blockHeight)));
-            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
-            
-            QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
-            var list = await _tradeRecordIndexRepository.GetListAsync(Filter, limit: maxResultCount, skip: skipCount,
-                sortExp: m => m.BlockHeight);
-            return list.Item2;
-        }
-
-       
+        
         private async Task<List<Index.TradeRecord>> GetRecordAsync(string chainId, List<string> transactionHashs, int maxResultCount)
         {
             var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
