@@ -80,25 +80,7 @@ namespace AwakenServer.Trade
             _bus = bus;
             _revertProvider = revertProvider;
         }
-
-        public async Task<TradeRecordIndexDto> GetRecordAsync(string transactionId)
-        {
-            var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
-            mustQuery.Add(q => q.Term(i => i.Field(f => f.TransactionHash).Value(transactionId)));
-            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
-
-            QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
-
-
-            var record = await _tradeRecordIndexRepository.GetAsync(Filter);
-
-            if (record == null)
-            {
-                return null;
-            }
-
-            return ObjectMapper.Map<Index.TradeRecord, TradeRecordIndexDto>(record);
-        }
+        
 
         public async Task<PagedResultDto<TradeRecordIndexDto>> GetListAsync(GetTradeRecordsInput input)
         {
