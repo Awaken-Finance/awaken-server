@@ -562,6 +562,8 @@ namespace AwakenServer.Trade
                 TransactionHash = "0x1"
             });
             data.Items.Count.ShouldBe(0);
+
+            await _tradeRecordAppService.RevertTradeRecordAsync(ChainId);
         }
         
         

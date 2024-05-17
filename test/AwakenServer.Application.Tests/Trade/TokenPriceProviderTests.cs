@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using AwakenServer.Chains;
 using AwakenServer.Grains.Grain.Price.TradePair;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using Shouldly;
@@ -11,6 +12,7 @@ using Xunit;
 
 namespace AwakenServer.Trade
 {
+    [Collection(ClusterCollection.Name)]
     public class TokenPriceProviderTests: TradeTestBase
     {
         private readonly ITokenPriceProvider _tokenPriceProvider;

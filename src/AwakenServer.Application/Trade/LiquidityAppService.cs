@@ -215,32 +215,6 @@ namespace AwakenServer.Trade
                 TotalCount = dataList.Count
             };
         }
-
-        private async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
-        {
-            try
-            {
-                var tradePairIndexDto = await _tradePairAppService.GetAsync(tradePairId);
-                
-                if (tradePairIndexDto == null || !_contractsTokenOptions.Contracts.TryGetValue(
-                        tradePairIndexDto.FeeRate.ToString(),
-                        out var address))
-                {
-                    _logger.LogError("GetTokenInfoAsync, Get tradePairIndexDto failed");
-                    return null;
-                }
-
-                var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
-                    TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
-                _logger.LogInformation($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
-                return token;
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Get token info failed");
-                return null;
-            }
-        }
         
         public async Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityFromGraphQLAsync(GetUserLiquidityInput input)
         {

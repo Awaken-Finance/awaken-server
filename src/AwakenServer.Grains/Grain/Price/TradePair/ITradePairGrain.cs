@@ -34,7 +34,4 @@ public interface ITradePairGrain : IGrainWithStringKey
     
     public Task<TradePairMarketDataSnapshotGrainDto> GetLatestSnapshotAsync();
     
-    public Task<GrainResultDto<TradePairMarketDataSnapshotUpdateResult>> UpdateTotalSupplyAsync(string totalSupply);
-
-    
 }

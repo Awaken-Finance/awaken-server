@@ -9,7 +9,6 @@ namespace AwakenServer.Trade
 {
     public interface ITradeRecordAppService : IApplicationService
     {
-
         Task<PagedResultDto<TradeRecordIndexDto>> GetListAsync(GetTradeRecordsInput input);
 
         Task CreateAsync(TradeRecordCreateDto input);

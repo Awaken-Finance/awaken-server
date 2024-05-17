@@ -14,6 +14,4 @@ public interface ITradePairMarketDataSnapshotGrain : IGrainWithStringKey
     
     Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AccumulateTotalSupplyAsync(BigDecimal supply);
     
-    Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> UpdateTotalSupplyAsync(string supply);
-
 }
