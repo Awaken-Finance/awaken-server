@@ -542,7 +542,7 @@ namespace AwakenServer.Trade
             });
 
             var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
-            await grain.UpdateAsync(DateTime.Now, 0);
+            await grain.UpdateAsync(DateTime.Now, 0, "");
             
             tradePair = await _tradePairAppService.GetFromGrainAsync(TradePairEthUsdtId);
             tradePair.Price.ShouldBe(140);

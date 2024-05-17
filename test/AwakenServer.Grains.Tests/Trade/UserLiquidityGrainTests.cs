@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
@@ -13,6 +14,19 @@ public class UserLiquidityGrainTests : AwakenServerGrainTestBase
     [Fact(Timeout = 2000)]
     public async Task UserLiquidityGrainTest()
     {
+        var tradePairGrain = Cluster.Client.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
+        await tradePairGrain.UpdatePriceAsync(new SyncRecordGrainDto
+        {
+            ChainId = ChainName,
+            PairAddress = TradePairEthUsdtAddress,
+            Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now),
+            ReserveA = NumberFormatter.WithDecimals(1, 8),
+            ReserveB = NumberFormatter.WithDecimals(1, 6),
+            BlockHeight = 100,
+            SymbolA = "ETH",
+            SymbolB = "USDT"
+        });
+        
         var dto = new UserLiquidityGrainDto
         {
             TradePair = new TradePairWithTokenDto
@@ -22,7 +36,7 @@ public class UserLiquidityGrainTests : AwakenServerGrainTestBase
             },
             ChainId = ChainId,
             Address = "BBB",
-            LpTokenAmount = 50000,
+            LpTokenAmount = 45000,
             Type = LiquidityType.Mint
         };
         
@@ -35,14 +49,14 @@ public class UserLiquidityGrainTests : AwakenServerGrainTestBase
         result.Data.TradePair.Id.ShouldBe(dto.TradePair.Id);
         result.Data.TradePair.Address.ShouldBe(dto.TradePair.Address);
         result.Data.Address.ShouldBe("BBB");
-        result.Data.LpTokenAmount.ShouldBe(50000);
+        result.Data.LpTokenAmount.ShouldBe(45000);
         
         var liquiditiesResult = await grain.GetAsync();
         var liquidities = liquiditiesResult.Data;
         liquidities.Count.ShouldBe(1);
         liquidities[0].Address.ShouldBe("BBB");
         liquidities[0].TradePair.Address.ShouldBe(dto.TradePair.Address);
-        liquidities[0].LpTokenAmount.ShouldBe(50000);
+        liquidities[0].LpTokenAmount.ShouldBe(45000);
         
         await grain.AddOrUpdateAsync(new UserLiquidityGrainDto
         {
@@ -53,16 +67,16 @@ public class UserLiquidityGrainTests : AwakenServerGrainTestBase
             },
             ChainId = ChainId,
             Address = "BBB",
-            LpTokenAmount = 50,
+            LpTokenAmount = 5000,
             Type = LiquidityType.Mint
         });
         
         liquidities = grain.GetAsync().Result.Data;
         liquidities.Count.ShouldBe(1);
-        liquidities[0].LpTokenAmount.ShouldBe(50050);
+        liquidities[0].LpTokenAmount.ShouldBe(50000);
         
         var userAssetResult = await grain.GetAssetAsync();
-        var userAsset = userAssetResult.Data;
-        userAsset.AssetUSD.ShouldNotBe(0);
+        var userAsset = userAssetResult.Data.AssetUSD * Math.Pow(10, 8);
+        userAsset.ShouldBe(1);
     }
 }

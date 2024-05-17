@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using AwakenServer.Chains;
 using AwakenServer.CMS;
 using AwakenServer.Common;
 using AwakenServer.Grains;
@@ -45,6 +46,7 @@ namespace AwakenServer.Trade
         private readonly IGraphQLProvider _graphQlProvider;
         private readonly IBus _bus;
         private readonly IRevertProvider _revertProvider;
+        private readonly IAElfClientProvider _aelfClientProvider;
 
 
         private const string ASC = "asc";
@@ -65,6 +67,7 @@ namespace AwakenServer.Trade
             IDistributedEventBus distributedEventBus,
             IGraphQLProvider graphQlProvider,
             IBus bus,
+            IAElfClientProvider aefClientProvider,
             IRevertProvider revertProvider)
         {
             _tradeRecordIndexRepository = tradeRecordIndexRepository;
@@ -79,6 +82,7 @@ namespace AwakenServer.Trade
             _graphQlProvider = graphQlProvider;
             _bus = bus;
             _revertProvider = revertProvider;
+            _aelfClientProvider = aefClientProvider;
         }
 
         public async Task<TradeRecordIndexDto> GetRecordAsync(string transactionId)
@@ -464,6 +468,7 @@ namespace AwakenServer.Trade
                 });
         }
         
+        
         public async Task RevertTradeRecordAsync(string chainId)
         {
             try
@@ -539,6 +544,7 @@ namespace AwakenServer.Trade
             return list.Item2;
         }
 
+       
         private async Task<List<Index.TradeRecord>> GetRecordAsync(string chainId, List<string> transactionHashs, int maxResultCount)
         {
             var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
