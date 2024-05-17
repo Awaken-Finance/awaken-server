@@ -521,5 +521,47 @@ namespace AwakenServer.Trade
             records.TotalCount.ShouldBe(15);
             records.Items.Count.ShouldBe(5);
         }
+        
+        [Fact]
+        public async Task RevertTest()
+        {
+            await _tradeRecordAppService.CreateAsync(new SwapRecordDto
+            {
+                ChainId = ChainId,
+                PairAddress = TradePairEthUsdtAddress,
+                Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TransactionHash = "0x1",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                AmountOut = 100,
+                AmountIn = 1,
+                SymbolOut = TokenUsdtSymbol,
+                SymbolIn = TokenEthSymbol,
+                Channel = "test",
+                BlockHeight = 99
+            });
+            Thread.Sleep(3000);
+            var data = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                TransactionHash = "0x1"
+            });
+            data.Items.Count.ShouldBe(1);
+            data.Items[0].TradePair.Id.ShouldBe(TradePairEthUsdtId);
+            
+            var needDeletedTradeRecords = new List<string>
+            {
+                "0x1"
+            };
+            await _tradeRecordAppService.DoRevertAsync(ChainId, needDeletedTradeRecords);
+            Thread.Sleep(3000);
+            data = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            {
+                ChainId = ChainId,
+                TransactionHash = "0x1"
+            });
+            data.Items.Count.ShouldBe(0);
+        }
+        
+        
     }
 }
