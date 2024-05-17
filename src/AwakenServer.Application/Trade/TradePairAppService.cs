@@ -422,7 +422,6 @@ namespace AwakenServer.Trade
             await grain.AddAsync(_objectMapper.Map<SyncRecordDto, SyncRecordsGrainDto>(dto));
         }
         
-
         
         public async Task CreateTradePairIndexAsync(TradePairInfoDto input, TokenDto token0, TokenDto token1,
             ChainDto chain)

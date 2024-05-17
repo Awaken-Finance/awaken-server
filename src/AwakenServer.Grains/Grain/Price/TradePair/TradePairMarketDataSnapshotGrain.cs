@@ -71,18 +71,6 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         };
     }
     
-    public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> UpdateTotalSupplyAsync(string supply)
-    {
-        State.TotalSupply = supply;
-
-        await WriteStateAsync();
-
-        return new GrainResultDto<TradePairMarketDataSnapshotGrainDto>()
-        {
-            Success = true,
-            Data = _objectMapper.Map<TradePairMarketDataSnapshotState, TradePairMarketDataSnapshotGrainDto>(State)
-        };
-    }
     
     public async Task InitNewAsync(
         TradePairMarketDataSnapshotGrainDto dto,
@@ -193,25 +181,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         State =
             _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(lastDto);
     }
-
-    public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AlignAsync(
-        TradePairMarketDataSnapshotGrainDto updateDto)
-    {
-        State.PriceHigh = updateDto.PriceHigh;
-        State.PriceLow = updateDto.PriceLow;
-        State.PriceHighUSD = updateDto.PriceHighUSD;
-        State.PriceLowUSD = updateDto.PriceLowUSD;
-        
-        await WriteStateAsync();
-
-        _logger.LogInformation($"snapshot grain AlignAsync, {State.PriceHigh}, {State.PriceLow}, {State.PriceHighUSD}, {State.PriceLowUSD}");
-        
-        return new GrainResultDto<TradePairMarketDataSnapshotGrainDto>()
-        {
-            Success = true,
-            Data = _objectMapper.Map<TradePairMarketDataSnapshotState, TradePairMarketDataSnapshotGrainDto>(State)
-        };
-    }
+    
     
     public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AddOrUpdateAsync(
         TradePairMarketDataSnapshotGrainDto updateDto,

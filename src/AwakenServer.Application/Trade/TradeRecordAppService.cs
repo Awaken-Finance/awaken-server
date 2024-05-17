@@ -245,13 +245,6 @@ namespace AwakenServer.Trade
             if (await tradeRecordGrain.Exist())
             {
                 return true;
-                // var recordResultDto = await tradeRecordGrain.GetAsync();
-                // var tradeRecordIndex = await _tradeRecordIndexRepository.GetAsync(recordResultDto.Data.Id);
-                // if (tradeRecordIndex != null)
-                // {
-                //     return true;
-                // }
-                // _logger.LogInformation($"swap record exist in grain does exist in es: {dto.Sender}, {dto.TransactionHash}");
             }
             
             await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
@@ -389,54 +382,6 @@ namespace AwakenServer.Trade
         }
         
         
-        public async Task UpdateAllTxnFeeAsync(string chainId, Dictionary<string, double> transactions)
-        {
-            _logger.LogInformation($"update all trade record txn fee begin, chain: {chainId}");
-            
-            int pageSize = 10000;
-            int skipCount = 0;
-            int affected = 0;
-            // HashSet<string> allRecordSet = new HashSet<string>();
-            while (true)
-            {
-                List<Index.TradeRecord> pageData = await GetListAsync(chainId, skipCount, pageSize);
-
-                if (pageData.Count == 0)
-                {
-                    break;
-                }
-
-                List<Index.TradeRecord> needUpdateRecords = new List<Index.TradeRecord>();
-                foreach (var tradeRecord in pageData)
-                {
-                    // allRecordSet.Add(tradeRecord.TransactionHash);
-                    if (transactions.ContainsKey(tradeRecord.TransactionHash))
-                    {
-                        tradeRecord.TransactionFee = transactions[tradeRecord.TransactionHash];
-                        needUpdateRecords.Add(tradeRecord);
-                        _logger.LogInformation($"update trade record txn fee, {tradeRecord.TransactionHash}, {tradeRecord.TransactionFee}");
-                    }
-                    else
-                    {
-                        _logger.LogInformation($"update trade record txn fee, can't get hash from json file, skip: {tradeRecord.TransactionHash}");
-                    }
-                }
-
-                affected += needUpdateRecords.Count;
-                skipCount += pageData.Count;
-                
-                _logger.LogInformation($"update trade record txn fee, BulkAddOrUpdateAsync begin, size: {needUpdateRecords.Count}");
-                if (needUpdateRecords.Count > 0)
-                {
-                    await _tradeRecordIndexRepository.BulkAddOrUpdateAsync(needUpdateRecords);
-                }
-                _logger.LogInformation($"update trade record txn fee, BulkAddOrUpdateAsync end, size: {needUpdateRecords.Count}");
-            }
-            
-            _logger.LogInformation($"update all trade record txn fee end, chain: {chainId}, all record count: {skipCount} affected records: {affected}");
-        }
-      
-        
         public async Task RevertTradeRecordAsync(string chainId)
         {
             try
@@ -497,8 +442,6 @@ namespace AwakenServer.Trade
             return await _tradePairIndexRepository.GetAsync(Filter);
         }
 
-
-        
         private async Task<List<Index.TradeRecord>> GetRecordAsync(string chainId, List<string> transactionHashs, int maxResultCount)
         {
             var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
