@@ -4,14 +4,17 @@ using System.Threading.Tasks;
 using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Grains.Grain.Price.TradePair;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Provider;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using Shouldly;
 using Xunit;
 
+
 namespace AwakenServer.Trade
 {
+    [Collection(ClusterCollection.Name)]
     public class RevertProviderTests: TradeTestBase
     {
         private readonly ITradePairAppService _tradePairAppService;

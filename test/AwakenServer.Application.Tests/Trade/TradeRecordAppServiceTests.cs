@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Provider;
 using AwakenServer.Trade.Dtos;
 using Microsoft.AspNetCore.Routing.Matching;
@@ -14,6 +15,7 @@ using Token = AwakenServer.Tokens.Token;
 
 namespace AwakenServer.Trade
 {
+    [Collection(ClusterCollection.Name)]
     public class TradeRecordAppServiceTests : TradeTestBase
     {
         private readonly ITradeRecordAppService _tradeRecordAppService;

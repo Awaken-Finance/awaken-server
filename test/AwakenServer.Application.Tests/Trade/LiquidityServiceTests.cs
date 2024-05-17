@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Trade;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Provider;
 using AwakenServer.Trade.Dtos;
 using Orleans;
@@ -14,6 +15,7 @@ using Xunit;
 
 namespace AwakenServer.Trade;
 
+[Collection(ClusterCollection.Name)]
 public class LiquidityServiceTests : TradeTestBase
 {
     private readonly ILiquidityAppService _liquidityAppService;
