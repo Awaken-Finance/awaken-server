@@ -39,7 +39,8 @@ public class AwakenServerGrainTestModule : AbpModule
         {
             o.CoinIdMapping = new Dictionary<string, string>
             {
-                { "ELF", "aelf" }
+                { "ELF", "aelf" },
+                { "NO-PRICE", "NO-PRICE" }
             };
         });
     }
