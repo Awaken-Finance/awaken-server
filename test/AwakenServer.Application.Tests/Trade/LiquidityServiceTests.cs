@@ -291,5 +291,7 @@ public class LiquidityServiceTests : TradeTestBase
         await _liquidityAppService.DoRevertAsync(ChainId, needDeletedTradeRecords);
         pairData = (await pairGrain.GetAsync()).Data;
         pairData.TotalSupply.ShouldBe("0");
+
+        await _liquidityAppService.RevertLiquidityAsync(ChainId);
     }
 }
