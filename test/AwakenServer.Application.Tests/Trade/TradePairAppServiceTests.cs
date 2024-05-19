@@ -548,8 +548,7 @@ namespace AwakenServer.Trade
                 });
             });
 
-            var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
-            await grain.UpdateAsync(DateTime.Now, 0, "");
+            await _tradePairAppService.UpdateTradePairAsync(TradePairEthUsdtId);
             
             tradePair = await _tradePairAppService.GetFromGrainAsync(TradePairEthUsdtId);
             tradePair.Price.ShouldBe(140);
@@ -1090,6 +1089,13 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task SyncTradePair_Test()
         {
+            var newToken = await _tradePairAppService.SyncTokenAsync(ChainId, "NewToken", new ChainDto
+            {
+                Name = ChainName,
+                Id = ChainId
+            });
+            newToken.Symbol.ShouldBe("NewToken");
+            
             var id = Guid.NewGuid();
             var TradePairInfoDto = new TradePairInfoDto
             {
@@ -1162,6 +1168,8 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task RevertTest()
         {
+            await _tradePairAppService.RevertTradePairAsync(ChainId);
+            
             var newPairDto = new TradePairInfoDto
             {
                 ChainId = "tDVV",
@@ -1189,7 +1197,6 @@ namespace AwakenServer.Trade
             
             var pairResult = await _tradePairAppService.GetTradePairAsync(ChainName, newPairDto.Address);
             pairResult.ShouldBeNull();
-            
         }
     }
 }
