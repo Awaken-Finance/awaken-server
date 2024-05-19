@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
@@ -55,6 +56,9 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task CreateTest()
         {
+            var grainResult = await _tradePairAppService.GetFromGrainAsync(Guid.NewGuid());
+            grainResult.ShouldBeNull();
+            
             var pairDto = new TradePairCreateDto
             {
                 ChainId = ChainId,
@@ -117,6 +121,9 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task GetByAddressTest()
         {
+            var notExistResult = await _tradePairAppService.GetByAddressAsync(Guid.NewGuid(), "");
+            notExistResult.Id.ShouldBe(Guid.Empty);
+            
             var pairDto = new TradePairCreateDto
             {
                 ChainId = ChainId,
@@ -541,8 +548,7 @@ namespace AwakenServer.Trade
                 });
             });
 
-            var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
-            await grain.UpdateAsync(DateTime.Now, 0, "");
+            await _tradePairAppService.UpdateTradePairAsync(TradePairEthUsdtId);
             
             tradePair = await _tradePairAppService.GetFromGrainAsync(TradePairEthUsdtId);
             tradePair.Price.ShouldBe(140);
@@ -762,6 +768,9 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task GetByIdsTest()
         {
+            var emptyResult = await _tradePairAppService.GetByIdsAsync(new GetTradePairByIdsInput());
+            emptyResult.Items.Count.ShouldBe(0);
+            
             var pairs = await _tradePairAppService.GetByIdsAsync(new GetTradePairByIdsInput
             {
                 Ids = new List<Guid> { TradePairEthUsdtId }
@@ -1080,6 +1089,13 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task SyncTradePair_Test()
         {
+            var newToken = await _tradePairAppService.SyncTokenAsync(ChainId, "NewToken", new ChainDto
+            {
+                Name = ChainName,
+                Id = ChainId
+            });
+            newToken.Symbol.ShouldBe("NewToken");
+            
             var id = Guid.NewGuid();
             var TradePairInfoDto = new TradePairInfoDto
             {
@@ -1127,6 +1143,60 @@ namespace AwakenServer.Trade
             }
 
             return;
+        }
+        
+        [Fact]
+        public async Task GetTradePairByIdsTest()
+        {
+            var result = await _tradePairAppService.GetByIdsFromGrainAsync(new GetTradePairByIdsInput
+            {
+                Ids = new List<Guid>
+                {
+                    TradePairEthUsdtId,
+                    TradePairBtcEthId
+                }
+            });
+            
+            result.Items.Count.ShouldBe(2);
+            result.Items[0].Token0.Symbol.ShouldBe("ETH");
+            result.Items[0].Token1.Symbol.ShouldBe("USDT");
+            result.Items[1].Token0.Symbol.ShouldBe("BTC");
+            result.Items[1].Token1.Symbol.ShouldBe("ETH");
+        }
+        
+        
+        [Fact]
+        public async Task RevertTest()
+        {
+            await _tradePairAppService.RevertTradePairAsync(ChainId);
+            
+            var newPairDto = new TradePairInfoDto
+            {
+                ChainId = "tDVV",
+                BlockHeight = 99,
+                TransactionHash = "0x1",
+                Token0Symbol = "BTC",
+                Token1Symbol = "USDT",
+                Id = Guid.NewGuid().ToString(),
+                Address = "0x2"
+            };
+            await _tradePairAppService.SyncPairAsync(newPairDto, new ChainDto
+            {
+                Name = ChainId,
+                Id = ChainId
+            });
+            Thread.Sleep(3000);
+            var result = await _tradePairAppService.GetAsync(Guid.Parse(newPairDto.Id));
+            result.Id.ShouldBe(Guid.Parse(newPairDto.Id));
+            
+            await _tradePairAppService.DoRevertAsync(ChainId, new List<string>
+            {
+                newPairDto.TransactionHash
+            });
+            Thread.Sleep(3000);
+            
+            var pairResult = await _tradePairAppService.GetTradePairAsync(ChainName, newPairDto.Address);
+            pairResult.ShouldBeNull();
         }
     }
 }

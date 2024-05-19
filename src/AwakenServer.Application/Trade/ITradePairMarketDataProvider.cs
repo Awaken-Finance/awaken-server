@@ -39,16 +39,7 @@ namespace AwakenServer.Trade
         Task<Index.TradePairMarketDataSnapshot> GetTradePairMarketDataIndexAsync(string chainId, Guid tradePairId,
             DateTime snapshotTime);
 
-        Task<Index.TradePairMarketDataSnapshot> GetLatestPriceTradePairMarketDataIndexAsync(string chainId,
-            Guid tradePairId, DateTime snapshotTime);
-
         DateTime GetSnapshotTime(DateTime time);
-
-        Task<Index.TradePairMarketDataSnapshot>
-            GetLatestTradePairMarketDataIndexAsync(string chainId, Guid tradePairId);
-
-        Task<List<Index.TradePairMarketDataSnapshot>> GetIndexListAsync(string chainId, Guid tradePairId,
-            DateTime? timestampMin = null, DateTime? timestampMax = null);
         
         Task<TradePairMarketDataSnapshotGrainDto> GetLatestTradePairMarketDataFromGrainAsync(string chainId,
             Guid tradePairId);
@@ -98,34 +89,6 @@ namespace AwakenServer.Trade
             _contractsTokenOptions = contractsTokenOptions.Value;
         }
         
-        private async Task<string> GetLpTokenInfoAsync(string chainId, string Token0Symbol, string Token1Symbol,
-            double FeeRate)
-        {
-            try
-            {
-                if (!_contractsTokenOptions.Contracts.TryGetValue(FeeRate.ToString(), out var address))
-                {
-                    return null;
-                }
-
-                var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
-                    TradePairHelper.GetLpToken(Token0Symbol, Token1Symbol));
-                if (token != null)
-                {
-                    return token.Supply.ToDecimalsString(token.Decimals);
-                }
-
-                _logger.LogError("Get lp token info is null:lp token:{0}",
-                    TradePairHelper.GetLpToken(Token0Symbol, Token1Symbol));
-                return "";
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Get token info failed");
-                return null;
-            }
-        }
-        
         public async Task AddOrUpdateSnapshotAsync(Guid tradePairId, TradePairMethodDelegate methodDelegate)
         {
             var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePairId));
@@ -163,34 +126,6 @@ namespace AwakenServer.Trade
         }
         
 
-        private async Task<Index.TradePairMarketDataSnapshot> GetLatestTradePairMarketDataIndexAsync(string chainId,
-            Guid tradePairId, DateTime maxTime)
-        {
-            return await _snapshotIndexRepository.GetAsync(
-                q => q.Term(i => i.Field(f => f.ChainId).Value(chainId))
-                     && q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId))
-                     && q.DateRange(i => i.Field(f => f.Timestamp).LessThanOrEquals(maxTime)),
-                sortExp: s => s.Timestamp, sortType: SortOrder.Descending);
-        }
-
-        public async Task<Index.TradePairMarketDataSnapshot> GetLatestPriceTradePairMarketDataIndexAsync(string chainId,
-            Guid tradePairId, DateTime snapshotTime)
-        {
-            return await _snapshotIndexRepository.GetAsync(q =>
-                    q.Bool(i =>
-                        i.Filter(f =>
-                            f.Range(i =>
-                                i.Field(f => f.PriceUSD).GreaterThan(0)) &&
-                            f.DateRange(i =>
-                                i.Field(f => f.Timestamp).LessThan(GetSnapshotTime(snapshotTime))) &&
-                            q.Term(i => i.Field(f => f.ChainId).Value(chainId)) &&
-                            q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId))
-                        )
-                    ),
-                sortExp: s => s.Timestamp, sortType: SortOrder.Descending);
-        }
-
-
         public DateTime GetSnapshotTime(DateTime time)
         {
             return time.Date.AddHours(time.Hour);
@@ -204,44 +139,6 @@ namespace AwakenServer.Trade
                      && q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId))
                      && q.Term(i => i.Field(f => f.Timestamp).Value(snapshotTime)));
         }
-
-        public async Task<Index.TradePairMarketDataSnapshot> GetLatestTradePairMarketDataIndexAsync(string chainId,
-            Guid tradePairId)
-        {
-            return await _snapshotIndexRepository.GetAsync(q =>
-                    q.Term(i => i.Field(f => f.ChainId).Value(chainId)) &&
-                    q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)),
-                sortExp: s => s.Timestamp, sortType: SortOrder.Descending);
-        }
-
-        public async Task<List<Index.TradePairMarketDataSnapshot>> GetIndexListAsync(string chainId, Guid tradePairId,
-            DateTime? timestampMin = null, DateTime? timestampMax = null)
-        {
-            var mustQuery =
-                new List<Func<QueryContainerDescriptor<Index.TradePairMarketDataSnapshot>, QueryContainer>>();
-            mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
-            mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
-
-            if (timestampMin != null)
-            {
-                mustQuery.Add(q => q.DateRange(i =>
-                    i.Field(f => f.Timestamp)
-                        .GreaterThanOrEquals(timestampMin.Value)));
-            }
-
-            if (timestampMax != null)
-            {
-                mustQuery.Add(q => q.DateRange(i =>
-                    i.Field(f => f.Timestamp)
-                        .LessThan(timestampMax)));
-            }
-
-            QueryContainer Filter(QueryContainerDescriptor<Index.TradePairMarketDataSnapshot> f) =>
-                f.Bool(b => b.Must(mustQuery));
-
-            var list = await _snapshotIndexRepository.GetListAsync(Filter);
-            return list.Item2;
-        }
         
         
         public async Task<TradePairMarketDataSnapshotGrainDto> GetLatestTradePairMarketDataFromGrainAsync(
@@ -250,11 +147,6 @@ namespace AwakenServer.Trade
         {
             var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePairId));
             return await grain.GetLatestSnapshotAsync();
-        }
-
-        public class CacheKeys
-        {
-            HashSet<string> Set { get; set; }
         }
     }
 }

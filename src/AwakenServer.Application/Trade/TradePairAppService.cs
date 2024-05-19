@@ -116,15 +116,7 @@ namespace AwakenServer.Trade
             _contractsTokenOptions = contractsTokenOptions.Value;
 
         }
-
-        public async Task<List<TradePairDto>> GetTradePairInfoListAsync(GetTradePairsInfoInput input)
-        {
-            var tradePairInfoDtoPageResultDto = await _graphQlProvider.GetTradePairInfoListAsync(input);
-            return tradePairInfoDtoPageResultDto.TradePairInfoDtoList.Data.Count == 0
-                ? new List<TradePairDto>()
-                : ObjectMapper.Map<List<TradePairInfoDto>, List<TradePairDto>>(tradePairInfoDtoPageResultDto
-                    .TradePairInfoDtoList.Data);
-        }
+        
 
         public async Task<PagedResultDto<TradePairIndexDto>> GetListAsync(GetTradePairsInput input)
         {
@@ -387,8 +379,11 @@ namespace AwakenServer.Trade
                 var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
                 await grain.AddOrUpdateAsync(_objectMapper.Map<Index.TradePair, TradePairGrainDto>(tradePair));
             }
-                
-            await _tradePairIndexRepository.BulkAddOrUpdateAsync(needDeleteIndexes);
+
+            if (needDeleteIndexes.Count > 0)
+            {
+                await _tradePairIndexRepository.BulkAddOrUpdateAsync(needDeleteIndexes);
+            }
         }
         
         public async Task RevertTradePairAsync(string chainId)

@@ -282,7 +282,6 @@ namespace AwakenServer.Trade
                 
                 
 
-
                 indexDto.Token0Amount = tradePairIndex.Token0.Decimals == 0
                     ? Math.Floor(prop / Math.Pow(10, 8) * tradePairIndex.ValueLocked0).ToString()
                     : ((long)(prop * tradePairIndex.ValueLocked0)).ToDecimalsString(8);
