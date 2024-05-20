@@ -11,7 +11,7 @@ using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.CoinGeckoApi;
 
-public class TokenPriceProvider : ITokenPriceProvider, ITransientDependency
+public class TokenPriceProvider : ITokenPriceProvider
 {
     private readonly ICoinGeckoClient _coinGeckoClient;
     private readonly IRequestLimitProvider _requestLimitProvider;
