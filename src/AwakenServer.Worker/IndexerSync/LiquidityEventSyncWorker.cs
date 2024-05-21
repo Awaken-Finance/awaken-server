@@ -40,6 +40,7 @@ public class LiquidityEventSyncWorker : AwakenServerWorkerBase
 
     public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
     {
+        var currentConfirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Id);
         var queryList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
         long blockHeight = -1;
@@ -47,7 +48,7 @@ public class LiquidityEventSyncWorker : AwakenServerWorkerBase
         {
             foreach (var queryDto in queryList)
             {
-                await _liquidityService.CreateAsync(queryDto);
+                await _liquidityService.CreateAsync(currentConfirmedHeight, queryDto);
                 blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
             }
         }

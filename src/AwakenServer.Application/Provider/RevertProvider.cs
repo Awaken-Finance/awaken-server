@@ -41,17 +41,16 @@ public class RevertProvider : IRevertProvider
         _revertOptions = tradeRecordOptions.Value;
     }
     
-    public async Task CheckOrAddUnconfirmedTransaction(EventType eventType, string chainId, long blockHeight,
+    public async Task CheckOrAddUnconfirmedTransaction(long currentConfirmedHeight, EventType eventType, string chainId, long blockHeight,
         string transactionHash)
     {
         var unconfirmedTransactionsGrain = _clusterClient.GetGrain<IUnconfirmedTransactionsGrain>(GrainIdHelper.GenerateGrainId(chainId, eventType));
-        var confirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chainId);
-        if (blockHeight > confirmedHeight)
+        if (blockHeight > currentConfirmedHeight)
         {
             await unconfirmedTransactionsGrain.AddAsync(new UnconfirmedTransactionsGrainDto()
             {
                 BlockHeight = blockHeight,
-                TransactionHash = transactionHash,
+                TransactionHash = transactionHash
             });
         }
     }
@@ -66,8 +65,8 @@ public class RevertProvider : IRevertProvider
             startBlockHeight, confirmedHeight);
                 
         _logger.LogInformation(
-            "got unconfirmed transactions, block height range: {0}-{1}, count: {2}",
-            startBlockHeight, confirmedHeight, unconfirmedTransactions.Count());
+            "got unconfirmed transactions, block height range: {0}-{1}, count: {2}, {3}",
+            startBlockHeight, confirmedHeight, unconfirmedTransactions.Count(), unconfirmedTransactions.Select(s => s.TransactionHash).ToList());
         
         if (unconfirmedTransactions.Count <= 0)
         {
@@ -89,12 +88,13 @@ public class RevertProvider : IRevertProvider
             startBlockHeight, confirmedHeight, confirmedTransactionSet.Count(),
             confirmedTransactionSet.ToList());
         
-        if (confirmedTransactionSet.IsNullOrEmpty())
-        {
-            _logger.LogError("confirmed transactions is empty, block height range {0}-{1}", startBlockHeight,
-                confirmedHeight);
-            return new List<string>();
-        }
+        // There may be situations where the confirmed transaction list is empty.
+        // if (confirmedTransactionSet.IsNullOrEmpty())
+        // {
+        //     _logger.LogError("confirmed transactions is empty, block height range {0}-{1}", startBlockHeight,
+        //         confirmedHeight);
+        //     return new List<string>();
+        // }
         
         var needDeletedTransactions = unconfirmedTransactions
             .Where(unconfirmed => !confirmedTransactionSet.Contains(unconfirmed.TransactionHash)).ToList();

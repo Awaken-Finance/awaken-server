@@ -36,7 +36,7 @@ namespace AwakenServer.Trade
         {
             await _graphQlProvider.SetConfirmBlockHeightAsync(2);
             // block 1 is a confirm block, no need add to may revert cache
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, ChainId, 1, "A");
+            await _revertProvider.CheckOrAddUnconfirmedTransaction(0,EventType.SwapEvent, ChainId, 1, "A");
             var needDelete = await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.SwapEvent, ChainId);
             needDelete.Count.ShouldBe(0);
         }
@@ -45,9 +45,9 @@ namespace AwakenServer.Trade
         public async Task TestGetNeedDeleteTransactions_PartRevert()
         {
             await _graphQlProvider.SetConfirmBlockHeightAsync(0);
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, ChainId, 1, "A");
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, ChainId, 2, "B");
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, ChainId, 3, "C");
+            await _revertProvider.CheckOrAddUnconfirmedTransaction(0,EventType.SwapEvent, ChainId, 1, "A");
+            await _revertProvider.CheckOrAddUnconfirmedTransaction(0,EventType.SwapEvent, ChainId, 2, "B");
+            await _revertProvider.CheckOrAddUnconfirmedTransaction(0,EventType.SwapEvent, ChainId, 3, "C");
             _graphQlProvider.AddSwapRecord(new SwapRecordDto()
             {
                 ChainId = ChainId,
@@ -65,7 +65,7 @@ namespace AwakenServer.Trade
         {
             await _graphQlProvider.SetConfirmBlockHeightAsync(0);
             // block 1 is an unconfirm block, add to may revert cache
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.SwapEvent, ChainId, 1, "A");
+            await _revertProvider.CheckOrAddUnconfirmedTransaction(0,EventType.SwapEvent, ChainId, 1, "A");
             _graphQlProvider.AddSwapRecord(new SwapRecordDto()
             {
                 ChainId = ChainId,
@@ -81,7 +81,7 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task TestRevertData()
         {
-            await _tradeRecordAppService.CreateAsync(new SwapRecordDto
+            await _tradeRecordAppService.CreateAsync(0,new SwapRecordDto
             {
                 ChainId = ChainId,
                 TransactionHash = "A",
