@@ -5,6 +5,7 @@ using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.Favorite;
 using AwakenServer.Grains.Grain.Price.TradePair;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Provider;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
@@ -16,6 +17,7 @@ using Xunit;
 
 namespace AwakenServer.Trade;
 
+[Collection(ClusterCollection.Name)]
 public class TradePairMarketDataProviderTests : TradeTestBase
 {
     private readonly ITradePairAppService _tradePairAppService;

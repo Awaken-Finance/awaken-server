@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Aetherlink.PriceServer;
@@ -48,19 +49,21 @@ public class TokenPriceAetherlinkProvider : ITokenPriceProvider
     {
         try
         {
-            var result = (await _priceServerProvider.GetTokenPriceAsync(new()
+            var date = DateTime.ParseExact(dateTime, "dd-MM-yyyy", CultureInfo.InvariantCulture).ToString("yyyyMMdd");
+            var tokenPair = $"{symbol.ToLower()}-usd";
+            var result = (await _priceServerProvider.GetDailyPriceAsync(new()
             {
-                TokenPair = $"{symbol.ToLower()}-usd",
-                Source = SourceType.CoinGecko
+                TokenPair = tokenPair,
+                TimeStamp = date
             })).Data;
 
-            _logger.LogInformation($"get token price from Aetherlink price service, {result.TokenPair}, {result.Price}, {result.Decimal}");
+            _logger.LogInformation($"get token daily price from Aetherlink price service, tokenPair: {tokenPair}, TimeStamp: {date}, result.Price: {result.Price}, result.Decimal: {result.Decimal}");
         
             return (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
         }
         catch (Exception e)
         {
-            _logger.LogError($"get token price from Aetherlink price service faild, {symbol}, {e}");
+            _logger.LogError($"get token daily price from Aetherlink price service faild, {symbol}, {dateTime}, {e}");
             return 0;
         }
     }
