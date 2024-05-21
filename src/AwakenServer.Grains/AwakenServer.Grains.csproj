@@ -20,7 +20,7 @@
         <PackageReference Include="Volo.Abp.Caching" Version="7.0.0" />
         <PackageReference Include="GraphQL.Client.Serializer.Newtonsoft" Version="5.1.0" />
         <PackageReference Include="GraphQL.Client" Version="5.1.0" />
-        <PackageReference Include="AetherlinkPriceServer" Version="1.0.2" />
+        <PackageReference Include="AetherlinkPriceServer" Version="1.0.3" />
     </ItemGroup>
 
     <ItemGroup>

@@ -46,6 +46,6 @@ public class SyncRecordGrain : Grain<SyncRecordsState>, ISyncRecordGrain
 
     public async Task<bool> ExistAsync()
     {
-        return State.PairAddress != null;
+        return State.TransactionHash != null;
     }
 }
