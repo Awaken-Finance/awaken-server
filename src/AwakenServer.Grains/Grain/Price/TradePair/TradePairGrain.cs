@@ -92,6 +92,24 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         };
     }
 
+    public async Task<TradePairMarketDataSnapshotGrainDto> GetLatestBeforeNeqSnapshotAsync(DateTime maxTime)
+    {
+        foreach (var snapshot in _previous7DaysMarketDataSnapshots)
+        {
+            if (maxTime > snapshot.Key)
+            {
+                var grain = _clusterClient.GetGrain<ITradePairMarketDataSnapshotGrain>(snapshot.Value);
+                var result = await grain.GetAsync();
+                if (result.Success)
+                {
+                    return result.Data;
+                }
+            }
+        }
+
+        return null;
+    }
+    
     public async Task<TradePairMarketDataSnapshotGrainDto> GetLatestBeforeSnapshotAsync(DateTime maxTime)
     {
         foreach (var snapshot in _previous7DaysMarketDataSnapshots)
@@ -103,10 +121,6 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 if (result.Success)
                 {
                     return result.Data;
-                }
-                else
-                {
-                    _logger.LogError($"trade pair {State.Id} contains empty snapshot grain");
                 }
             }
         }
@@ -394,7 +408,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             var snapshot = lastDaySnapshot.First();
             lastDayTvl = snapshot.TVL;
             lastDayPriceUSD = snapshot.PriceUSD;
-            _logger.LogInformation($"cheduled trade pair update, get last day snapshot from lastDaySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
+            _logger.LogInformation($"scheduled trade pair update, get last day snapshot from lastDaySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
         }
         else
         {
@@ -404,7 +418,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 var snapshot = sortDaySnapshot.First();
                 lastDayTvl = snapshot.TVL;
                 lastDayPriceUSD = snapshot.PriceUSD;
-                _logger.LogInformation($"cheduled trade pair update, get last day snapshot from daySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
+                _logger.LogInformation($"scheduled trade pair update, get last day snapshot from daySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
             }
         }
         
@@ -542,7 +556,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         }
         else
         {
-            var latestBeforeThisSnapshotDto = await GetLatestBeforeSnapshotAsync(dto.Timestamp);
+            var latestBeforeThisSnapshotDto = await GetLatestBeforeNeqSnapshotAsync(dto.Timestamp);
             if (latestBeforeThisSnapshotDto != null)
             {
                 lastDayTvl = latestBeforeThisSnapshotDto.TVL;

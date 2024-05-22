@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Price;
 using AwakenServer.Provider;
 using AwakenServer.Trade;
@@ -11,6 +12,7 @@ using Xunit;
 
 namespace AwakenServer.Asset;
 
+[Collection(ClusterCollection.Name)]
 public class AssetAppServiceTests : TradeTestBase
 {
     private readonly MockGraphQLProvider _graphQlProvider;
