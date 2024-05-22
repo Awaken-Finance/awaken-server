@@ -92,6 +92,28 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         };
     }
 
+    public async Task<TradePairMarketDataSnapshotGrainDto> GetLatestBeforeNeqSnapshotAsync(DateTime maxTime)
+    {
+        foreach (var snapshot in _previous7DaysMarketDataSnapshots)
+        {
+            if (maxTime > snapshot.Key)
+            {
+                var grain = _clusterClient.GetGrain<ITradePairMarketDataSnapshotGrain>(snapshot.Value);
+                var result = await grain.GetAsync();
+                if (result.Success)
+                {
+                    return result.Data;
+                }
+                else
+                {
+                    _logger.LogError($"trade pair {State.Id} contains empty snapshot grain");
+                }
+            }
+        }
+
+        return null;
+    }
+    
     public async Task<TradePairMarketDataSnapshotGrainDto> GetLatestBeforeSnapshotAsync(DateTime maxTime)
     {
         foreach (var snapshot in _previous7DaysMarketDataSnapshots)
@@ -542,7 +564,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         }
         else
         {
-            var latestBeforeThisSnapshotDto = await GetLatestBeforeSnapshotAsync(dto.Timestamp);
+            var latestBeforeThisSnapshotDto = await GetLatestBeforeNeqSnapshotAsync(dto.Timestamp);
             if (latestBeforeThisSnapshotDto != null)
             {
                 lastDayTvl = latestBeforeThisSnapshotDto.TVL;
