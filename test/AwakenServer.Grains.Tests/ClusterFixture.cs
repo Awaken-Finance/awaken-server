@@ -41,7 +41,7 @@ public class ClusterFixture : IDisposable, ISingletonDependency
             configBuilder.AddInMemoryCollection(new Dictionary<string, string>
             {
                 ["Orleans:SiloOptions:GatewayListeningPort"] = "0",
-                ["Orleans:SiloOptions:SiloListeningPort"] = "0",
+                ["Orleans:SiloOptions:SiloListeningPort"] = "0"
             });
         });
         

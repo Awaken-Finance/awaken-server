@@ -540,9 +540,11 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             priceHigh24hUSD = Math.Max(priceHigh24hUSD, snapshot.PriceHighUSD);
             priceHigh24h = Math.Max(priceHigh24h, snapshot.PriceHigh);
         }
-
-        var lastDaySnapshot = previous7DaysSnapshotDtos.Where(s => s.Timestamp < dto.Timestamp.AddDays(-1))
+        
+        var lastDaySnapshot = previous7DaysSnapshotDtos
+            .Where(s => s.Timestamp >= dto.Timestamp.AddDays(-2) && s.Timestamp < dto.Timestamp.AddDays(-1))
             .OrderByDescending(s => s.Timestamp).ToList();
+        
         var lastDayVolume24h = lastDaySnapshot.Sum(snapshot => snapshot.Volume);
         var lastDayTvl = 0d;
         var lastDayPriceUSD = 0d;
