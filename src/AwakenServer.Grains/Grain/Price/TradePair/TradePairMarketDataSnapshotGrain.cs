@@ -70,7 +70,8 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             Data = _objectMapper.Map<TradePairMarketDataSnapshotState, TradePairMarketDataSnapshotGrainDto>(State)
         };
     }
-
+    
+    
     public async Task InitNewAsync(
         TradePairMarketDataSnapshotGrainDto dto,
         TradePairMarketDataSnapshotGrainDto lastDto)
@@ -80,30 +81,22 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
 
         if (dto.Price > 0)
         {
-            dto.PriceHigh = Math.Max(lastDto.PriceHigh, dto.Price);
-            dto.PriceLow = lastDto.PriceLow == 0
-                ? dto.Price
-                : Math.Min(lastDto.PriceLow, dto.Price);
+            dto.PriceHigh = dto.Price;
+            dto.PriceLow = dto.Price;
         }
         else
         {
             dto.Price = lastDto.Price;
-            dto.PriceHigh = lastDto.PriceHigh;
-            dto.PriceLow = lastDto.PriceLow;
         }
 
         if (dto.PriceUSD > 0)
         {
-            dto.PriceHighUSD = Math.Max(lastDto.PriceHighUSD, dto.PriceUSD);
-            dto.PriceLowUSD = lastDto.PriceLowUSD == 0
-                ? dto.Price
-                : Math.Min(lastDto.PriceLowUSD, dto.PriceUSD);
+            dto.PriceHighUSD = dto.PriceUSD;
+            dto.PriceLowUSD = dto.PriceUSD;
         }
         else
         {
             dto.PriceUSD = lastDto.PriceUSD;
-            dto.PriceHighUSD = lastDto.PriceHighUSD;
-            dto.PriceLowUSD = lastDto.PriceLowUSD;
         }
 
         if (dto.TVL <= 0)
@@ -196,7 +189,8 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         State =
             _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(lastDto);
     }
-
+    
+    
     public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AddOrUpdateAsync(
         TradePairMarketDataSnapshotGrainDto updateDto,
         TradePairMarketDataSnapshotGrainDto lastDto)
@@ -223,7 +217,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             State = _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(updateDto);
         }
 
-        _logger.LogInformation("UpdateTotalSupplyAsync: totalSupply:{supply}", State.TotalSupply);
+        _logger.LogInformation("UpdateTotalSupplyAsync: totalSupply: {supply}", State.TotalSupply);
 
         await WriteStateAsync();
 

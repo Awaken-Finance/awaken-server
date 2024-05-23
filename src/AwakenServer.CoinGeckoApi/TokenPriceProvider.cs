@@ -17,8 +17,9 @@ public class TokenPriceProvider : ITokenPriceProvider, ITransientDependency
     private readonly IRequestLimitProvider _requestLimitProvider;
     private readonly CoinGeckoOptions _coinGeckoOptions;
     private readonly ILogger<TokenPriceProvider> _logger;
+    private const int MaxRetryAttempts = 2;
+    private const int DelayBetweenRetriesInSeconds = 3;
     
-
     public TokenPriceProvider(IRequestLimitProvider requestLimitProvider, IOptionsSnapshot<CoinGeckoOptions> options,
         IHttpClientFactory httpClientFactory, ILogger<TokenPriceProvider> logger)
     {
@@ -72,28 +73,42 @@ public class TokenPriceProvider : ITokenPriceProvider, ITransientDependency
         var coinId = GetCoinIdAsync(symbol);
         if (coinId == null)
         {
-            _logger.Info("can not get the token {symbol}", symbol);
+            _logger.Info($"Get history price {symbol}, can not get the token");
             return 0;
         }
 
-        try
+        
+        int retryAttempts = 0;
+        
+        while (retryAttempts < MaxRetryAttempts)
         {
-            var coinData =
-                await RequestAsync(async () => await _coinGeckoClient.CoinsClient.GetHistoryByCoinId(coinId,
-                    dateTime, "false"));
-
-            if (coinData.MarketData == null)
+            try
             {
-                return 0;
-            }
+                var coinData = await RequestAsync(async () => await _coinGeckoClient.CoinsClient.GetHistoryByCoinId(coinId, dateTime, "false"));
 
-            return (decimal)coinData.MarketData.CurrentPrice[CoinGeckoApiConsts.UsdSymbol].Value;
+                if (coinData.MarketData == null)
+                {
+                    throw new Exception($"Get history price {symbol}, Unexpected CoinGecko response: MarketData is null");
+                }
+
+                return (decimal)coinData.MarketData.CurrentPrice[CoinGeckoApiConsts.UsdSymbol].Value;
+            }
+            catch (Exception ex)
+            {
+                retryAttempts++;
+                _logger.LogWarning($"Get history price {symbol}, Attempt {retryAttempts} failed: {ex.Message}");
+
+                if (retryAttempts >= MaxRetryAttempts)
+                {
+                    _logger.LogError($"Get history price {symbol}, Max retry attempts reached. Unable to get coin price.");
+                    return 0;
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(DelayBetweenRetriesInSeconds));
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "can not get: {symbol} price.", symbol);
-            throw;
-        }
+
+        return 0;
     }
 
     private string GetCoinIdAsync(string symbol)

@@ -17,7 +17,7 @@ public class WorkerOptions
 public class WorkerSetting
 { 
     public int TimePeriod { get; set; } = 3000;
-    public bool OpenSwitch { get; set; } = true;
+    public bool OpenSwitch { get; set; } = false;
     public bool ResetBlockHeightFlag { get; set; } = false;
     public long ResetBlockHeight { get; set; } = 0;
     public long QueryStartBlockHeightOffset { get; set; } = -1;

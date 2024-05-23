@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains.Grain.Trade;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Trade.Dtos;
 using Org.BouncyCastle.Crypto.Prng.Drbg;
 using Shouldly;
@@ -11,6 +12,7 @@ using Xunit;
 
 namespace AwakenServer.Trade
 {
+    [Collection(ClusterCollection.Name)]
     public class KLineAppServiceTests : TradeTestBase
     {
         private readonly ILocalEventBus _eventBus;

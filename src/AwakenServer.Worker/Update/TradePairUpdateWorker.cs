@@ -34,26 +34,24 @@ namespace AwakenServer.Worker
             _tradePairAppService = tradePairAppService;
         }
 
-        public override Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
         {
-            throw new System.NotImplementedException();
+            var pairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
+            {
+                ChainId = chain.Name,
+                MaxResultCount = 1000
+            });
+            foreach (var pair in pairs.Items)
+            {
+                await _tradePairAppService.UpdateTradePairAsync(pair.Id);
+            }
+
+            return 0;
         }
         
         protected override async Task DoWorkAsync(PeriodicBackgroundWorkerContext workerContext)
         {
-            var chains = await _chainAppService.GetListAsync(new GetChainInput());
-            foreach (var chain in chains.Items)
-            {
-                var pairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
-                {
-                    ChainId = chain.Name,
-                    MaxResultCount = 1000
-                });
-                foreach (var pair in pairs.Items)
-                {
-                    await _tradePairAppService.UpdateTradePairAsync(pair.Id);
-                }
-            }
+            await DealDataAsync();
         }
     }
 }

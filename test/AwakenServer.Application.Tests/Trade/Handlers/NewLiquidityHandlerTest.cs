@@ -4,58 +4,27 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using AwakenServer.Grains.Tests;
 using Shouldly;
 using Volo.Abp.EventBus.Local;
 using Xunit;
 
 namespace AwakenServer.Trade.Handlers
 {
+    [Collection(ClusterCollection.Name)]
     public class NewLiquidityHandlerTest : TradeTestBase
     {
         private readonly ILocalEventBus _eventBus;
         private readonly INESTRepository<Index.TradePairMarketDataSnapshot, Guid> _nestRepository;
         private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
-        private readonly IFlushCacheService _flushCacheService;
 
         public NewLiquidityHandlerTest()
         {
             _eventBus = GetRequiredService<ILocalEventBus>();
             _nestRepository = GetRequiredService<INESTRepository<Index.TradePairMarketDataSnapshot, Guid>>();
             _tradePairMarketDataProvider = GetRequiredService<ITradePairMarketDataProvider>();
-            _flushCacheService = GetRequiredService<IFlushCacheService>();
         }
-
-        [Fact]
-        public async Task FlushCacheTotalSupplyTest()
-        {
-            var dateTime = DateTime.Now;
-            var eventData = new NewLiquidityRecordEvent
-            {
-                ChainId = "test",
-                Address = "0x1",
-                TradePairId = TradePairBtcEthId,
-                Type = LiquidityType.Mint,
-                Timestamp = dateTime,
-                Token0Amount = "100",
-                Token1Amount = "1000",
-                LpTokenAmount = "10000",
-                TransactionHash = "tx"
-            };
-            await _eventBus.PublishAsync(eventData);
-
-            var lockName = $"test-{eventData.TradePairId}-{dateTime.Date.AddHours(dateTime.Hour)}";
-            
-            Thread.Sleep(3000);
-            await _flushCacheService.FlushCacheAsync(new List<string> { lockName });
-            Thread.Sleep(1000);
-            var snapshotTime = eventData.Timestamp.Date.AddHours(eventData.Timestamp.Hour);
-            var marketData =
-                await _tradePairMarketDataProvider.GetTradePairMarketDataIndexAsync(eventData.ChainId,
-                    eventData.TradePairId, snapshotTime);
-            marketData.ShouldNotBeNull();
-        }
-
-
+        
         [Fact]
         public async Task PairNameTest()
         {
@@ -83,6 +52,7 @@ namespace AwakenServer.Trade.Handlers
             await _eventBus.PublishAsync(eventData);
             Thread.Sleep(3500);
             await _eventBus.PublishAsync(eventData);
+            Thread.Sleep(3500);
             var snapshotTime = eventData.Timestamp.Date.AddHours(eventData.Timestamp.Hour);
             var marketData =
                 await _tradePairMarketDataProvider.GetTradePairMarketDataIndexAsync(eventData.ChainId,

@@ -7,6 +7,6 @@ public class GrainResultDto<T> : GrainResultDto
 
 public class GrainResultDto
 {
-    public bool Success { get; set; }
+    public bool Success { get; set; } = false;
     public string Message { get; set; } = string.Empty;
 }

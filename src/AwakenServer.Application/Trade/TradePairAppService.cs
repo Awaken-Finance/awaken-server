@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.Client.MultiToken;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.CMS;
@@ -18,6 +19,7 @@ using AwakenServer.Trade.Etos;
 using JetBrains.Annotations;
 using MassTransit;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Nest;
 using Orleans;
 using Orleans.Runtime;
@@ -28,6 +30,7 @@ using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using Token = AwakenServer.Tokens.Token;
 using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 using IndexTradePair = AwakenServer.Trade.Index.TradePair;
 
@@ -53,6 +56,9 @@ namespace AwakenServer.Trade
         private readonly IClusterClient _clusterClient;
         private readonly IObjectMapper _objectMapper;
         private readonly IRevertProvider _revertProvider;
+        private readonly IAElfClientProvider _blockchainClientProvider;
+        private readonly ContractsTokenOptions _contractsTokenOptions;
+
         
         private const string ASC = "asc";
         private const string ASCEND = "ascend";
@@ -85,7 +91,9 @@ namespace AwakenServer.Trade
             ILogger<TradePairAppService> logger,
             IClusterClient clusterClient,
             IObjectMapper objectMapper,
-            IRevertProvider revertProvider)
+            IRevertProvider revertProvider,
+            IAElfClientProvider blockchainClientProvider,
+            IOptions<ContractsTokenOptions> contractsTokenOptions)
         {
             _tradePairInfoIndex = tradePairInfoIndex;
             _tokenPriceProvider = tokenPriceProvider;
@@ -104,17 +112,11 @@ namespace AwakenServer.Trade
             _clusterClient = clusterClient;
             _objectMapper = objectMapper;
             _revertProvider = revertProvider;
+            _blockchainClientProvider = blockchainClientProvider;
+            _contractsTokenOptions = contractsTokenOptions.Value;
 
         }
-
-        public async Task<List<TradePairDto>> GetTradePairInfoListAsync(GetTradePairsInfoInput input)
-        {
-            var tradePairInfoDtoPageResultDto = await _graphQlProvider.GetTradePairInfoListAsync(input);
-            return tradePairInfoDtoPageResultDto.TradePairInfoDtoList.Data.Count == 0
-                ? new List<TradePairDto>()
-                : ObjectMapper.Map<List<TradePairInfoDto>, List<TradePairDto>>(tradePairInfoDtoPageResultDto
-                    .TradePairInfoDtoList.Data);
-        }
+        
 
         public async Task<PagedResultDto<TradePairIndexDto>> GetListAsync(GetTradePairsInput input)
         {
@@ -303,6 +305,18 @@ namespace AwakenServer.Trade
             
             return ObjectMapper.Map<List<TradePairGrainDto>, List<TradePairIndexDto>>(result.Data);
         }
+        
+        public async Task<List<TradePairIndexDto>> GetListFromEsAsync(string chainId, IEnumerable<string> addresses)
+        {
+            QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> q) =>
+                q.Term(i => i.Field(f => f.ChainId).Value(chainId)) &&
+                q.Terms(i => i.Field(f => f.Address).Terms(addresses));
+            
+            var list = await _tradePairIndexRepository.GetListAsync(Filter,
+                limit: addresses.Count(), skip: 0);
+            
+            return ObjectMapper.Map<List<Index.TradePair>, List<TradePairIndexDto>>(list.Item2);
+        }
 
         /// <summary>
         /// this function is for unit test and some unuse processor
@@ -365,8 +379,11 @@ namespace AwakenServer.Trade
                 var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
                 await grain.AddOrUpdateAsync(_objectMapper.Map<Index.TradePair, TradePairGrainDto>(tradePair));
             }
-                
-            await _tradePairIndexRepository.BulkAddOrUpdateAsync(needDeleteIndexes);
+
+            if (needDeleteIndexes.Count > 0)
+            {
+                await _tradePairIndexRepository.BulkAddOrUpdateAsync(needDeleteIndexes);
+            }
         }
         
         public async Task RevertTradePairAsync(string chainId)
@@ -407,46 +424,6 @@ namespace AwakenServer.Trade
             
             await grain.AddAsync(_objectMapper.Map<SyncRecordDto, SyncRecordsGrainDto>(dto));
         }
-
-        
-        public async Task RevertSyncAsync(string chainId, int queryOnceLimit)
-        {
-            try
-            {
-                var needDeletedTradeRecords =
-                    await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.SyncEvent, chainId);
-
-                if (needDeletedTradeRecords.IsNullOrEmpty())
-                {
-                    return;
-                }
-
-                var needRevertDatas = new List<SyncRecordDto>();
-                foreach (var transactionHash in needDeletedTradeRecords)
-                {
-                    var grain = _clusterClient.GetGrain<ISyncRecordGrain>(GrainIdHelper.GenerateGrainId(chainId, transactionHash));
-                    var result = await grain.GetAsync();
-                    if (result.Success)
-                    {
-                        needRevertDatas.Add(_objectMapper.Map<SyncRecordsGrainDto, SyncRecordDto>(result.Data));
-                    }
-                }
-                
-                foreach (var revertData in needRevertDatas)
-                {
-                    revertData.IsRevert = true;
-                    await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(revertData.PairId, async grain =>
-                    {
-                        return await grain.UpdatePriceAsync(_objectMapper.Map<SyncRecordDto, SyncRecordGrainDto>(revertData));
-                    });
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError("Revert trade pair err:{0}", e);
-            }
-        }
-
         
         
         public async Task CreateTradePairIndexAsync(TradePairInfoDto input, TokenDto token0, TokenDto token1,
@@ -462,9 +439,38 @@ namespace AwakenServer.Trade
             ));
         }
 
+        private async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
+        {
+            try
+            {
+                var tradePairIndexDto = await GetAsync(tradePairId);
+                
+                if (tradePairIndexDto == null || !_contractsTokenOptions.Contracts.TryGetValue(
+                        tradePairIndexDto.FeeRate.ToString(),
+                        out var address))
+                {
+                    _logger.LogError("GetTokenInfoAsync, Get tradePairIndexDto failed");
+                    return null;
+                }
+
+                var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
+                    TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
+                _logger.LogInformation($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
+                return token;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Get token info failed");
+                return null;
+            }
+        }
+        
+        
         public async Task UpdateTradePairAsync(Guid id)
         {
             var snapshotTime = _tradePairMarketDataProvider.GetSnapshotTime(DateTime.UtcNow);
+            
+            _logger.LogInformation($"UpdateTradePairAsync id: {id}");
             
             var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(id));
             
@@ -483,8 +489,11 @@ namespace AwakenServer.Trade
             }
             
             var userTradeAddressCount = await _tradeRecordAppService.GetUserTradeAddressCountAsync(pair.ChainId, pair.Id, snapshotTime);
+            var token = await GetTokenInfoAsync(pair.Id, pair.ChainId);
+            var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
+            _logger.LogInformation($"get pair {pair.Id}, supply {supply}");
             
-            var tradePairGrainDtoResult = await grain.UpdateAsync(snapshotTime, userTradeAddressCount);
+            var tradePairGrainDtoResult = await grain.UpdateAsync(snapshotTime, userTradeAddressCount, supply);
             
             if (!tradePairGrainDtoResult.Success)
             {
@@ -545,11 +554,7 @@ namespace AwakenServer.Trade
 
             if (existPairResultDto.Success)
             {
-                var tradePairIndex = await _tradePairIndexRepository.GetAsync(Guid.Parse(pair.Id));
-                if (tradePairIndex != null)
-                {
-                    return true;
-                }
+                return true;
             }
             
             await _revertProvider.CheckOrAddUnconfirmedTransaction(EventType.TradePairEvent, pair.ChainId, pair.BlockHeight, pair.TransactionHash);
@@ -841,6 +846,8 @@ namespace AwakenServer.Trade
                     return descriptor => descriptor.Ascending(f => f.Token0.Symbol);
             }
         }
+
+        
         
     }
 }

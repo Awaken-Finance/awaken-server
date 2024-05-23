@@ -114,4 +114,36 @@ public class TradePairGrainTests : AwakenServerGrainTestBase
         result.Data.TradePairDto.TradeValue24h.ShouldBe(200);
         result.Data.TradePairDto.TradeCount24h.ShouldBe(2);
     }
+    
+    [Fact]
+    public async Task PercentChange24hAsync()
+    {
+        var grain = Cluster.Client.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
+        await grain.UpdatePriceAsync(new SyncRecordGrainDto
+        {
+            ChainId = ChainName,
+            PairAddress = TradePairEthUsdtAddress,
+            Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddHours(-2)),
+            ReserveA = 200000000,
+            ReserveB = 2000000,
+            BlockHeight = 100,
+            SymbolA = TokenEthSymbol,
+            SymbolB = TokenUsdtSymbol
+        });
+        
+        await grain.UpdatePriceAsync(new SyncRecordGrainDto
+        {
+            ChainId = ChainName,
+            PairAddress = TradePairEthUsdtAddress,
+            Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now),
+            ReserveA = 100000000,
+            ReserveB = 1000000,
+            BlockHeight = 100,
+            SymbolA = TokenEthSymbol,
+            SymbolB = TokenUsdtSymbol
+        });
+
+        var result = await grain.UpdateAsync(DateTime.Now, 0, "");
+        result.Data.TVLPercentChange24h.ShouldBe(-50);
+    }
 }

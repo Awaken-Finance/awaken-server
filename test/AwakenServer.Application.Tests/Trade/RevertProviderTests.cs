@@ -4,33 +4,31 @@ using System.Threading.Tasks;
 using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Grains.Grain.Price.TradePair;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Provider;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using Shouldly;
 using Xunit;
 
+
 namespace AwakenServer.Trade
 {
+    [Collection(ClusterCollection.Name)]
     public class RevertProviderTests: TradeTestBase
     {
-        private readonly ITokenPriceProvider _tokenPriceProvider;
-        private readonly ITokenAppService _tokenAppService;
-        private readonly IChainAppService _chainAppService;
         private readonly ITradePairAppService _tradePairAppService;
         private readonly ITradeRecordAppService _tradeRecordAppService;
         private readonly IRevertProvider _revertProvider;
         private readonly MockGraphQLProvider _graphQlProvider;
-
+        private readonly ILiquidityAppService _liquidityService;
         public RevertProviderTests()
         {
-            _tokenPriceProvider = GetRequiredService<ITokenPriceProvider>();
-            _tokenAppService = GetRequiredService<ITokenAppService>();
-            _chainAppService = GetRequiredService<IChainAppService>();
             _tradePairAppService = GetRequiredService<ITradePairAppService>();
             _revertProvider = GetRequiredService<IRevertProvider>();
             _graphQlProvider = GetRequiredService<MockGraphQLProvider>();
             _tradeRecordAppService = GetRequiredService<ITradeRecordAppService>();
+            _liquidityService = GetRequiredService<ILiquidityAppService>();
         }
 
         [Fact]
