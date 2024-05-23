@@ -4,12 +4,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using AwakenServer.Grains.Tests;
 using Shouldly;
 using Volo.Abp.EventBus.Local;
 using Xunit;
 
 namespace AwakenServer.Trade.Handlers
 {
+    [Collection(ClusterCollection.Name)]
     public class NewLiquidityHandlerTest : TradeTestBase
     {
         private readonly ILocalEventBus _eventBus;

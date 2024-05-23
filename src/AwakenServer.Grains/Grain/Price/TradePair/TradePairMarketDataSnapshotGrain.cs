@@ -84,11 +84,19 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             dto.PriceHigh = dto.Price;
             dto.PriceLow = dto.Price;
         }
+        else
+        {
+            dto.Price = lastDto.Price;
+        }
 
         if (dto.PriceUSD > 0)
         {
             dto.PriceHighUSD = dto.PriceUSD;
             dto.PriceLowUSD = dto.PriceUSD;
+        }
+        else
+        {
+            dto.PriceUSD = lastDto.PriceUSD;
         }
 
         if (dto.TVL <= 0)

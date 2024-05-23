@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Trade.Dtos;
 using Shouldly;
 using Volo.Abp.EventBus.Local;
@@ -10,6 +11,7 @@ using Xunit;
 
 namespace AwakenServer.Trade.Handlers
 {
+    [Collection(ClusterCollection.Name)]
     public class NewTradeRecordHandlerTests : TradeTestBase
     {
         private readonly INESTRepository<Index.TradePairMarketDataSnapshot, Guid> _snapshotIndexRepository;

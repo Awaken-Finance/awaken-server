@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using AwakenServer.Grains.Tests;
 using Microsoft.Extensions.Options;
 using Nest;
 using Shouldly;
@@ -11,6 +12,7 @@ using Xunit;
 
 namespace AwakenServer.Trade.Handlers
 {
+    [Collection(ClusterCollection.Name)]
     public class KLineHandlerTests : TradeTestBase
     {
         private readonly ILocalEventBus _eventBus;
