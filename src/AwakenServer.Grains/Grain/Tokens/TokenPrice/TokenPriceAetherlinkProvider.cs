@@ -28,10 +28,10 @@ public class TokenPriceAetherlinkProvider : ITokenPriceProvider
     {
         try
         {
-            var result = (await _priceServerProvider.GetTokenPriceAsync(new()
+            var result = (await _priceServerProvider.GetAggregatedTokenPriceAsync(new()
             {
                 TokenPair = $"{symbol.ToLower()}-usd",
-                Source = SourceType.CoinGecko
+                AggregateType = AggregateType.Latest
             })).Data;
 
             _logger.LogInformation($"get token price from Aetherlink price service, {result.TokenPair}, {result.Price}, {result.Decimal}");
