@@ -277,7 +277,7 @@ public class LiquidityServiceTests : TradeTestBase
             Sender = "0x987654321",
         };
         _graphQlProvider.AddRecord(recordDto1);
-        await _liquidityAppService.CreateAsync(recordDto1);
+        await _liquidityAppService.CreateAsync(0, recordDto1);
 
         var pairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
         var pairData = (await pairGrain.GetAsync()).Data;

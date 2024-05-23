@@ -527,7 +527,7 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task RevertTest()
         {
-            await _tradeRecordAppService.CreateAsync(new SwapRecordDto
+            await _tradeRecordAppService.CreateAsync(0, new SwapRecordDto
             {
                 ChainId = ChainId,
                 PairAddress = TradePairEthUsdtAddress,

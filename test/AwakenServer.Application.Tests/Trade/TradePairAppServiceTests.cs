@@ -1180,7 +1180,7 @@ namespace AwakenServer.Trade
                 Id = Guid.NewGuid().ToString(),
                 Address = "0x2"
             };
-            await _tradePairAppService.SyncPairAsync(newPairDto, new ChainDto
+            await _tradePairAppService.SyncPairAsync(0, newPairDto, new ChainDto
             {
                 Name = ChainId,
                 Id = ChainId
