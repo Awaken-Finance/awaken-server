@@ -218,7 +218,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 ChainId = dto.ChainId,
                 TradePairId = State.Id,
                 Timestamp = GetSnapshotTime(dto.Timestamp),
-                TotalSupply = lpAmount.ToNormalizeString(),
+                TotalSupply = dto.TotalSupply,
+                LpAmount = lpAmount.ToNormalizeString()
             });
 
         // nie:The current snapshot is not up-to-date. The latest snapshot needs to update TotalSupply 
