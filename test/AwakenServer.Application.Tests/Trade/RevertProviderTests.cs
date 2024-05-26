@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AwakenServer.Chains;
 using AwakenServer.Common;
@@ -84,6 +85,7 @@ namespace AwakenServer.Trade
             await _tradeRecordAppService.CreateAsync(new SwapRecordDto
             {
                 ChainId = ChainId,
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now),
                 TransactionHash = "A",
                 PairAddress = TradePairEthUsdtAddress,
                 SymbolIn = TokenEthSymbol,
@@ -105,6 +107,7 @@ namespace AwakenServer.Trade
             var deleteList = new List<string>();
             deleteList.Add("A");
             await _tradeRecordAppService.DoRevertAsync(ChainId, deleteList);
+            Thread.Sleep(3000);
             
             tradePair = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
