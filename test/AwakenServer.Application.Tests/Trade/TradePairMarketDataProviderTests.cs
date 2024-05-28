@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
@@ -64,7 +65,8 @@ public class TradePairMarketDataProviderTests : TradeTestBase
                 TotalSupply = "10"
             });
         });
-
+        
+        Thread.Sleep(3000);
         var pair = await _tradePairAppService.GetAsync(TradePairEthUsdtId);
         pair.TotalSupply.ShouldBe("10");
         
@@ -76,10 +78,11 @@ public class TradePairMarketDataProviderTests : TradeTestBase
                 ChainId = ChainId,
                 TradePairId = TradePairEthUsdtId,
                 Timestamp = DateTime.Now.AddHours(-1),
-                TotalSupply = "20"
+                LpAmount = "20"
             });
         });
-
+        
+        Thread.Sleep(3000);
         pair = await _tradePairAppService.GetAsync(TradePairEthUsdtId);
         pair.TotalSupply.ShouldBe("30");
 
@@ -91,12 +94,13 @@ public class TradePairMarketDataProviderTests : TradeTestBase
                 ChainId = ChainId,
                 TradePairId = TradePairEthUsdtId,
                 Timestamp = DateTime.Now.AddHours(-1),
-                TotalSupply = "30"
+                TotalSupply = "40"
             });
         });
 
+        Thread.Sleep(3000);
         pair = await _tradePairAppService.GetAsync(TradePairEthUsdtId);
-        pair.TotalSupply.ShouldBe("60");
+        pair.TotalSupply.ShouldBe("40");
     }
     
 }

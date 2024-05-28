@@ -12,4 +12,6 @@ public class LiquidityRecordGrainDto
     public LiquidityType Type { get; set; }
     public long BlockHeight { get; set; }
     public bool IsRevert { get; set; }
+    
+    public string TotalSupply { get; set; }
 }

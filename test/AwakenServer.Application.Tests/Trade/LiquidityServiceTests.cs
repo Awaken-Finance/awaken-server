@@ -99,8 +99,6 @@ public class LiquidityServiceTests : TradeTestBase
             Pair = "0xPool006a6FaC8c710e53c4B2c2F96477119dA361",
             Address = "0x123456789",
             Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
-            Token0Amount = 100,
-            Token1Amount = 1000,
             LpTokenAmount = 50000,
             Type = LiquidityType.Mint,
             TransactionHash = "0xdab24d0f0c28a3be6b59332ab0cb0b4cd54f10f3c1b12cfc81d72e934d74b28f",
