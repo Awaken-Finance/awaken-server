@@ -146,4 +146,29 @@ public class TradePairGrainTests : AwakenServerGrainTestBase
         var result = await grain.UpdateAsync(DateTime.Now, 0, "");
         result.Data.TVLPercentChange24h.ShouldBe(-50);
     }
+    
+    
+    [Fact]
+    public async Task LatestSnapshotAsyncTest()
+    {
+        var grain = Cluster.Client.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
+        await grain.AddOrUpdateSnapshotAsync(new TradePairMarketDataSnapshotGrainDto()
+        {
+            ChainId = ChainName,
+            TotalSupply = "100000",
+            Timestamp = DateTime.Now.AddDays(-10)
+        });
+
+        await grain.UpdateTotalSupplyAsync(new LiquidityRecordGrainDto()
+        {
+            ChainId = ChainName,
+            Pair = TradePairEthUsdtAddress,
+            Type = LiquidityType.Mint,
+            Timestamp = DateTime.Now,
+            LpTokenAmount = "100000"
+        });
+
+        var result = await grain.GetAsync();
+        result.Data.TotalSupply.ShouldBe("200000");
+    }
 }

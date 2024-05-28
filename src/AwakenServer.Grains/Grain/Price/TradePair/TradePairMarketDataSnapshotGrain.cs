@@ -70,14 +70,19 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             Data = _objectMapper.Map<TradePairMarketDataSnapshotState, TradePairMarketDataSnapshotGrainDto>(State)
         };
     }
-    
-    
+
+
     public async Task InitNewAsync(
         TradePairMarketDataSnapshotGrainDto dto,
         TradePairMarketDataSnapshotGrainDto lastDto)
     {
-        dto.TotalSupply = (BigDecimal.Parse(lastDto.TotalSupply) + BigDecimal.Parse(dto.TotalSupply))
-            .ToNormalizeString();
+        _logger.LogInformation($"new snapshot dto, trade pair: {dto.TradePairId}, total supply: {dto.TotalSupply}");
+
+        if (dto.TotalSupply == "0" || dto.TotalSupply.IsNullOrEmpty())
+        {
+            dto.TotalSupply = (BigDecimal.Parse(lastDto.TotalSupply) + BigDecimal.Parse(dto.LpAmount))
+                .ToNormalizeString();
+        }
 
         if (dto.Price > 0)
         {
@@ -121,16 +126,26 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
 
         State =
             _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(dto);
+
+        _logger.LogInformation(
+            $"new snapshot state, trade pair: {State.TradePairId}, total supply: {State.TotalSupply}");
     }
 
     public async Task UpdateLastAsync(
         TradePairMarketDataSnapshotGrainDto updateDto,
         TradePairMarketDataSnapshotGrainDto lastDto)
     {
-        if (updateDto.TotalSupply != "0")
+        _logger.LogInformation(
+            $"update snapshot dto, trade pair: {updateDto.TradePairId}, total supply: {updateDto.TotalSupply}");
+
+        if (updateDto.TotalSupply == "0" || updateDto.TotalSupply.IsNullOrEmpty())
         {
-            lastDto.TotalSupply = (BigDecimal.Parse(lastDto.TotalSupply) + BigDecimal.Parse(updateDto.TotalSupply))
+            lastDto.TotalSupply = (BigDecimal.Parse(lastDto.TotalSupply) + BigDecimal.Parse(updateDto.LpAmount))
                 .ToNormalizeString();
+        }
+        else
+        {
+            lastDto.TotalSupply = updateDto.TotalSupply;
         }
 
         if (updateDto.Volume != 0)
@@ -188,9 +203,12 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
 
         State =
             _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(lastDto);
+
+        _logger.LogInformation(
+            $"update snapshot state, trade pair: {State.TradePairId}, total supply: {State.TotalSupply}");
     }
-    
-    
+
+
     public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AddOrUpdateAsync(
         TradePairMarketDataSnapshotGrainDto updateDto,
         TradePairMarketDataSnapshotGrainDto lastDto)
@@ -214,6 +232,11 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         }
         else
         {
+            if (updateDto.TotalSupply == "0" || updateDto.TotalSupply.IsNullOrEmpty())
+            {
+                updateDto.TotalSupply = updateDto.LpAmount;
+            }
+
             State = _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(updateDto);
         }
 
