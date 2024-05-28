@@ -182,7 +182,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             lastDto.PriceUSD = updateDto.PriceUSD;
             lastDto.PriceHighUSD = Math.Max(lastDto.PriceHighUSD, updateDto.PriceUSD);
             lastDto.PriceLowUSD = lastDto.PriceLowUSD == 0
-                ? updateDto.Price
+                ? updateDto.PriceUSD
                 : Math.Min(lastDto.PriceLowUSD, updateDto.PriceUSD);
         }
 

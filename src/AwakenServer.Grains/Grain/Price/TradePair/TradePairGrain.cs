@@ -406,8 +406,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             var snapshot = lastDaySnapshot.First();
             lastDayTvl = snapshot.TVL;
             lastDayPriceUSD = snapshot.PriceUSD;
-            _logger.LogInformation(
-                $"scheduled trade pair update, get last day snapshot from lastDaySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
+            _logger.LogInformation($"scheduled trade pair update, get last day snapshot from lastDaySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
+
         }
         else
         {
@@ -417,8 +417,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 var snapshot = sortDaySnapshot.First();
                 lastDayTvl = snapshot.TVL;
                 lastDayPriceUSD = snapshot.PriceUSD;
-                _logger.LogInformation(
-                    $"scheduled trade pair update, get last day snapshot from daySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
+                _logger.LogInformation($"scheduled trade pair update, get last day snapshot from daySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
+
             }
         }
 
