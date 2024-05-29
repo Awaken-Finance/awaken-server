@@ -60,7 +60,7 @@ public class LiquidityServiceTests : TradeTestBase
             Sender = "0x987654321",
             BlockHeight = 100
         };
-        await _liquidityAppService.CreateAsync(inputMint);
+        await _liquidityAppService.CreateAsync(0, inputMint);
         // var snapshotTime =
         //     _tradePairMarketDataProvider.GetSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(inputMint.Timestamp));
         // var market =
@@ -106,14 +106,14 @@ public class LiquidityServiceTests : TradeTestBase
             Sender = "0x987654321",
             BlockHeight = 100
         };
-        await _liquidityAppService.CreateAsync(liquidityRecord);
+        await _liquidityAppService.CreateAsync(0,liquidityRecord);
         var tradePairDto = await _tradePairAppService.GetAsync(TradePairEthUsdtId);
         tradePairDto.TotalSupply.ShouldBe(liquidityRecord.LpTokenAmount.ToDecimalsString(8));
         
         liquidityRecord.TransactionHash = "0xdab24d0f0c28a3be6b59332ab0cb0b4cd54f10f3c1b12cfc81d72e934d74b281";
         liquidityRecord.Type = LiquidityType.Burn;
         liquidityRecord.LpTokenAmount = 5000;
-        await _liquidityAppService.CreateAsync(liquidityRecord);
+        await _liquidityAppService.CreateAsync(0,liquidityRecord);
         tradePairDto = await _tradePairAppService.GetAsync(TradePairEthUsdtId);
         tradePairDto.TotalSupply.ShouldBe("0.00045");
     }
@@ -130,7 +130,7 @@ public class LiquidityServiceTests : TradeTestBase
         };
         _graphQlProvider.AddUserLiquidity(liquidityDto);
         
-        await _liquidityAppService.CreateAsync(new LiquidityRecordDto
+        await _liquidityAppService.CreateAsync(0,new LiquidityRecordDto
         {
             ChainId = ChainName,
             Pair = "0xPool006a6FaC8c710e53c4B2c2F96477119dA361",
@@ -275,7 +275,7 @@ public class LiquidityServiceTests : TradeTestBase
             Sender = "0x987654321",
         };
         _graphQlProvider.AddRecord(recordDto1);
-        await _liquidityAppService.CreateAsync(recordDto1);
+        await _liquidityAppService.CreateAsync(0, recordDto1);
 
         var pairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
         var pairData = (await pairGrain.GetAsync()).Data;
