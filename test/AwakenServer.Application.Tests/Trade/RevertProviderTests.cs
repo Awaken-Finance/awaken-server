@@ -37,7 +37,7 @@ namespace AwakenServer.Trade
         {
             await _graphQlProvider.SetConfirmBlockHeightAsync(2);
             // block 1 is a confirm block, no need add to may revert cache
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(0,EventType.SwapEvent, ChainId, 1, "A");
+            await _revertProvider.CheckOrAddUnconfirmedTransaction(2,EventType.SwapEvent, ChainId, 1, "A");
             var needDelete = await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.SwapEvent, ChainId);
             needDelete.Count.ShouldBe(0);
         }
