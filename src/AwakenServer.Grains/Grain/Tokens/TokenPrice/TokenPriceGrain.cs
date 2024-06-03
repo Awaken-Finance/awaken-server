@@ -53,6 +53,17 @@ public class TokenPriceGrain : Grain<CurrentTokenPriceState>, ITokenPriceGrain
         try
         {
             price = await _tokenPriceProvider.GetPriceAsync(symbol);
+            if (price == 0 && State.PriceInUsd > 0)
+            {
+                _logger.LogInformation($"get price from token price provider failed. use old price. symbol: {State.Symbol}, price: {State.PriceInUsd}, price time: {State.PriceUpdateTime}");
+                result.Success = true;
+                result.Data = new TokenPriceGrainDto
+                {
+                    Symbol = State.Symbol,
+                    PriceInUsd = State.PriceInUsd
+                };
+                return result;
+            }
             State.Id = this.GetPrimaryKeyString();
             State.Symbol = symbol;
             State.PriceInUsd = price;
@@ -71,7 +82,7 @@ public class TokenPriceGrain : Grain<CurrentTokenPriceState>, ITokenPriceGrain
             PriceInUsd = price
         };
 
-
+        _logger.LogInformation($"get price from token price provider. symbol: {State.Symbol}, price: {State.PriceInUsd}, price time: {State.PriceUpdateTime}");
         return result;
     }
 }

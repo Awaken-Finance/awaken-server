@@ -28,15 +28,41 @@ public class TokenPriceAetherlinkProvider : ITokenPriceProvider
     {
         try
         {
-            var result = (await _priceServerProvider.GetAggregatedTokenPriceAsync(new()
+            if (symbol == "SGR-1")
             {
-                TokenPair = $"{symbol.ToLower()}-usd",
-                AggregateType = AggregateType.Latest
-            })).Data;
+                var result = (await _priceServerProvider.GetAggregatedTokenPriceAsync(new()
+                {
+                    TokenPair = "sgr-usdt",
+                    AggregateType = AggregateType.Latest
+                })).Data;
 
-            _logger.LogInformation($"get token price from Aetherlink price service, {result.TokenPair}, {result.Price}, {result.Decimal}");
+                _logger.LogInformation($"get token price from Aetherlink price service, {result.TokenPair}, {result.Price}, {result.Decimal}");
         
-            return (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
+                var price = (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
+                
+                var usdtResult = (await _priceServerProvider.GetAggregatedTokenPriceAsync(new()
+                {
+                    TokenPair = "usdt-usd",
+                    AggregateType = AggregateType.Latest
+                })).Data;
+                
+                var usdtPrice = (decimal)(usdtResult.Price / Math.Pow(10, (double)usdtResult.Decimal));
+
+                return price * usdtPrice;
+            }
+            else
+            {
+                var result = (await _priceServerProvider.GetAggregatedTokenPriceAsync(new()
+                {
+                    TokenPair = $"{symbol.ToLower()}-usd",
+                    AggregateType = AggregateType.Latest
+                })).Data;
+
+                _logger.LogInformation($"get token price from Aetherlink price service, {result.TokenPair}, {result.Price}, {result.Decimal}");
+        
+                return (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
+            }
+            
         }
         catch (Exception e)
         {
@@ -47,19 +73,45 @@ public class TokenPriceAetherlinkProvider : ITokenPriceProvider
 
     public async Task<decimal> GetHistoryPriceAsync(string symbol, string dateTime)
     {
+        var date = DateTime.ParseExact(dateTime, "dd-MM-yyyy", CultureInfo.InvariantCulture).ToString("yyyyMMdd");
         try
         {
-            var date = DateTime.ParseExact(dateTime, "dd-MM-yyyy", CultureInfo.InvariantCulture).ToString("yyyyMMdd");
-            var tokenPair = $"{symbol.ToLower()}-usd";
-            var result = (await _priceServerProvider.GetDailyPriceAsync(new()
+            if (symbol == "SGR-1")
             {
-                TokenPair = tokenPair,
-                TimeStamp = date
-            })).Data;
+                var tokenPair = "sgr-usdt";
+                var result = (await _priceServerProvider.GetDailyPriceAsync(new()
+                {
+                    TokenPair = tokenPair,
+                    TimeStamp = date
+                })).Data;
 
-            _logger.LogInformation($"get token daily price from Aetherlink price service, tokenPair: {tokenPair}, TimeStamp: {date}, result.Price: {result.Price}, result.Decimal: {result.Decimal}");
+                _logger.LogInformation($"get token daily price from Aetherlink price service, tokenPair: {tokenPair}, TimeStamp: {date}, result.Price: {result.Price}, result.Decimal: {result.Decimal}");
+                
+                var price = (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
+                
+                var usdtResult = (await _priceServerProvider.GetDailyPriceAsync(new()
+                {
+                    TokenPair = "usdt-usd",
+                    TimeStamp = date
+                })).Data;
+                
+                var usdtPrice = (decimal)(usdtResult.Price / Math.Pow(10, (double)usdtResult.Decimal));
+
+                return price * usdtPrice;
+            }
+            else
+            {
+                var tokenPair = $"{symbol.ToLower()}-usd";
+                var result = (await _priceServerProvider.GetDailyPriceAsync(new()
+                {
+                    TokenPair = tokenPair,
+                    TimeStamp = date
+                })).Data;
+
+                _logger.LogInformation($"get token daily price from Aetherlink price service, tokenPair: {tokenPair}, TimeStamp: {date}, result.Price: {result.Price}, result.Decimal: {result.Decimal}");
         
-            return (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
+                return (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
+            }
         }
         catch (Exception e)
         {
