@@ -8,8 +8,10 @@ using AwakenServer.Grains.Grain.Tokens;
 using AwakenServer.Grains.Grain.Favorite;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
+using AwakenServer.Grains.Grain.SwapTokenPath;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.State.Tokens;
+using AwakenServer.SwapTokenPath.Dtos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
@@ -145,6 +147,10 @@ namespace AwakenServer
             CreateMap<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>();
             CreateMap<AwakenServer.Trade.Index.TradePairMarketDataSnapshot, TradePairMarketDataSnapshotGrainDto>().ReverseMap();
             
+            CreateMap<TokenPath, TokenPathDto>();
+            CreateMap<PathNode, PathNodeDto>();
+            CreateMap<TradePairGrainDto, TradePairDto>();
+            CreateMap<GetTokenPathsInput, GetTokenPathGrainDto>();
             
             //Favorite
             CreateMapForFavorite();

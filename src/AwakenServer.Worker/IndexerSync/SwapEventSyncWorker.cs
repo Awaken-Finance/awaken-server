@@ -21,7 +21,6 @@ public class TradeRecordEventSwapWorker : AwakenServerWorkerBase
     protected readonly IChainAppService _chainAppService;
     protected readonly IGraphQLProvider _graphQlProvider;
     private readonly ITradeRecordAppService _tradeRecordAppService;
-    private bool executed = false;
 
 
     public TradeRecordEventSwapWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
