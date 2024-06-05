@@ -19,7 +19,7 @@ namespace AwakenServer.Grains.Grain.SwapTokenPath;
 public class FeeRateGraph
 {
     public double FeeRate { get; set; }
-    public Dictionary<string, List<string>> Graph { get; set; } = new Dictionary<string, List<string>>();
+    public Dictionary<string, HashSet<string>> Graph { get; set; } = new Dictionary<string, HashSet<string>>();
     public Dictionary<string, Dictionary<string, PathNode>> RelationTokenDictionary { get; set; } = new Dictionary<string, Dictionary<string, PathNode>>();
 }
 
@@ -42,6 +42,8 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
     public override async Task OnActivateAsync()
     {
         await ReadStateAsync();
+        // fix me
+        ResetCacheAsync();
         await base.OnActivateAsync();
     }
 
@@ -73,6 +75,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
             if (feeRateGraph.RelationTokenDictionary.ContainsKey(token0) && feeRateGraph.RelationTokenDictionary[token0].ContainsKey(token1))
             {
                 pairPath.Path.Add(feeRateGraph.RelationTokenDictionary[token0][token1]);
+                pairPath.FullPath += feeRateGraph.RelationTokenDictionary[token0][token1].Address + (i < path.Count - 2 ? "->" : string.Empty);
             }
         }
         return pairPath;
@@ -110,11 +113,12 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
         var cachedPathResult = await GetCachedPathAsync(dto);
         if (cachedPathResult.Success)
         {
+            _logger.LogInformation($"get cached paths, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}, path count: {cachedPathResult.Data.Path.Count}");
             return cachedPathResult;
         }
         
         var pathResult = new List<TokenPath>();
-        
+        var distinctPaths = new HashSet<string>();
         foreach (var feeRateGraph in _feeRateGraphs)
         {
             var allPaths = new List<List<string>>();
@@ -123,7 +127,12 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
             DFS(feeRateGraph.Value.Graph, dto.StartSymbol, dto.EndSymbol, dto.MaxDepth, visited, currentPath, allPaths);
             foreach (var path in allPaths)
             {
-                pathResult.Add(MakePath(feeRateGraph.Value, path));
+                var tokenPath = MakePath(feeRateGraph.Value, path);
+                if (!distinctPaths.Contains(tokenPath.FullPath))
+                {
+                    distinctPaths.Add(tokenPath.FullPath);
+                    pathResult.Add(tokenPath);
+                }
             }
         }
         
@@ -139,7 +148,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
         };
     }
     
-    private void DFS(Dictionary<string, List<string>> graph, string current, string end, int maxDepth, HashSet<string> visited, List<string> path, List<List<string>> allPaths)
+    private void DFS(Dictionary<string, HashSet<string>> graph, string current, string end, int maxDepth, HashSet<string> visited, List<string> path, List<List<string>> allPaths)
     {
         if (maxDepth < 0) return;
         
@@ -179,10 +188,10 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
 
             var graph = _feeRateGraphs[pair.FeeRate];
             if (!graph.Graph.ContainsKey(pair.Token0Symbol))
-                graph.Graph[pair.Token0Symbol] = new List<string>();
+                graph.Graph[pair.Token0Symbol] = new HashSet<string>();
         
             if (!graph.Graph.ContainsKey(pair.Token1Symbol))
-                graph.Graph[pair.Token1Symbol] = new List<string>();
+                graph.Graph[pair.Token1Symbol] = new HashSet<string>();
             
             if (!graph.RelationTokenDictionary.ContainsKey(pair.Token0Symbol))
                 graph.RelationTokenDictionary[pair.Token0Symbol] = new Dictionary<string, PathNode>();
