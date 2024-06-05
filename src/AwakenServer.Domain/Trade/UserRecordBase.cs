@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AwakenServer.Entities;
 using Nest;
 
@@ -23,7 +24,8 @@ namespace AwakenServer.Trade
 
         [Keyword] public string Sender { get; set; }
         public long BlockHeight { get; set; } 
-        public bool IsConfirmed { get; set; } 
+        public bool IsConfirmed { get; set; }
+        public List<SwapRecord> SwapRecords { get; set; }
 
         protected UserRecordBase()
         {
