@@ -6,6 +6,7 @@ public class TokenPath
 {
     public double FeeRate { get; set; }
     public List<PathNode> Path { get; set; } = new List<PathNode>();
+    public string FullPath { get; set; }
 }
 
 public class PathNode
