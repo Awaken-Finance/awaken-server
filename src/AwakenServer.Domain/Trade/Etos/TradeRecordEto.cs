@@ -16,4 +16,17 @@ namespace AwakenServer.Trade.Etos
             Id = id;
         }
     }
+    
+    public class TradeRecordPathEto : TradeRecord
+    {
+        public TradeRecordPathEto()
+        {
+        }
+
+        public TradeRecordPathEto(Guid id)
+            : base(id)
+        {            
+            Id = id;
+        }
+    }
 }
