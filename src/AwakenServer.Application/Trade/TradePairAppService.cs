@@ -404,7 +404,7 @@ namespace AwakenServer.Trade
         
         public async Task CreateSyncAsync(SyncRecordDto dto)
         {
-            var grain = _clusterClient.GetGrain<ISyncRecordGrain>(GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
+            var grain = _clusterClient.GetGrain<ISyncRecordGrain>(GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash, dto.PairAddress));
             if (await grain.ExistAsync())
             {
                 return;

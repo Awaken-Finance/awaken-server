@@ -239,6 +239,10 @@ namespace AwakenServer.Trade
 
         public async Task<bool> CreateAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
+            if (!dto.SwapRecords.IsNullOrEmpty())
+            {
+                return await CreateMultiSwapAsync(currentConfirmedHeight, dto);
+            }
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
@@ -300,6 +304,108 @@ namespace AwakenServer.Trade
             
             await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
 
+            return true;
+        }
+
+        public async Task<bool> CreateMultiSwapAsync(long currentConfirmedHeight, SwapRecordDto dto)
+        {
+            var tradeRecordGrain =
+                _clusterClient.GetGrain<ITradeRecordGrain>(
+                    GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
+            if (await tradeRecordGrain.Exist())
+            {
+                return true;
+            }
+            
+            await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
+            
+            dto.SwapRecords.AddFirst(new Dtos.SwapRecord()
+            {
+                PairAddress = dto.PairAddress,
+                AmountIn = dto.AmountIn,
+                AmountOut = dto.AmountOut,
+                SymbolIn = dto.SymbolIn,
+                SymbolOut = dto.SymbolOut,
+                TotalFee = dto.TotalFee,
+                Channel = dto.Channel
+            });
+            var pairList = new List<Index.TradePair>();
+            var indexSwapRecords = new List<SwapRecord>();
+            foreach (var swapRecord in dto.SwapRecords)
+            {
+                var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
+                if (tradePair == null)
+                {
+                    _logger.LogInformation("swap can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                        swapRecord.PairAddress);
+                    return false;
+                } 
+                pairList.Add(tradePair);
+                var indexSwapRecord = new SwapRecord();
+                ObjectMapper.Map(swapRecord, indexSwapRecord);
+                indexSwapRecord.TradePairId = tradePair.Id;
+                indexSwapRecords.Add(indexSwapRecord);
+            }
+            var swapRecordCount = indexSwapRecords.Count;
+
+            var firstTradePair = pairList.First();
+            var lastTradePair = pairList.Last();
+            var firstIsSell = firstTradePair.Token0.Symbol == dto.SwapRecords[0].SymbolIn;
+            var lastIsSell = lastTradePair.Token0.Symbol == dto.SwapRecords[swapRecordCount - 1].SymbolIn;
+            var record = new TradeRecordCreateDto
+            {
+                ChainId = dto.ChainId,
+                TradePairId = Guid.Empty,
+                Address = dto.Sender,
+                TransactionHash = dto.TransactionHash,
+                Timestamp = dto.Timestamp,
+                Side = TradeSide.Swap,
+                Token0Amount = firstIsSell ? indexSwapRecords[0].AmountIn.ToDecimalsString(firstTradePair.Token0.Decimals)
+                    : indexSwapRecords[0].AmountIn.ToDecimalsString(firstTradePair.Token1.Decimals),
+                Token1Amount = lastIsSell ? indexSwapRecords[pairList.Count - 1].AmountOut.ToDecimalsString(lastTradePair.Token1.Decimals)
+                    : indexSwapRecords[pairList.Count - 1].AmountOut.ToDecimalsString(lastTradePair.Token0.Decimals),
+                TotalFee = 0,//Todo
+                Channel = dto.Channel,
+                Sender = dto.Sender,
+                BlockHeight = dto.BlockHeight
+            };
+
+            _logger.LogInformation(
+                "SwapEvent, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
+                "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
+                "blockHeight: {blockHeight}, totalFee: {totalFee}", dto.ChainId, "multiSwap no tradePairId", dto.Sender,
+                dto.TransactionHash, dto.Timestamp,
+                record.Side, dto.Channel, record.Token0Amount, record.Token1Amount, dto.BlockHeight, dto.TotalFee);
+
+
+            var tradeRecord = ObjectMapper.Map<TradeRecordCreateDto, TradeRecord>(record);
+            tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
+            tradeRecord.Id = Guid.NewGuid();
+            tradeRecord.SwapRecords = indexSwapRecords;
+
+            await tradeRecordGrain.InsertAsync(ObjectMapper.Map<TradeRecord, TradeRecordGrainDto>(tradeRecord));
+            await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradeRecordEto>(
+                ObjectMapper.Map<TradeRecord, TradeRecordEto>(tradeRecord)
+            ));
+
+            foreach (var indexSwapRecord in indexSwapRecords)
+            {
+                record.TradePairId = indexSwapRecord.TradePairId;
+                await CreateUserTradeSummary(record);
+
+                var pair = pairList.First(t => t.Id == indexSwapRecord.TradePairId);
+                var isSell = pair.Token0.Symbol == indexSwapRecord.SymbolIn;
+                tradeRecord.TradePairId = indexSwapRecord.TradePairId;
+                tradeRecord.Side = isSell ? TradeSide.Sell : TradeSide.Buy;
+                tradeRecord.Token0Amount = isSell
+                    ? indexSwapRecord.AmountIn.ToDecimalsString(pair.Token0.Decimals)
+                    : indexSwapRecord.AmountOut.ToDecimalsString(pair.Token0.Decimals);
+                tradeRecord.Token1Amount = isSell 
+                    ? indexSwapRecord.AmountOut.ToDecimalsString(pair.Token1.Decimals)
+                    : indexSwapRecord.AmountIn.ToDecimalsString(pair.Token1.Decimals);
+                tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
+                await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
+            }
             return true;
         }
 
@@ -442,6 +548,18 @@ namespace AwakenServer.Trade
 
             QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> f) => f.Bool(b => b.Must(mustQuery));
             return await _tradePairIndexRepository.GetAsync(Filter);
+        }
+        
+        public async Task<List<Index.TradePair>> GetTradePairListFromEsAsync(string chainId, IEnumerable<string> addresses)
+        {
+            QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> q) =>
+                q.Term(i => i.Field(f => f.ChainId).Value(chainId)) &&
+                q.Terms(i => i.Field(f => f.Address).Terms(addresses));
+            
+            var list = await _tradePairIndexRepository.GetListAsync(Filter,
+                limit: addresses.Count(), skip: 0);
+            
+            return list.Item2;
         }
         
         private async Task<List<Index.TradeRecord>> GetRecordAsync(string chainId, List<string> transactionHashs, int maxResultCount)

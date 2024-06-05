@@ -5,6 +5,8 @@ using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.Price;
 using AwakenServer.Price.Dtos;
+using AwakenServer.Tokens;
+using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
@@ -12,6 +14,8 @@ using MassTransit;
 using Microsoft.Extensions.Logging;
 using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
+using SwapRecord = AwakenServer.Trade.SwapRecord;
+using TradeRecord = AwakenServer.Trade.Index.TradeRecord;
 
 namespace AwakenServer.EntityHandler.Trade
 {
@@ -45,7 +49,8 @@ namespace AwakenServer.EntityHandler.Trade
                 $"handle EntityCreatedEto<TradeRecordEto>");
             
             var index = ObjectMapper.Map<TradeRecordEto, TradeRecord>(eventData.Entity);
-            index.TradePair = await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
+            index.TradePair = eventData.Entity.Side == TradeSide.Swap ? await GetTradePariWithSwapRecordsAsync(eventData.Entity.SwapRecords)
+                : await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
             index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
             index.TransactionFee =
                 await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
@@ -68,6 +73,27 @@ namespace AwakenServer.EntityHandler.Trade
 
         public async Task HandleEventAsync(EntityDeletedEto<TradeRecordEto> eventData)
         {
+        }
+        
+        protected async Task<TradePairWithToken> GetTradePariWithSwapRecordsAsync(List<SwapRecord> swapRecords)
+        {
+            var firstTradePair = await GetTradePariWithTokenAsync(swapRecords[0].TradePairId); 
+            var pairWithToken = new TradePairWithToken();
+            var token0 = await TokenAppService.GetAsync(new GetTokenInput
+            {
+                Symbol = swapRecords[0].SymbolIn
+            });
+            var count = swapRecords.Count;
+            var token1 = await TokenAppService.GetAsync(new GetTokenInput
+            {
+                Symbol = swapRecords[count - 1].SymbolOut
+            });
+            pairWithToken.Token0 = ObjectMapper.Map<TokenDto, Token>(token0);
+            pairWithToken.Token1 = ObjectMapper.Map<TokenDto, Token>(token1);
+            pairWithToken.FeeRate = firstTradePair.FeeRate;
+            pairWithToken.ChainId = firstTradePair.ChainId;
+            pairWithToken.Address = firstTradePair.Address;
+            return pairWithToken;
         }
 
         private async Task<double> GetHistoryPriceInUsdAsync(TradeRecord index)
