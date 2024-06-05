@@ -364,7 +364,7 @@ namespace AwakenServer.Trade
                     : indexSwapRecords[0].AmountIn.ToDecimalsString(firstTradePair.Token1.Decimals),
                 Token1Amount = lastIsSell ? indexSwapRecords[pairList.Count - 1].AmountOut.ToDecimalsString(lastTradePair.Token1.Decimals)
                     : indexSwapRecords[pairList.Count - 1].AmountOut.ToDecimalsString(lastTradePair.Token0.Decimals),
-                TotalFee = 0,//Todo
+                TotalFee = indexSwapRecords[0].AmountIn * (1 - Math.Pow((1 - firstTradePair.FeeRate), swapRecordCount)),
                 Channel = dto.Channel,
                 Sender = dto.Sender,
                 BlockHeight = dto.BlockHeight
@@ -384,8 +384,8 @@ namespace AwakenServer.Trade
             tradeRecord.SwapRecords = indexSwapRecords;
 
             await tradeRecordGrain.InsertAsync(ObjectMapper.Map<TradeRecord, TradeRecordGrainDto>(tradeRecord));
-            await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradeRecordEto>(
-                ObjectMapper.Map<TradeRecord, TradeRecordEto>(tradeRecord)
+            await _distributedEventBus.PublishAsync(new EntityCreatedEto<MultiTradeRecordEto>(
+                ObjectMapper.Map<TradeRecord, MultiTradeRecordEto>(tradeRecord)
             ));
 
             foreach (var indexSwapRecord in indexSwapRecords)
@@ -409,9 +409,65 @@ namespace AwakenServer.Trade
             return true;
         }
 
+        public async Task<bool> RevertFieldMultiAsync(Index.TradeRecord dto)
+        {
+            var tradeRecordGrain =
+                _clusterClient.GetGrain<ITradeRecordGrain>(
+                    GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
+            if (!tradeRecordGrain.Exist().Result)
+            {
+                _logger.LogInformation("revert transactionHash not existed: {transactionHash}", dto.TransactionHash);
+                return false;
+            }
+            
+            var pairList = new List<Index.TradePair>();
+            foreach (var swapRecord in dto.SwapRecords)
+            {
+                var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
+                if (tradePair == null)
+                {
+                    _logger.LogInformation("swap can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                        swapRecord.PairAddress);
+                    return false;
+                }
+
+                pairList.Add(tradePair);
+            }
+            
+            var tradeRecord = ObjectMapper.Map<Index.TradeRecord, TradeRecord>(dto);
+            tradeRecord.IsRevert = true;
+            
+            foreach (var swapRecord in dto.SwapRecords)
+            {
+                var pair = pairList.First(t => t.Id == swapRecord.TradePairId);
+                var isSell = pair.Token0.Symbol == swapRecord.SymbolIn;
+                tradeRecord.TradePairId = swapRecord.TradePairId;
+                tradeRecord.Side = isSell ? TradeSide.Sell : TradeSide.Buy;
+                tradeRecord.Token0Amount = isSell
+                    ? swapRecord.AmountIn.ToDecimalsString(pair.Token0.Decimals)
+                    : swapRecord.AmountOut.ToDecimalsString(pair.Token0.Decimals);
+                tradeRecord.Token1Amount = isSell 
+                    ? swapRecord.AmountOut.ToDecimalsString(pair.Token1.Decimals)
+                    : swapRecord.AmountIn.ToDecimalsString(pair.Token1.Decimals);
+                tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
+                
+                // update kLine and trade pair by publish event : NewTradeRecordEvent, Handler: KLineHandler and kNewTradeRecordHandler
+                await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
+            
+                // update trade pair token0reserved, token1reserved, price ... from chain
+            }
+
+            return true;
+        }
+        
 
         public async Task<bool> RevertFieldAsync(Index.TradeRecord dto)
         {
+            if (!dto.SwapRecords.IsNullOrEmpty())
+            {
+                return await RevertFieldMultiAsync(dto);
+            }
+            
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));

@@ -134,6 +134,7 @@ namespace AwakenServer
             
             CreateMap<TradeRecord, NewTradeRecordEvent>();
             CreateMap<TradeRecordEto, Trade.Index.TradeRecord>();
+            CreateMap<MultiTradeRecordEto, Trade.Index.TradeRecord>();
             CreateMap<Trade.Index.TradeRecord, TradeRecordIndexDto>().ForMember(
                 destination => destination.Timestamp,
                 opt => opt.MapFrom(source => DateTimeHelper.ToUnixTimeMilliseconds(source.Timestamp)));

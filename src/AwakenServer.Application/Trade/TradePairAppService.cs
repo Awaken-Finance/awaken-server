@@ -561,7 +561,8 @@ namespace AwakenServer.Trade
             await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.TradePairEvent, pair.ChainId, pair.BlockHeight, pair.TransactionHash);
 
             var grain = _clusterClient.GetGrain<ITokenPathGrain>(GrainIdHelper.GenerateGrainId(chain));
-            await grain.ResetCacheAsync();
+            var clearCount = await grain.ResetCacheAsync();
+            _logger.LogInformation($"clear swap path cache, count: {clearCount}");
             
             var token0 = await _tokenAppService.GetAsync(new GetTokenInput
             {

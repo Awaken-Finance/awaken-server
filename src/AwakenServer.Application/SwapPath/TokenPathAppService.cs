@@ -53,11 +53,11 @@ namespace AwakenServer.SwapTokenPath
         
         public async Task<PagedResultDto<TokenPathDto>> GetListAsync(GetTokenPathsInput input)
         {
-            _logger.LogInformation($"get token paths, input: {input.ChainId}, {input.StartSymbol}, {input.EndSymbol}, {input.MaxDepth}");
+            _logger.LogInformation($"get token paths begin, input: {input.ChainId}, {input.StartSymbol}, {input.EndSymbol}, {input.MaxDepth}");
 
             var pairs = await GetListAsync(input.ChainId);
             
-            _logger.LogInformation($"get relations from chain trade pairs, count: {pairs.Count}");
+            _logger.LogInformation($"get token paths, get relations from chain trade pairs, count: {pairs.Count}");
             
             var grain = _clusterClient.GetGrain<ITokenPathGrain>(GrainIdHelper.GenerateGrainId(input.ChainId));
             await grain.SetGraphAsync(new GraphDto()
@@ -70,11 +70,11 @@ namespace AwakenServer.SwapTokenPath
             
             if (!result.Success || result.Data == null || result.Data.Path == null)
             {
-                _logger.LogError($"get path failed, flag: {result.Success}");
+                _logger.LogError($"get token paths, failed, flag: {result.Success}");
                 return new PagedResultDto<TokenPathDto>();
             }
             
-            _logger.LogInformation($"get path from token path grain, path count: {result.Data.Path.Count}");
+            _logger.LogInformation($"get token paths done, path count: {result.Data.Path.Count}");
             return new PagedResultDto<TokenPathDto>()
             {
                 TotalCount = result.Data.Path.Count,

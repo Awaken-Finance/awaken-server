@@ -15,5 +15,5 @@ public interface ITokenPathGrain : IGrainWithStringKey
     Task<GrainResultDto<TokenPathResultGrainDto>> GetPathAsync(GetTokenPathGrainDto dto);
     Task<GrainResultDto<TokenPathResultGrainDto>> GetCachedPathAsync(GetTokenPathGrainDto dto);
     Task<GrainResultDto> SetGraphAsync(GraphDto dto);
-    Task<GrainResultDto> ResetCacheAsync();
+    Task<GrainResultDto<long>> ResetCacheAsync();
 }

@@ -21,8 +21,9 @@ namespace AwakenServer.EntityHandler.Trade
 {
     public class TradeRecordIndexHandler : TradeIndexHandlerBase,
         IDistributedEventHandler<EntityCreatedEto<TradeRecordEto>>,
+        IDistributedEventHandler<EntityCreatedEto<MultiTradeRecordEto>>,
         IDistributedEventHandler<EntityDeletedEto<TradeRecordEto>>
-
+    
     {
         private readonly INESTRepository<TradeRecord, Guid> _tradeRecordIndexRepository;
         private readonly IPriceAppService _priceAppService;
@@ -46,8 +47,7 @@ namespace AwakenServer.EntityHandler.Trade
         public async Task HandleEventAsync(EntityCreatedEto<TradeRecordEto> eventData)
         {
             var index = ObjectMapper.Map<TradeRecordEto, TradeRecord>(eventData.Entity);
-            index.TradePair = eventData.Entity.Side == TradeSide.Swap ? await GetTradePariWithSwapRecordsAsync(eventData.Entity.SwapRecords)
-                : await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
+            index.TradePair = await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
             index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
             index.TransactionFee =
                 await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
@@ -61,33 +61,63 @@ namespace AwakenServer.EntityHandler.Trade
             });
 
             _logger.LogInformation(
-                $"publish TradeRecordIndexDto address:{index.Address} tradePairId:{index.TradePair.Id} chainId:{index.ChainId} txId:{index.TransactionHash}");
+                $"publish normal swap record, " +
+                $"address:{index.Address} " +
+                $"tradePairId:{index.TradePair.Id} " +
+                $"chainId:{index.ChainId} " +
+                $"txId:{index.TransactionHash}");
         }
         
-        public async Task HandleEventAsync(EntityCreatedEto<TradeRecordPathEto> eventData)
+        public async Task HandleEventAsync(EntityCreatedEto<MultiTradeRecordEto> eventData)
         {
-            // publish first pair
-            var index = ObjectMapper.Map<TradeRecordPathEto, TradeRecord>(eventData.Entity);
-            index.TradePair = await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
+            var index = ObjectMapper.Map<MultiTradeRecordEto, TradeRecord>(eventData.Entity);
+            index.TradePair = await GetTradePariWithSwapRecordsAsync(eventData.Entity.SwapRecords);
             index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
             index.TransactionFee =
                 await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
                 Math.Pow(10, 8);
-            await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
-            {
-                Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(index)
-            });
-
-            // publish other pairs
-            foreach (var record in eventData.Entity.SwapRecords)
-            {
-                
-            }
-            
-            // fake pair info
             
             await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
             
+            foreach (var record in eventData.Entity.SwapRecords)
+            {
+                var pair = await GetTradePariWithTokenAsync(record.TradePairId);
+                var isSell = pair.Token0.Symbol == record.SymbolIn;
+                
+                var tradeRecordIndexDto = ObjectMapper.Map<MultiTradeRecordEto, TradeRecord>(eventData.Entity);
+                tradeRecordIndexDto.TradePair = pair;
+                tradeRecordIndexDto.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(tradeRecordIndexDto);
+                tradeRecordIndexDto.TransactionFee = index.TransactionFee;
+                
+                tradeRecordIndexDto.Side = isSell ? TradeSide.Sell : TradeSide.Buy;
+                tradeRecordIndexDto.Token0Amount = isSell
+                    ? record.AmountIn.ToDecimalsString(pair.Token0.Decimals)
+                    : record.AmountOut.ToDecimalsString(pair.Token0.Decimals);
+                tradeRecordIndexDto.Token1Amount = isSell
+                    ? record.AmountOut.ToDecimalsString(pair.Token1.Decimals)
+                    : record.AmountIn.ToDecimalsString(pair.Token1.Decimals);
+                
+                tradeRecordIndexDto.Price = double.Parse(tradeRecordIndexDto.Token1Amount) / double.Parse(tradeRecordIndexDto.Token0Amount);
+                tradeRecordIndexDto.Id = Guid.NewGuid();
+                tradeRecordIndexDto.TotalFee =
+                    record.TotalFee / Math.Pow(10, isSell ? pair.Token0.Decimals : pair.Token1.Decimals);
+                
+                await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
+                {
+                    Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(tradeRecordIndexDto)
+                });
+                
+                _logger.LogInformation(
+                    $"publish path swap record, address:{tradeRecordIndexDto.Address} " +
+                    $"time:{tradeRecordIndexDto.Timestamp}" +
+                    $"tradePairId:{tradeRecordIndexDto.TradePair.Id} " +
+                    $"chainId:{tradeRecordIndexDto.ChainId} " +
+                    $"txId:{tradeRecordIndexDto.TransactionHash} " +
+                    $"token0amount: {tradeRecordIndexDto.Token0Amount} " +
+                    $"token1amount: {tradeRecordIndexDto.Token1Amount} " +
+                    $"price: {tradeRecordIndexDto.Price} " +
+                    $"Side: {tradeRecordIndexDto.Side}");
+            }
         }
 
         public async Task HandleEventAsync(EntityDeletedEto<TradeRecordEto> eventData)

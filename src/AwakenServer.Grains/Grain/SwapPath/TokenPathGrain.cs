@@ -117,6 +117,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
             return cachedPathResult;
         }
         
+        _logger.LogInformation($"search paths, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}, path count: {cachedPathResult.Data.Path.Count}");
         var pathResult = new List<TokenPath>();
         var distinctPaths = new HashSet<string>();
         foreach (var feeRateGraph in _feeRateGraphs)
@@ -224,12 +225,15 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
         };
     }
     
-    public async Task<GrainResultDto> ResetCacheAsync()
+    public async Task<GrainResultDto<long>> ResetCacheAsync()
     {
+        var cacheCount = State.PathCache.Count;
         State.PathCache.Clear();
-        return new GrainResultDto
+        _logger.LogInformation($"clear path cache, remove count: {cacheCount}, now count: {State.PathCache.Count}");
+        return new GrainResultDto<long>
         {
-            Success = true
+            Success = true,
+            Data = cacheCount
         };
     }
 }
