@@ -148,10 +148,24 @@ namespace AwakenServer.Trade
                 mustQuery.Add(q => q.Term(i => i.Field(f => f.Side).Value(side)));
             }
             mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
-            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsSubRecord).Value(false)));
             
-            QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
+            QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f)
+            {
+                var shouldQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>
+                {
+                    q => q.Term(t => t.Field(f => f.IsSubRecord).Value(false)),
+                    q => q.Bool(b => b.MustNot(mn => mn.Exists(e => e.Field(f => f.IsSubRecord))))
+                };
 
+                return f.Bool(b => b
+                    .Must(mustQuery)
+                    .Filter(ff => ff.Bool(bf => bf
+                        .Should(shouldQuery)
+                        .MinimumShouldMatch(1)
+                    ))
+                );
+            }
+            
             List<Index.TradeRecord> item2;
             if (!string.IsNullOrEmpty(input.Sorting))
             {
