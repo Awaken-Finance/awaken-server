@@ -137,7 +137,6 @@ namespace AwakenServer.EntityHandler.Trade
             pairWithToken.Token1 = ObjectMapper.Map<TokenDto, Token>(token1);
             pairWithToken.FeeRate = firstTradePair.FeeRate;
             pairWithToken.ChainId = firstTradePair.ChainId;
-            pairWithToken.Address = firstTradePair.Address;
             return pairWithToken;
         }
 
