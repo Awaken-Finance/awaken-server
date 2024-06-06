@@ -110,14 +110,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
     
     public async Task<GrainResultDto<TokenPathResultGrainDto>> GetPathAsync(GetTokenPathGrainDto dto)
     {
-        var cachedPathResult = await GetCachedPathAsync(dto);
-        if (cachedPathResult.Success)
-        {
-            _logger.LogInformation($"get cached paths, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}, path count: {cachedPathResult.Data.Path.Count}");
-            return cachedPathResult;
-        }
-        
-        _logger.LogInformation($"search paths, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}");
+        _logger.LogInformation($"get swap path do search, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}");
         
         var pathResult = new List<TokenPath>();
         var distinctPaths = new HashSet<string>();
@@ -230,7 +223,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
     {
         var cacheCount = State.PathCache.Count;
         State.PathCache.Clear();
-        _logger.LogInformation($"clear path cache, remove count: {cacheCount}, now count: {State.PathCache.Count}");
+        _logger.LogInformation($"clear path cache, grain id: {this.GetPrimaryKeyString()}, remove count: {cacheCount}, now count: {State.PathCache.Count}");
         return new GrainResultDto<long>
         {
             Success = true,
