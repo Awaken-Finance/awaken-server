@@ -117,7 +117,8 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
             return cachedPathResult;
         }
         
-        _logger.LogInformation($"search paths, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}, path count: {cachedPathResult.Data.Path.Count}");
+        _logger.LogInformation($"search paths, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}");
+        
         var pathResult = new List<TokenPath>();
         var distinctPaths = new HashSet<string>();
         foreach (var feeRateGraph in _feeRateGraphs)

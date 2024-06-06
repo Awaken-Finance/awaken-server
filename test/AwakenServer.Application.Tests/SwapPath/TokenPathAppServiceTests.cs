@@ -23,12 +23,6 @@ namespace AwakenServer.SwapPath
         {
             _tokenPathAppAppService = tokenPathAppAppService;
         }
-
-        [Fact]
-        public async Task GetPathAsync()
-        {
-            
-        }
         
     }
 }
