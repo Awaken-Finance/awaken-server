@@ -54,12 +54,24 @@ namespace AwakenServer.SwapTokenPath
         public async Task<PagedResultDto<TokenPathDto>> GetListAsync(GetTokenPathsInput input)
         {
             _logger.LogInformation($"get token paths begin, input: {input.ChainId}, {input.StartSymbol}, {input.EndSymbol}, {input.MaxDepth}");
-
+            
+            var grain = _clusterClient.GetGrain<ITokenPathGrain>(input.ChainId);
+            
+            var cachedResult = await grain.GetCachedPathAsync(_objectMapper.Map<GetTokenPathsInput, GetTokenPathGrainDto>(input));
+            if (cachedResult.Success)
+            {
+                _logger.LogInformation($"get token paths from cache done, path count: {cachedResult.Data.Path.Count}");
+                return new PagedResultDto<TokenPathDto>()
+                {
+                    TotalCount = cachedResult.Data.Path.Count,
+                    Items = _objectMapper.Map<List<TokenPath>, List<TokenPathDto>>(cachedResult.Data.Path)
+                };
+            }
+            
             var pairs = await GetListAsync(input.ChainId);
             
-            _logger.LogInformation($"get token paths, get relations from chain trade pairs, count: {pairs.Count}");
+            _logger.LogInformation($"get token paths do search, get relations from chain trade pairs, count: {pairs.Count}");
             
-            var grain = _clusterClient.GetGrain<ITokenPathGrain>(GrainIdHelper.GenerateGrainId(input.ChainId));
             await grain.SetGraphAsync(new GraphDto()
             {
                 Relations = pairs
