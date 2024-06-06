@@ -365,9 +365,8 @@ namespace AwakenServer.Trade
                     : indexSwapRecords[0].AmountIn.ToDecimalsString(firstTradePair.Token1.Decimals),
                 Token1Amount = lastIsSell ? indexSwapRecords[pairList.Count - 1].AmountOut.ToDecimalsString(lastTradePair.Token1.Decimals)
                     : indexSwapRecords[pairList.Count - 1].AmountOut.ToDecimalsString(lastTradePair.Token0.Decimals),
-                TotalFee = (indexSwapRecords[0].AmountIn / Math.Pow(10,
-                               firstIsSell ? firstTradePair.Token0.Decimals : firstTradePair.Token1.Decimals)) *
-                           (1 - Math.Pow(1 - firstTradePair.FeeRate, swapRecordCount)),
+                TotalFee = indexSwapRecords[0].AmountIn / Math.Pow(10, firstIsSell ? firstTradePair.Token0.Decimals : firstTradePair.Token1.Decimals)
+                           * (1 - Math.Pow(1 - firstTradePair.FeeRate, swapRecordCount)),
                 Channel = dto.Channel,
                 Sender = dto.Sender,
                 BlockHeight = dto.BlockHeight
