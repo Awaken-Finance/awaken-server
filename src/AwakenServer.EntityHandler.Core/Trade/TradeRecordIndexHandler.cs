@@ -16,6 +16,7 @@ using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using SwapRecord = AwakenServer.Trade.SwapRecord;
 using TradeRecord = AwakenServer.Trade.Index.TradeRecord;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 namespace AwakenServer.EntityHandler.Trade
 {
@@ -77,6 +78,9 @@ namespace AwakenServer.EntityHandler.Trade
                 await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
                 Math.Pow(10, 8);
             
+            _logger.LogInformation($"creare multi swap records handle entity create event. " +
+                                   $"record: {JsonConvert.SerializeObject(index)}");
+            
             await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
             
             foreach (var record in eventData.Entity.SwapRecords)
@@ -107,16 +111,8 @@ namespace AwakenServer.EntityHandler.Trade
                     Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(tradeRecordIndexDto)
                 });
                 
-                _logger.LogInformation(
-                    $"publish path swap record, address:{tradeRecordIndexDto.Address} " +
-                    $"time:{tradeRecordIndexDto.Timestamp}" +
-                    $"tradePairId:{tradeRecordIndexDto.TradePair.Id} " +
-                    $"chainId:{tradeRecordIndexDto.ChainId} " +
-                    $"txId:{tradeRecordIndexDto.TransactionHash} " +
-                    $"token0amount: {tradeRecordIndexDto.Token0Amount} " +
-                    $"token1amount: {tradeRecordIndexDto.Token1Amount} " +
-                    $"price: {tradeRecordIndexDto.Price} " +
-                    $"Side: {tradeRecordIndexDto.Side}");
+                _logger.LogInformation($"creare multi swap records handle entity create event. " +
+                                       $"record: {JsonConvert.SerializeObject(tradeRecordIndexDto)}");
             }
         }
 

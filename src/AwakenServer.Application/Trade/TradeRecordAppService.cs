@@ -309,6 +309,7 @@ namespace AwakenServer.Trade
 
         public async Task<bool> CreateMultiSwapAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
+            _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}");
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
@@ -336,7 +337,7 @@ namespace AwakenServer.Trade
                 var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
                 if (tradePair == null)
                 {
-                    _logger.LogInformation("swap can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                    _logger.LogInformation("creare multi swap records can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
                         swapRecord.PairAddress);
                     return false;
                 } 
@@ -371,13 +372,12 @@ namespace AwakenServer.Trade
             };
 
             _logger.LogInformation(
-                "SwapEvent, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
+                "creare multi swap records, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
                 "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
                 "blockHeight: {blockHeight}, totalFee: {totalFee}", dto.ChainId, "multiSwap no tradePairId", dto.Sender,
                 dto.TransactionHash, dto.Timestamp,
                 record.Side, dto.Channel, record.Token0Amount, record.Token1Amount, dto.BlockHeight, dto.TotalFee);
-
-
+            
             var tradeRecord = ObjectMapper.Map<TradeRecordCreateDto, TradeRecord>(record);
             tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
             tradeRecord.Id = Guid.NewGuid();
@@ -406,6 +406,8 @@ namespace AwakenServer.Trade
                 tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
                 await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
             }
+            
+            _logger.LogInformation($"creare multi swap records done, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}");
             return true;
         }
 

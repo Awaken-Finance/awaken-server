@@ -17,6 +17,7 @@ namespace AwakenServer.Trade.Etos
         }
     }
     
+    [AutoMap(typeof(TradeRecord))]
     public class MultiTradeRecordEto : TradeRecord
     {
         public MultiTradeRecordEto()
