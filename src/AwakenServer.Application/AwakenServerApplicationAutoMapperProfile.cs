@@ -65,6 +65,7 @@ namespace AwakenServer
                 opt => opt.MapFrom(source => DateTimeHelper.FromUnixTimeMilliseconds(source.Timestamp)));
             CreateMap<TradeRecord, TradeRecordGrainDto>();
             CreateMap<TradeRecord, TradeRecordEto>();
+            CreateMap<TradeRecord, MultiTradeRecordEto>();
             CreateMap<Trade.Index.TradeRecord, TradeRecord>();
             CreateMap<UserTradeSummaryGrainDto, UserTradeSummaryEto>();
             CreateMap<UserTradeSummaryEto, Trade.Index.UserTradeSummary>();
