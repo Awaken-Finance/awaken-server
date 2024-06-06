@@ -1,3 +1,6 @@
+using AwakenServer.Tokens;
+using AwakenServer.Trade.Index;
+
 namespace AwakenServer.Grains.Grain.SwapTokenPath;
 
 using AwakenServer.Trade.Dtos;
@@ -5,14 +8,15 @@ using AwakenServer.Trade.Dtos;
 public class TokenPath
 {
     public double FeeRate { get; set; }
-    public List<PathNode> Path { get; set; } = new List<PathNode>();
-    public string FullPath { get; set; }
+    public List<PathNode> Path { get; set; } = new ();
+    public string FullPathStr { get; set; }
+    public List<TokenDto> RawPath { get; set; } = new ();
 }
 
 public class PathNode
 {
-    public string Token0Symbol { get; set; }
-    public string Token1Symbol { get; set; }
+    public TokenDto Token0 { get; set; }
+    public TokenDto Token1 { get; set; }
     public string Address { get; set; }
     public double FeeRate { get; set; }
 }
@@ -33,5 +37,5 @@ public class GetTokenPathGrainDto
 
 public class GraphDto
 {
-    public List<TradePairDto> Relations { get; set; }
+    public List<TradePairWithToken> Relations { get; set; }
 }

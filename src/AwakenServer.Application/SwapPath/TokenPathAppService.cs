@@ -41,14 +41,14 @@ namespace AwakenServer.SwapTokenPath
             _tradePairIndexRepository = tradePairIndexRepository;
         }
         
-        private async Task<List<TradePairDto>> GetListAsync(string chainId)
+        private async Task<List<TradePairWithToken>> GetListAsync(string chainId)
         {
             var mustQuery = new List<Func<QueryContainerDescriptor<TradePair>, QueryContainer>>();
             mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
             mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
             QueryContainer Filter(QueryContainerDescriptor<TradePair> f) => f.Bool(b => b.Must(mustQuery));
             var list = await _tradePairIndexRepository.GetListAsync(Filter);
-            return _objectMapper.Map<List<TradePair>, List<TradePairDto>>(list.Item2);
+            return _objectMapper.Map<List<TradePair>, List<TradePairWithToken>>(list.Item2);
         }
         
         public async Task<PagedResultDto<TokenPathDto>> GetListAsync(GetTokenPathsInput input)
@@ -61,6 +61,7 @@ namespace AwakenServer.SwapTokenPath
             if (cachedResult.Success)
             {
                 _logger.LogInformation($"get token paths from cache done, path count: {cachedResult.Data.Path.Count}");
+                
                 return new PagedResultDto<TokenPathDto>()
                 {
                     TotalCount = cachedResult.Data.Path.Count,

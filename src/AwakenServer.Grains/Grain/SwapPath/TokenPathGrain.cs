@@ -5,22 +5,25 @@ using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.State.SwapTokenPath;
 using AwakenServer.Grains.State.Trade;
+using AwakenServer.Tokens;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
-using IdentityServer4.Models;
 using Microsoft.Extensions.Logging;
 using Nethereum.Util;
 using Orleans;
 using Volo.Abp.ObjectMapping;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
+using AwakenServer.Tokens;
 
 namespace AwakenServer.Grains.Grain.SwapTokenPath;
 
 public class FeeRateGraph
 {
     public double FeeRate { get; set; }
-    public Dictionary<string, HashSet<string>> Graph { get; set; } = new Dictionary<string, HashSet<string>>();
-    public Dictionary<string, Dictionary<string, PathNode>> RelationTokenDictionary { get; set; } = new Dictionary<string, Dictionary<string, PathNode>>();
+    public Dictionary<string, HashSet<string>> Graph { get; set; } = new();
+    public Dictionary<string, Dictionary<string, PathNode>> RelationTokenDictionary { get; set; } = new();
+    
+    public Dictionary<string, TokenDto> TokenDictionary { get; set; } = new();
 }
 
 public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
@@ -74,8 +77,14 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
             string token1 = path[i + 1];
             if (feeRateGraph.RelationTokenDictionary.ContainsKey(token0) && feeRateGraph.RelationTokenDictionary[token0].ContainsKey(token1))
             {
+                pairPath.RawPath.Add(feeRateGraph.TokenDictionary[token0]);
                 pairPath.Path.Add(feeRateGraph.RelationTokenDictionary[token0][token1]);
-                pairPath.FullPath += feeRateGraph.RelationTokenDictionary[token0][token1].Address + (i < path.Count - 2 ? "->" : string.Empty);
+                pairPath.FullPathStr += feeRateGraph.RelationTokenDictionary[token0][token1].Address + (i < path.Count - 2 ? "->" : string.Empty);
+            }
+
+            if (i == path.Count - 2)
+            {
+                pairPath.RawPath.Add(feeRateGraph.TokenDictionary[token1]);
             }
         }
         return pairPath;
@@ -123,9 +132,9 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
             foreach (var path in allPaths)
             {
                 var tokenPath = MakePath(feeRateGraph.Value, path);
-                if (!distinctPaths.Contains(tokenPath.FullPath))
+                if (!distinctPaths.Contains(tokenPath.FullPathStr))
                 {
-                    distinctPaths.Add(tokenPath.FullPath);
+                    distinctPaths.Add(tokenPath.FullPathStr);
                     pathResult.Add(tokenPath);
                 }
             }
@@ -182,35 +191,38 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
             }
 
             var graph = _feeRateGraphs[pair.FeeRate];
-            if (!graph.Graph.ContainsKey(pair.Token0Symbol))
-                graph.Graph[pair.Token0Symbol] = new HashSet<string>();
+            if (!graph.Graph.ContainsKey(pair.Token0.Symbol))
+                graph.Graph[pair.Token0.Symbol] = new HashSet<string>();
         
-            if (!graph.Graph.ContainsKey(pair.Token1Symbol))
-                graph.Graph[pair.Token1Symbol] = new HashSet<string>();
+            if (!graph.Graph.ContainsKey(pair.Token1.Symbol))
+                graph.Graph[pair.Token1.Symbol] = new HashSet<string>();
             
-            if (!graph.RelationTokenDictionary.ContainsKey(pair.Token0Symbol))
-                graph.RelationTokenDictionary[pair.Token0Symbol] = new Dictionary<string, PathNode>();
+            if (!graph.RelationTokenDictionary.ContainsKey(pair.Token0.Symbol))
+                graph.RelationTokenDictionary[pair.Token0.Symbol] = new Dictionary<string, PathNode>();
             
-            if (!graph.RelationTokenDictionary.ContainsKey(pair.Token1Symbol))
-                graph.RelationTokenDictionary[pair.Token1Symbol] = new Dictionary<string, PathNode>();
+            if (!graph.RelationTokenDictionary.ContainsKey(pair.Token1.Symbol))
+                graph.RelationTokenDictionary[pair.Token1.Symbol] = new Dictionary<string, PathNode>();
         
-            graph.Graph[pair.Token0Symbol].Add(pair.Token1Symbol);
-            graph.Graph[pair.Token1Symbol].Add(pair.Token0Symbol);
+            graph.Graph[pair.Token0.Symbol].Add(pair.Token1.Symbol);
+            graph.Graph[pair.Token1.Symbol].Add(pair.Token0.Symbol);
 
-            graph.RelationTokenDictionary[pair.Token0Symbol][pair.Token1Symbol] = new PathNode()
+            graph.RelationTokenDictionary[pair.Token0.Symbol][pair.Token1.Symbol] = new PathNode()
             {
-                Token0Symbol = pair.Token0Symbol,
-                Token1Symbol = pair.Token1Symbol,
+                Token0 = _objectMapper.Map<Token, TokenDto>(pair.Token0),
+                Token1 = _objectMapper.Map<Token, TokenDto>(pair.Token1),
                 Address = pair.Address,
                 FeeRate = pair.FeeRate
             };
-            graph.RelationTokenDictionary[pair.Token1Symbol][pair.Token0Symbol] = new PathNode()
+            graph.RelationTokenDictionary[pair.Token1.Symbol][pair.Token0.Symbol] = new PathNode()
             {
-                Token0Symbol = pair.Token0Symbol,
-                Token1Symbol = pair.Token1Symbol,
+                Token0 = _objectMapper.Map<Token, TokenDto>(pair.Token0),
+                Token1 = _objectMapper.Map<Token, TokenDto>(pair.Token1),
                 Address = pair.Address,
                 FeeRate = pair.FeeRate
             };
+            
+            graph.TokenDictionary[pair.Token0.Symbol] = _objectMapper.Map<Token, TokenDto>(pair.Token0);
+            graph.TokenDictionary[pair.Token1.Symbol] = _objectMapper.Map<Token, TokenDto>(pair.Token1);
         }
         
         return new GrainResultDto()
