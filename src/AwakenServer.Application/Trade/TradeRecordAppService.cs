@@ -148,6 +148,104 @@ namespace AwakenServer.Trade
                 mustQuery.Add(q => q.Term(i => i.Field(f => f.Side).Value(side)));
             }
             mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsSubRecord).Value(false)));
+            
+            QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
+
+            List<Index.TradeRecord> item2;
+            if (!string.IsNullOrEmpty(input.Sorting))
+            {
+                var sorting = GetSorting(input.Sorting);
+                var list = await _tradeRecordIndexRepository.GetSortListAsync(Filter,
+                    sortFunc: sorting,
+                    limit: input.MaxResultCount == 0 ? TradePairConst.MaxPageSize :
+                    input.MaxResultCount > TradePairConst.MaxPageSize ? TradePairConst.MaxPageSize :
+                    input.MaxResultCount,
+                    skip: input.SkipCount);
+                item2 = list.Item2;
+            }
+            else
+            {
+                var list = await _tradeRecordIndexRepository.GetSortListAsync(Filter,
+                    sortFunc: s => s.Descending(t => t.Timestamp),
+                    limit: input.MaxResultCount == 0 ? TradePairConst.MaxPageSize :
+                    input.MaxResultCount > TradePairConst.MaxPageSize ? TradePairConst.MaxPageSize :
+                    input.MaxResultCount,
+                    skip: input.SkipCount);
+                item2 = list.Item2;
+            }
+
+            var totalCount = await _tradeRecordIndexRepository.CountAsync(Filter);
+
+            return new PagedResultDto<TradeRecordIndexDto>
+            {
+                Items = ObjectMapper.Map<List<Index.TradeRecord>, List<TradeRecordIndexDto>>(item2),
+                TotalCount = totalCount.Count
+            };
+        }
+        
+        public async Task<PagedResultDto<TradeRecordIndexDto>> GetListWithSubRecordsAsync(GetTradeRecordsInput input)
+        {
+            var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(input.ChainId)));
+            if (input.TradePairId != null)
+            {
+                mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePair.Id).Value(input.TradePairId)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(input.TransactionHash))
+            {
+                mustQuery.Add(q => q.Term(i => i.Field(f => f.TransactionHash).Value(input.TransactionHash)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(input.Address))
+            {
+                mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(input.Address)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(input.TokenSymbol))
+            {
+                mustQuery.Add(q => q.Bool(i => i.Should(
+                    s => s.Wildcard(w =>
+                        w.Field(f => f.TradePair.Token0.Symbol).Value($"*{input.TokenSymbol.ToUpper()}*")),
+                    s => s.Wildcard(w =>
+                        w.Field(f => f.TradePair.Token1.Symbol).Value($"*{input.TokenSymbol.ToUpper()}*")))));
+            }
+
+            if (input.TimestampMin != 0)
+            {
+                mustQuery.Add(q => q.DateRange(i =>
+                    i.Field(f => f.Timestamp)
+                        .GreaterThanOrEquals(DateTimeHelper.FromUnixTimeMilliseconds(input.TimestampMin))));
+            }
+
+            if (input.TimestampMax != 0)
+            {
+                mustQuery.Add(q => q.DateRange(i =>
+                    i.Field(f => f.Timestamp)
+                        .LessThanOrEquals(DateTimeHelper.FromUnixTimeMilliseconds(input.TimestampMax))));
+            }
+
+            if (input.FeeRate != 0)
+            {
+                mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePair.FeeRate).Value(input.FeeRate)));
+            }
+
+            if (input.Side.HasValue)
+            {
+                if (!(input.Side.Value == 0 || input.Side.Value == 1))
+                {
+                    return new PagedResultDto<TradeRecordIndexDto>
+                    {
+                        Items = null,
+                        TotalCount = 0
+                    };
+                }
+
+                var side = input.Side.Value == 0 ? TradeSide.Buy : TradeSide.Sell;
+                mustQuery.Add(q => q.Term(i => i.Field(f => f.Side).Value(side)));
+            }
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
 
             QueryContainer Filter(QueryContainerDescriptor<Index.TradeRecord> f) => f.Bool(b => b.Must(mustQuery));
 

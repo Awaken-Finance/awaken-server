@@ -88,31 +88,34 @@ namespace AwakenServer.EntityHandler.Trade
                 var pair = await GetTradePariWithTokenAsync(record.TradePairId);
                 var isSell = pair.Token0.Symbol == record.SymbolIn;
                 
-                var tradeRecordIndexDto = ObjectMapper.Map<MultiTradeRecordEto, TradeRecord>(eventData.Entity);
-                tradeRecordIndexDto.TradePair = pair;
-                tradeRecordIndexDto.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(tradeRecordIndexDto);
-                tradeRecordIndexDto.TransactionFee = index.TransactionFee;
+                var subRecordIndex = ObjectMapper.Map<MultiTradeRecordEto, TradeRecord>(eventData.Entity);
+                subRecordIndex.IsSubRecord = true;
+                subRecordIndex.TradePair = pair;
+                subRecordIndex.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(subRecordIndex);
+                subRecordIndex.TransactionFee = index.TransactionFee;
                 
-                tradeRecordIndexDto.Side = isSell ? TradeSide.Sell : TradeSide.Buy;
-                tradeRecordIndexDto.Token0Amount = isSell
+                subRecordIndex.Side = isSell ? TradeSide.Sell : TradeSide.Buy;
+                subRecordIndex.Token0Amount = isSell
                     ? record.AmountIn.ToDecimalsString(pair.Token0.Decimals)
                     : record.AmountOut.ToDecimalsString(pair.Token0.Decimals);
-                tradeRecordIndexDto.Token1Amount = isSell
+                subRecordIndex.Token1Amount = isSell
                     ? record.AmountOut.ToDecimalsString(pair.Token1.Decimals)
                     : record.AmountIn.ToDecimalsString(pair.Token1.Decimals);
                 
-                tradeRecordIndexDto.Price = double.Parse(tradeRecordIndexDto.Token1Amount) / double.Parse(tradeRecordIndexDto.Token0Amount);
-                tradeRecordIndexDto.Id = Guid.NewGuid();
-                tradeRecordIndexDto.TotalFee =
+                subRecordIndex.Price = double.Parse(subRecordIndex.Token1Amount) / double.Parse(subRecordIndex.Token0Amount);
+                subRecordIndex.Id = Guid.NewGuid();
+                subRecordIndex.TotalFee =
                     record.TotalFee / Math.Pow(10, isSell ? pair.Token0.Decimals : pair.Token1.Decimals);
+                
+                await _tradeRecordIndexRepository.AddOrUpdateAsync(subRecordIndex);
+                
+                _logger.LogInformation($"creare multi swap records handle entity create event. " +
+                                       $"record: {JsonConvert.SerializeObject(subRecordIndex)}");
                 
                 await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
                 {
-                    Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(tradeRecordIndexDto)
+                    Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(subRecordIndex)
                 });
-                
-                _logger.LogInformation($"creare multi swap records handle entity create event. " +
-                                       $"record: {JsonConvert.SerializeObject(tradeRecordIndexDto)}");
             }
         }
 

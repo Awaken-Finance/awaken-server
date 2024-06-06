@@ -1,3 +1,6 @@
+using AwakenServer.Tokens;
+using AwakenServer.Trade.Index;
+
 namespace AwakenServer.Grains.Tests.Path;
 
 using AutoMapper.Internal.Mappers;
@@ -19,54 +22,96 @@ public class TokenPathGrainTests : AwakenServerGrainTestBase
     {
         var feeRate1 = 0.03;
         var feeRate2 = 0.005;
-        var pairs = new List<TradePairDto>()
+        var pairs = new List<TradePairWithToken>()
         {
-            new TradePairDto
+            new TradePairWithToken
             {
-                Token0Symbol = "ELEPHANT-1",
-                Token1Symbol = "ELF",
+                Token0 = new Token()
+                {
+                    Symbol = "ELEPHANT-1"
+                },
+                Token1 = new Token()
+                {
+                    Symbol = "ELF"
+                },
                 Address = "0x1",
                 FeeRate = feeRate1
             },
-            new TradePairDto
+            new TradePairWithToken
             {
-                Token0Symbol = "SGR",
-                Token1Symbol = "USDT",
+                Token0 = new Token()
+                {
+                    Symbol = "SGR"
+                },
+                Token1 = new Token()
+                {
+                    Symbol = "USDT"
+                },
                 Address = "0x2",
                 FeeRate = feeRate1
             },
-            new TradePairDto
+            new TradePairWithToken
             {
-                Token0Symbol = "ELF",
-                Token1Symbol = "USDT",
+                Token0 = new Token()
+                {
+                    Symbol = "ELF"
+                },
+                Token1 = new Token()
+                {
+                    Symbol = "USDT"
+                },
                 Address = "0x3",
                 FeeRate = feeRate1
             },
-            new TradePairDto
+            new TradePairWithToken
             {
-                Token0Symbol = "ELEPHANT-1",
-                Token1Symbol = "USDT",
+                Token0 = new Token()
+                {
+                    Symbol = "ELEPHANT-1"
+                },
+                Token1 = new Token()
+                {
+                    Symbol = "USDT"
+                },
                 Address = "0x4",
                 FeeRate = feeRate1
             },
-            new TradePairDto
+            new TradePairWithToken
             {
-                Token0Symbol = "ELEPHANT-1",
-                Token1Symbol = "ELF",
+                Token0 = new Token()
+                {
+                    Symbol = "ELEPHANT-1"
+                },
+                Token1 = new Token()
+                {
+                    Symbol = "ELF"
+                },
                 Address = "0x5",
                 FeeRate = feeRate2
             },
-            new TradePairDto
+            new TradePairWithToken
             {
-                Token0Symbol = "SGR",
-                Token1Symbol = "USDT",
+                Token0 = new Token()
+                {
+                    Symbol = "SGR"
+                },
+                Token1 = new Token()
+                {
+                    Symbol = "USDT"
+                },
                 Address = "0x6",
                 FeeRate = feeRate2
             },
-            new TradePairDto
+            new TradePairWithToken
             {
-                Token0Symbol = "ELF",
-                Token1Symbol = "USDT",
+                Token0 = new Token()
+                {
+                    Symbol = "ELF"
+                },
+                Token1 = new Token()
+                {
+                    Symbol = "USDT"
+                },
                 Address = "0x7",
                 FeeRate = feeRate2
             }
