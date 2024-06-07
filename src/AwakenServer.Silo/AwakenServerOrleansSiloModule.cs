@@ -1,3 +1,4 @@
+using AwakenServer.AetherLinkApi;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains;
 using AwakenServer.Options;
@@ -11,7 +12,7 @@ namespace AwakenServer.Silo;
 [DependsOn(typeof(AbpAutofacModule),
     typeof(AbpAspNetCoreSerilogModule),
     typeof(AwakenServerGrainsModule),
-    typeof(AwakenServerCoinGeckoApiModule)
+    typeof(AwakenServerAetherLinkApiModule)
 )]
 public class AwakenServerServerOrleansSiloModule : AbpModule
 {

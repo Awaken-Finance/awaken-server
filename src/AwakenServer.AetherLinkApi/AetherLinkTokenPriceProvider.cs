@@ -1,31 +1,55 @@
 using System;
 using System.Globalization;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Aetherlink.PriceServer;
 using Aetherlink.PriceServer.Dtos;
-using AwakenServer.Grains.Grain.Tokens.TokenPrice;
+using AwakenServer.AetherLinkApi;
+using AwakenServer.CoinGeckoApi;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
-using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.Grains.Grain.Tokens.TokenPrice;
 
-public class TokenPriceAetherlinkProvider : ITokenPriceProvider
+public class AetherLinkTokenPriceProvider : ITokenPriceProvider
 {
-    private readonly ILogger<TokenPriceAetherlinkProvider> _logger;
+    private readonly ILogger<AetherLinkTokenPriceProvider> _logger;
     private readonly IPriceServerProvider _priceServerProvider;
+    private readonly IOptionsSnapshot<AetherLinkOptions> _aetherLinkOptions;
     
-    public TokenPriceAetherlinkProvider(IPriceServerProvider priceServerProvider, 
-        ILogger<TokenPriceAetherlinkProvider> logger)
+    public AetherLinkTokenPriceProvider(IPriceServerProvider priceServerProvider, 
+        ILogger<AetherLinkTokenPriceProvider> logger,
+        IOptionsSnapshot<AetherLinkOptions> options)
     {
         _priceServerProvider = priceServerProvider;
         _logger = logger;
+        _aetherLinkOptions = options;
     }
 
+    private string GetPriceTradePairAsync(string symbol)
+    {
+        var pricePair = _aetherLinkOptions.Value.CoinIdMapping.TryGetValue(symbol.ToUpper(), out var id) ? id : null;
+        if (pricePair == null)
+        {
+            return null;
+        }
+        return pricePair;
+    }
+    
     public async Task<decimal> GetPriceAsync(string symbol)
     {
+        if (string.IsNullOrEmpty(symbol))
+        {
+            return 0;
+        }
+
+        var priceTradePair = GetPriceTradePairAsync(symbol);
+        if (priceTradePair == null)
+        {
+            _logger.Info("can not get the token {symbol}", symbol);
+            return 0;
+        }
+        
         try
         {
             if (symbol == "SGR-1")
@@ -54,7 +78,7 @@ public class TokenPriceAetherlinkProvider : ITokenPriceProvider
             {
                 var result = (await _priceServerProvider.GetAggregatedTokenPriceAsync(new()
                 {
-                    TokenPair = $"{symbol.ToLower()}-usd",
+                    TokenPair = priceTradePair,
                     AggregateType = AggregateType.Latest
                 })).Data;
 
@@ -73,6 +97,18 @@ public class TokenPriceAetherlinkProvider : ITokenPriceProvider
 
     public async Task<decimal> GetHistoryPriceAsync(string symbol, string dateTime)
     {
+        if (string.IsNullOrEmpty(symbol))
+        {
+            return 0;
+        }
+
+        var priceTradePair = GetPriceTradePairAsync(symbol);
+        if (priceTradePair == null)
+        {
+            _logger.Info("can not get the token {symbol}", symbol);
+            return 0;
+        }
+        
         var date = DateTime.ParseExact(dateTime, "dd-MM-yyyy", CultureInfo.InvariantCulture).ToString("yyyyMMdd");
         try
         {
@@ -101,7 +137,7 @@ public class TokenPriceAetherlinkProvider : ITokenPriceProvider
             }
             else
             {
-                var tokenPair = $"{symbol.ToLower()}-usd";
+                var tokenPair = priceTradePair;
                 var result = (await _priceServerProvider.GetDailyPriceAsync(new()
                 {
                     TokenPair = tokenPair,

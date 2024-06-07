@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using AElf.Types;
+using AwakenServer.AetherLinkApi;
 using AwakenServer.Chains;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains.Grain.Chain;
@@ -24,7 +25,7 @@ namespace AwakenServer.Grains.Tests;
     typeof(AwakenServerGrainsModule),
     typeof(AwakenServerDomainTestModule),
     typeof(AwakenServerDomainModule),
-    typeof(AwakenServerCoinGeckoApiModule),
+    typeof(AwakenServerAetherLinkApiModule),
     typeof(AbpCachingModule),
     typeof(AbpAutoMapperModule),
     typeof(AbpObjectMappingModule)
