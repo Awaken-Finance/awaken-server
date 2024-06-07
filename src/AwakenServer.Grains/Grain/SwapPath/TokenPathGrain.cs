@@ -58,10 +58,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
 
     private string GenCacheKey(GetTokenPathGrainDto dto)
     {
-        var sortedSymbols = new List<string> { dto.StartSymbol, dto.EndSymbol };
-        sortedSymbols.Sort();
-
-        return $"{sortedSymbols[0]}/{sortedSymbols[1]}-{dto.MaxDepth}";
+        return $"{dto.StartSymbol}/{dto.EndSymbol}-{dto.MaxDepth}";
     }
     
     private TokenPath MakePath(FeeRateGraph feeRateGraph, List<string> path)
