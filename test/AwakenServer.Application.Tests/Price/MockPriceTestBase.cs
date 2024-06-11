@@ -8,7 +8,7 @@ using Volo.Abp.Threading;
 
 namespace AwakenServer.Price
 {
-    public class PriceTestBase : AwakenServerTestBase<PriceTestModule>
+    public class MockPriceTestBase : AwakenServerTestBase<MockPriceTestModule>
     {
 
         private readonly IChainAppService _chainAppService;
@@ -26,7 +26,7 @@ namespace AwakenServer.Price
         protected Tokens.Token TokenUSDT;
         protected long Timestamp = 1636784478000;
 
-        protected PriceTestBase()
+        protected MockPriceTestBase()
         {
             // LendingTokenPriceAppService = GetRequiredService<ILendingTokenPriceAppService>();
             // OtherLpTokenAppService = GetRequiredService<IOtherLpTokenAppService>();

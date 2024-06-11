@@ -312,10 +312,12 @@ namespace AwakenServer.Trade
                 return await GetUserAssetFromGraphQLAsync(input);
             }
 
+            var btcPrice = await _tokenPriceProvider.GetTokenUSDPriceAsync(input.ChainId, BTCSymbol);
+            
             return new UserAssetDto
             {
                 AssetUSD = result.Data.AssetUSD,
-                AssetBTC = result.Data.AssetBTC
+                AssetBTC = btcPrice == 0 ? 0 : result.Data.AssetUSD / btcPrice
             };
         }
 

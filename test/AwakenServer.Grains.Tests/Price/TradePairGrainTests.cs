@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
+using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
@@ -60,7 +61,9 @@ public class TradePairGrainTests : AwakenServerGrainTestBase
             ReserveB = 1000000,
             BlockHeight = 100,
             SymbolA = "ETH",
-            SymbolB = "USDT"
+            SymbolB = "USDT",
+            Token0PriceInUsd = 1,
+            Token1PriceInUsd = 1
         });
         
         result.Success.ShouldBe(true);
@@ -128,7 +131,9 @@ public class TradePairGrainTests : AwakenServerGrainTestBase
             ReserveB = 2000000,
             BlockHeight = 100,
             SymbolA = TokenEthSymbol,
-            SymbolB = TokenUsdtSymbol
+            SymbolB = TokenUsdtSymbol,
+            Token0PriceInUsd = 1,
+            Token1PriceInUsd = 1
         });
         
         await grain.UpdatePriceAsync(new SyncRecordGrainDto
@@ -140,10 +145,12 @@ public class TradePairGrainTests : AwakenServerGrainTestBase
             ReserveB = 1000000,
             BlockHeight = 100,
             SymbolA = TokenEthSymbol,
-            SymbolB = TokenUsdtSymbol
+            SymbolB = TokenUsdtSymbol,
+            Token0PriceInUsd = 1,
+            Token1PriceInUsd = 1
         });
-
-        var result = await grain.UpdateAsync(DateTime.Now, 0, "");
+        
+        var result = await grain.UpdateAsync(DateTime.Now, 0, "", 1.0, 1.0);
         result.Data.TVLPercentChange24h.ShouldBe(-50);
     }
     

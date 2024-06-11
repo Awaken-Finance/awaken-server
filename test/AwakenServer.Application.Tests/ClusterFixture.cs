@@ -6,6 +6,7 @@ using AutoMapper;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
+using AwakenServer.Price;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

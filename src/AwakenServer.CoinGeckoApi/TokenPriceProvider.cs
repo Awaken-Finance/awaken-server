@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
+using AwakenServer.Price;
 using CoinGecko.Clients;
 using CoinGecko.Interfaces;
 using Microsoft.Extensions.Logging;

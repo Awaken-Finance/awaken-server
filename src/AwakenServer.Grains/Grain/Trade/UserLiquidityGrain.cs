@@ -18,7 +18,6 @@ namespace AwakenServer.Grains.Grain.Trade;
 public class UserLiquidityGrain : Grain<UserLiquidityState>, IUserLiquidityGrain
 {
     private readonly IClusterClient _clusterClient;
-    private readonly ITokenPriceProvider _tokenPriceProvider;
     private readonly IObjectMapper _objectMapper;
     private readonly ILogger<UserLiquidityGrain> _logger;
 
@@ -38,12 +37,10 @@ public class UserLiquidityGrain : Grain<UserLiquidityState>, IUserLiquidityGrain
     }
 
     public UserLiquidityGrain(IClusterClient clusterClient,
-        ITokenPriceProvider tokenPriceProvider,
         IObjectMapper objectMapper,
         ILogger<UserLiquidityGrain> logger)
     {
         _clusterClient = clusterClient;
-        _tokenPriceProvider = tokenPriceProvider;
         _objectMapper = objectMapper;
         _logger = logger;
     }
@@ -151,18 +148,15 @@ public class UserLiquidityGrain : Grain<UserLiquidityState>, IUserLiquidityGrain
             var totalSupply = double.Parse(pair.TotalSupply);
             asset += pair.TVL * double.Parse(liquidity.Value.LpTokenAmount.ToDecimalsString(8)) / totalSupply;
         }
-
-        var btcPrice = (double)_tokenPriceProvider.GetPriceAsync(BTCSymbol).Result;
         
-        _logger.LogInformation($"UserLiquidityGrain GetAssetAsync asset: {asset}, btcPrice: {btcPrice}");
+        _logger.LogInformation($"UserLiquidityGrain GetAssetAsync asset: {asset}");
         
         return new GrainResultDto<UserAssetGrainDto>
         {
             Success = true,
             Data = new UserAssetGrainDto
             {
-                AssetUSD = asset,
-                AssetBTC = btcPrice == 0 ? 0 : asset / btcPrice
+                AssetUSD = asset
             }
         };
     }

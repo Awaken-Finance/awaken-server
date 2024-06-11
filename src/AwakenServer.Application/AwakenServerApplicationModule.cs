@@ -3,6 +3,7 @@ using AwakenServer.Chains;
 using AwakenServer.CMS;
 using AwakenServer.ContractEventHandler.Application;
 using AwakenServer.Grains;
+using AwakenServer.Price;
 using AwakenServer.Provider;
 using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,7 +51,7 @@ namespace AwakenServer
             Configure<CmsOptions>(configuration.GetSection("Cms"));
             Configure<AssetWhenNoTransactionOptions>(configuration.GetSection("AssetWhenNoTransaction"));
             Configure<ContractsTokenOptions>(configuration.GetSection("ContractsTokenOptions"));
-
+            Configure<TokenPriceOptions>(configuration.GetSection("TokenPriceOptions"));
 
             context.Services.AddTransient<IBlockchainClientProvider, AElfClientProvider>();
             context.Services.AddTransient<IAElfClientProvider, AElfClientProvider>();

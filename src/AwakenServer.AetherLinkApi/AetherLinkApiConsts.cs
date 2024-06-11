@@ -1,4 +1,4 @@
-namespace AwakenServer.CoinGeckoApi;
+namespace AwakenServer.AetherLinkApi;
 
 public class AetherLinkApiConsts
 {

@@ -8,6 +8,7 @@ using AwakenServer.Grains.Grain.Chain;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Tokens;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
+using AwakenServer.Price;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.DependencyInjection;
@@ -133,6 +134,8 @@ public class AwakenServerGrainTestModule : AbpModule
             ReserveA = 100,
             ReserveB = 1000,
             Timestamp = DateTime.Now.Microsecond,
+            Token0PriceInUsd = 1,
+            Token1PriceInUsd = 1
         }));
         
     }

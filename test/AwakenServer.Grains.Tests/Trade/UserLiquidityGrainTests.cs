@@ -24,7 +24,9 @@ public class UserLiquidityGrainTests : AwakenServerGrainTestBase
             ReserveB = NumberFormatter.WithDecimals(1, 6),
             BlockHeight = 100,
             SymbolA = "ETH",
-            SymbolB = "USDT"
+            SymbolB = "USDT",
+            Token0PriceInUsd = 1,
+            Token1PriceInUsd = 1
         });
         
         var dto = new UserLiquidityGrainDto

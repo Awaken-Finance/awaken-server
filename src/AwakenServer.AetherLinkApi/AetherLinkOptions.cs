@@ -4,7 +4,7 @@ namespace AwakenServer.AetherLinkApi
 {
     public class AetherLinkOptions
     {
-        public Dictionary<string, string> CoinIdMapping { get; set; }
+        public Dictionary<string, string> PriceTokenMapping { get; set; }
     }
 }
 

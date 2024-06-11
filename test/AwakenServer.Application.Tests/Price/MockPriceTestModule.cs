@@ -9,7 +9,7 @@ namespace AwakenServer.Price
     [DependsOn(
         typeof(AwakenServerApplicationTestModule)
     )]
-    public class PriceTestModule : AbpModule
+    public class MockPriceTestModule : AbpModule
     {
         public override void ConfigureServices(ServiceConfigurationContext context)
         {

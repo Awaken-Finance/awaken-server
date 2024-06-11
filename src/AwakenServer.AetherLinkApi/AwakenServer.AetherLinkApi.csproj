@@ -12,5 +12,9 @@
         <PackageReference Include="Microsoft.Orleans.Core" Version="3.6.5" />
         <PackageReference Include="AetherlinkPriceServer" Version="1.0.3" />
     </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\AwakenServer.Application.Contracts\AwakenServer.Application.Contracts.csproj" />
+    </ItemGroup>
     
 </Project>

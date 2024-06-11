@@ -1,128 +1,67 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AwakenServer.Price.Dtos;
 using AwakenServer.Trade;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using Shouldly;
 using Xunit;
 
 namespace AwakenServer.Price
 {
-    public sealed class PriceAppServiceTests : PriceTestBase
+    public sealed class PriceAppServiceTests : PriceAppServiceTestBase
     {
         private readonly IPriceAppService _priceAppService;
-        private readonly ITokenPriceProvider _tokenPriceProvider;
 
         public PriceAppServiceTests()
         {
             _priceAppService = GetRequiredService<IPriceAppService>();
-            _tokenPriceProvider = GetRequiredService<ITokenPriceProvider>();
-        }
-
-        [Fact]
-        public async Task GetTokenPriceTest()
-        {
-            //Get token price from price provider
-            var btcPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
-            {
-                Symbol = Symbol.BTC,
-                ChainId = ChainId
-            });
-            decimal.Parse(btcPrice).ShouldBe(69000);
-            var sashimiPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
-            {
-                Symbol = Symbol.SASHIMI,
-                ChainId = ChainId
-            });
-            decimal.Parse(sashimiPrice).ShouldBe(1);
-            var istarPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
-            {
-                Symbol = Symbol.ISTAR,
-                ChainId = ChainId
-            });
-            decimal.Parse(istarPrice).ShouldBe(1);
-            
-            var ethPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
-            {
-                Symbol = "ETH",
-                ChainId = ChainId
-            });
-            decimal.Parse(ethPrice).ShouldBe(0);
-            
-            //Get token price from trade
-            await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenBtcId, TokenUSDTId, 59366);
-            
-            var newBtcPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
-            {
-                TokenId = TokenBtcId,
-                Symbol = Symbol.BTC,
-                ChainId = ChainId
-            });
-            newBtcPrice.ShouldBe("69000");
-            
-            newBtcPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
-            {
-                TokenAddress = TokenBtc.Address,
-                ChainId = ChainId
-            });
-            newBtcPrice.ShouldBe("0");
-            
-            
-            var noPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
-            {
-                TokenAddress = "0xNull",
-                ChainId = ChainId
-            });
-            noPrice.ShouldBe("0");
-            
-            ethPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
-            {
-                TokenAddress = TokenEth.Address,
-                ChainId = ChainId
-            });
-            ethPrice.ShouldBe("0");
-            
-            sashimiPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
-            {
-                TokenAddress = TokenSashimi.Address,
-                ChainId = ChainId
-            });
-            decimal.Parse(sashimiPrice).ShouldBe(0);
         }
 
         [Fact]
         public async Task GetTokenPriceListTest()
         {
-            var result = await _priceAppService.GetTokenPriceListAsync(new List<string> { });
-            result.Items.Count.ShouldBe(0);
-
-            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "USDT" });
+            var result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "USDT" });
             result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(1.1m);
+            
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "ETH" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(1.2m);
+            
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "SGR-1" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(2.2m);
+            
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "XXX-1" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(0);
         }
         
         [Fact]
-        public async Task GetTokenHistoryPriceDataAsyncTest()
+        public async Task CacheTest()
         {
-            var result = await _priceAppService.GetTokenHistoryPriceDataAsync(new List<GetTokenHistoryPriceInput>
-            {
-                new GetTokenHistoryPriceInput()
-                {
-                    DateTime = DateTime.UtcNow.AddDays(-1)
-                } 
-            });
-            result.Items.Count.ShouldBe(0);
+            // make cache
+            var result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "TESTCACHE" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(1.3m);
             
-      
+            // make cache expiration
+            Thread.Sleep(3000);
             
-            result = await _priceAppService.GetTokenHistoryPriceDataAsync(new List<GetTokenHistoryPriceInput>
-            {
-                new GetTokenHistoryPriceInput()
-                {
-                    Symbol = "USDT",
-                    DateTime = DateTime.UtcNow.AddDays(-1)
-                } 
-            });
-            result.Items.Count.ShouldBe(0);
+            // can't get price from API, return the last price
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "TESTCACHE" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(1.3m);
+            
+            // get price update cache
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "TESTCACHE" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(3.3m);
+            
         }
+        
     }
 }

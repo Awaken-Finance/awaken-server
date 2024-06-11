@@ -1,6 +1,7 @@
 ﻿using System;
 using Aetherlink.PriceServer;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
+using AwakenServer.Price;
 using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp.Caching;
 using Volo.Abp.Modularity;
@@ -16,7 +17,6 @@ public class AwakenServerAetherLinkApiModule : AbpModule
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
         var configuration = context.Services.GetConfiguration();
-        Configure<AetherLinkOptions>(configuration.GetSection("AetherLinkApi"));
         context.Services.AddSingleton<ITokenPriceProvider, AetherLinkTokenPriceProvider>();
     }
 }
