@@ -8,4 +8,6 @@ public enum WorkerBusinessType
     TradePairEvent,
     TradePairUpdate,
     TransactionRevert,
+    PortfolioLiquidityEvent,
+    PortfolioSwapEvent,
 }
