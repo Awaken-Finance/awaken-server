@@ -22,6 +22,18 @@ public class SwapRecordDto
     public long TotalFee { get; set; }
     public string Channel { get; set; }
     public long BlockHeight { get; set; }
+    public List<SwapRecord> SwapRecords { get; set; }
+}
+
+public class SwapRecord
+{
+    public string PairAddress { get; set; }
+    public long AmountOut { get; set; }
+    public long AmountIn { get; set; }
+    public long TotalFee { get; set; }
+    public string SymbolOut { get; set; }
+    public string SymbolIn { get; set; }
+    public string Channel { get; set; }
 }
 
 public class SwapRecordResultDto

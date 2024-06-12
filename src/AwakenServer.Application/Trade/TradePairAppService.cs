@@ -9,6 +9,7 @@ using AwakenServer.CMS;
 using AwakenServer.Common;
 using AwakenServer.Favorite;
 using AwakenServer.Grains;
+using AwakenServer.Grains.Grain.SwapTokenPath;
 using AwakenServer.Grains.Grain.Price;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Trade;
@@ -403,7 +404,7 @@ namespace AwakenServer.Trade
         
         public async Task CreateSyncAsync(SyncRecordDto dto)
         {
-            var grain = _clusterClient.GetGrain<ISyncRecordGrain>(GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
+            var grain = _clusterClient.GetGrain<ISyncRecordGrain>(GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash, dto.PairAddress));
             if (await grain.ExistAsync())
             {
                 return;
@@ -559,6 +560,10 @@ namespace AwakenServer.Trade
             
             await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.TradePairEvent, pair.ChainId, pair.BlockHeight, pair.TransactionHash);
 
+            var grain = _clusterClient.GetGrain<ITokenPathGrain>(chain.Id);
+            var clearCountResultDto = await grain.ResetCacheAsync();
+            _logger.LogInformation($"clear swap path cache, token path grain: {grain.GetPrimaryKeyString()}, count: {clearCountResultDto.Data}");
+            
             var token0 = await _tokenAppService.GetAsync(new GetTokenInput
             {
                 ChainId = chain.Id,
@@ -613,7 +618,7 @@ namespace AwakenServer.Trade
                 await _tradePairInfoIndex.DeleteAsync(id);
             }
         }
-
+        
         private async Task<PagedResultDto<TradePairIndexDto>> GetPairListAsync(GetTradePairsInput input,
             List<Guid> idList)
         {

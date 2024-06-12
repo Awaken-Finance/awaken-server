@@ -16,4 +16,18 @@ namespace AwakenServer.Trade.Etos
             Id = id;
         }
     }
+    
+    [AutoMap(typeof(TradeRecord))]
+    public class MultiTradeRecordEto : TradeRecord
+    {
+        public MultiTradeRecordEto()
+        {
+        }
+
+        public MultiTradeRecordEto(Guid id)
+            : base(id)
+        {            
+            Id = id;
+        }
+    }
 }

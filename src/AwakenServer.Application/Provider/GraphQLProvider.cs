@@ -208,7 +208,16 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 symbolOut,
                 symbolIn,
                 channel,
-                blockHeight
+                blockHeight,
+                swapRecords {
+                    pairAddress,
+                    amountOut,
+                    amountIn,
+                    totalFee,
+                    symbolOut,
+                    symbolIn,
+                    channel
+                }
             }}",
             Variables = new
             {
