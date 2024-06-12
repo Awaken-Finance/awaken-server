@@ -2,6 +2,7 @@ using System;
 using AElf.Indexing.Elasticsearch.Options;
 using AwakenServer.Chains;
 using AwakenServer.CoinGeckoApi;
+using AwakenServer.AetherLinkApi;
 using AwakenServer.EntityFrameworkCore;
 using AwakenServer.Grains;
 using AwakenServer.RabbitMq;
@@ -39,7 +40,7 @@ namespace AwakenServer.EntityHandler;
     typeof(AwakenServerEntityHandlerCoreModule),
     typeof(AbpEventBusRabbitMqModule),
     typeof(AwakenServerWorkerModule),
-    typeof(AwakenServerCoinGeckoApiModule)
+    typeof(AwakenServerAetherLinkApiModule)
 )]
 public class AwakenServerEntityHandlerModule : AbpModule
 {

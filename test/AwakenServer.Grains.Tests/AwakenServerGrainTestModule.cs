@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using AElf.Types;
+using AwakenServer.AetherLinkApi;
 using AwakenServer.Chains;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains.Grain.Chain;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Tokens;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
+using AwakenServer.Price;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +26,7 @@ namespace AwakenServer.Grains.Tests;
     typeof(AwakenServerGrainsModule),
     typeof(AwakenServerDomainTestModule),
     typeof(AwakenServerDomainModule),
-    typeof(AwakenServerCoinGeckoApiModule),
+    typeof(AwakenServerAetherLinkApiModule),
     typeof(AbpCachingModule),
     typeof(AbpAutoMapperModule),
     typeof(AbpObjectMappingModule)
@@ -132,6 +134,8 @@ public class AwakenServerGrainTestModule : AbpModule
             ReserveA = 100,
             ReserveB = 1000,
             Timestamp = DateTime.Now.Microsecond,
+            Token0PriceInUsd = 1,
+            Token1PriceInUsd = 1
         }));
         
     }

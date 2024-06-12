@@ -7,6 +7,7 @@ using AwakenServer.Price.Dtos;
 using AwakenServer.Tokens.Dtos;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -19,12 +20,15 @@ namespace AwakenServer.Price
     {
         private readonly IDistributedCache<PriceDto> _priceCache;
         private readonly ITokenPriceProvider _tokenPriceProvider;
-
+        private readonly IOptionsSnapshot<TokenPriceOptions> _tokenPriceOptions;
+        
         public PriceAppService(IDistributedCache<PriceDto> priceCache,
-            ITokenPriceProvider tokenPriceProvider)
+            ITokenPriceProvider tokenPriceProvider,
+            IOptionsSnapshot<TokenPriceOptions> options)
         {
             _priceCache = priceCache;
             _tokenPriceProvider = tokenPriceProvider;
+            _tokenPriceOptions = options;
         }
 
         public async Task<string> GetTokenPriceAsync(GetTokenPriceInput input)
@@ -33,6 +37,80 @@ namespace AwakenServer.Price
             var result = await GetTokenPriceListAsync(new List<string>{ input.Symbol });
             if (result.Items.Count == 0) return "0";
             else return result.Items[0].PriceInUsd.ToString();
+        }
+
+        private async Task<decimal> GetUsdtPriceAsync(string time)
+        {
+            if (String.IsNullOrEmpty(time))
+            {
+                return await _tokenPriceProvider.GetPriceAsync(PriceOptions.UsdtPricePair);
+            }
+           
+            return await _tokenPriceProvider.GetHistoryPriceAsync(PriceOptions.UsdtPricePair, time);
+        }
+
+        private string GetPriceTradePair(string symbol)
+        {
+            if (String.IsNullOrEmpty(symbol))
+            {
+                return null;
+            }
+
+            _tokenPriceOptions.Value.PriceTokenMapping.TryGetValue(symbol.ToUpper(), out var priceTradePair);
+            
+            return priceTradePair;
+        }
+        
+        private async Task<decimal> ProcessTokenPrice(string symbol, decimal rawPrice, string time)
+        {
+            if (_tokenPriceOptions.Value.UsdtPriceTokens.Contains(symbol))
+            {
+                var usdtPrice = await GetUsdtPriceAsync(time);
+                return rawPrice * usdtPrice;
+            }
+
+            return rawPrice;
+        }
+        
+        
+        private async Task<decimal> GetPriceAsync(string symbol)
+        {
+            var pair = GetPriceTradePair(symbol);
+            if (String.IsNullOrEmpty(pair))
+            {
+                Logger.LogInformation($"Get price, symbol: {symbol}, result price: 0");
+                return 0;
+            }
+            
+            var rawPrice = await _tokenPriceProvider.GetPriceAsync(pair);
+            var result = await ProcessTokenPrice(symbol, rawPrice, null);
+            
+            Logger.LogInformation($"Get price, symbol: {symbol}, pair: {pair}, rawPrice: {rawPrice}, result price: {result}");
+            
+            return result;
+        }
+
+        private async Task<decimal> GetHistoryPriceAsync(string symbol, string time)
+        {
+            var pair = GetPriceTradePair(symbol);
+            if (String.IsNullOrEmpty(pair))
+            {
+                Logger.LogInformation($"Get price, symbol: {symbol}, result price: 0");
+                return 0;
+            }
+            
+            var rawPrice = await _tokenPriceProvider.GetHistoryPriceAsync(pair, time);
+            var result = await ProcessTokenPrice(symbol, rawPrice, time);
+            
+            Logger.LogInformation($"Get price, symbol: {symbol}, pair: {pair}, time: {time}, rawPrice: {rawPrice}, result price: {result}");
+            
+            return result;
+        }
+
+        private bool IsNeedFetchPrice(PriceDto priceDto)
+        {
+            return priceDto.PriceInUsd == PriceOptions.DefaultPriceValue ||
+                   priceDto.PriceUpdateTime.AddSeconds(_tokenPriceOptions.Value.PriceExpirationTimeSeconds) <= DateTime.UtcNow;
         }
         
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols)
@@ -49,19 +127,23 @@ namespace AwakenServer.Price
                 for (var i = 0; i < symbolList.Count; i++)
                 {
                     var key = $"{PriceOptions.PriceCachePrefix}:{symbolList[i]}";
-                    var price = await _priceCache.GetOrAddAsync(key,
-                        async () => new PriceDto(), () => new DistributedCacheEntryOptions
-                        {
-                            AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceExpirationTime + i)
-                        });
-                    if (price.PriceInUsd == PriceOptions.DefaultPriceValue)
+                    var price = await _priceCache.GetOrAddAsync(key, async () => new PriceDto());
+                    
+                    if (IsNeedFetchPrice(price))
                     {
-                        price.PriceInUsd = await _tokenPriceProvider.GetPriceAsync(symbolList[i]);
-                        await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                        try
                         {
-                            AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceExpirationTime + i)
-                        });
+                            price.PriceInUsd = await GetPriceAsync(symbolList[i]);
+                            price.PriceUpdateTime = DateTime.UtcNow;
+                            await _priceCache.SetAsync(key, price);
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.LogError(e, $"Get price symbol: {symbolList[i]} failed. Return old data price: {price.PriceInUsd}");
+                        }
                     }
+                    
+                    Logger.LogInformation("Get price, {symbol}, {priceInUsd}", symbolList[i], price.PriceInUsd);
                     
                     result.Add(new TokenPriceDataDto
                     {
@@ -98,21 +180,25 @@ namespace AwakenServer.Price
                     }
 
                     var key = $"{PriceOptions.PriceHistoryCachePrefix}:{input.Symbol}:{time}";
-                    var price = await _priceCache.GetOrAddAsync(key,
-                        async () => new PriceDto(), () => new DistributedCacheEntryOptions
-                        {
-                            AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                        });
-                    if (price.PriceInUsd == PriceOptions.DefaultPriceValue || price.PriceInUsd == 0)
+                    var price = await _priceCache.GetOrAddAsync(key, async () => new PriceDto());
+                    
+                    if (IsNeedFetchPrice(price))
                     {
-                        price.PriceInUsd = await _tokenPriceProvider.GetHistoryPriceAsync(input.Symbol, time);
-                        await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                        try
                         {
-                            AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                        });
+                            price.PriceInUsd = await GetHistoryPriceAsync(input.Symbol, time);
+                            price.PriceUpdateTime = DateTime.UtcNow;
+                            await _priceCache.SetAsync(key, price);
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.LogError(e, $"Get history price symbol: {input.Symbol}, time: {time} failed. Return old data price: {price.PriceInUsd}");
+                        }
+                       
                     }
                     
                     Logger.LogInformation("Get history price, {symbol}, {time}, {priceInUsd}", input.Symbol, time, price.PriceInUsd);
+                    
                     result.Add(new TokenPriceDataDto
                     {
                         Symbol = input.Symbol,
@@ -136,5 +222,7 @@ namespace AwakenServer.Price
     public class PriceDto
     {
         public decimal PriceInUsd { get; set; } = PriceOptions.DefaultPriceValue;
+        public DateTime PriceUpdateTime { get; set; }
+        
     }
 }

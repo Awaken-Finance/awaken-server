@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using AutoResponseWrapper;
+using AwakenServer.AetherLinkApi;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.EntityFrameworkCore;
 using AwakenServer.Grains;
@@ -50,7 +51,7 @@ namespace AwakenServer
         typeof(AbpAspNetCoreSerilogModule),
         typeof(AbpSwashbuckleModule),
         typeof (AbpEventBusRabbitMqModule),
-        typeof(AwakenServerCoinGeckoApiModule)
+        typeof(AwakenServerAetherLinkApiModule)
     )]
     public class AwakenServerHttpApiHostModule : AbpModule
     {

@@ -11,7 +11,7 @@ public class TokenPriceGrainTests : AwakenServerGrainTestBase
 {
     private const string ELFTokenSymbol = "ELF";
 
-    [Fact]
+    [Fact(Skip = "This interface is deprecated.")]
     public async Task GetTokenPriceTest()
     {
         var grain = Cluster.Client.GetGrain<ITokenPriceGrain>(ELFTokenSymbol);
@@ -20,7 +20,7 @@ public class TokenPriceGrainTests : AwakenServerGrainTestBase
         result.Data.PriceInUsd.ShouldBeGreaterThan(0);
     }
 
-    [Fact]
+    [Fact(Skip = "This interface is deprecated.")]
     public async Task GetTokenHistoryPriceTest()
     {
         var time = DateTime.UtcNow.ToString("dd-MM-yyyy");

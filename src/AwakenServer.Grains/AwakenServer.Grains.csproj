@@ -24,6 +24,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\AwakenServer.AetherLinkApi\AwakenServer.AetherLinkApi.csproj" />
         <ProjectReference Include="..\AwakenServer.Application.Contracts\AwakenServer.Application.Contracts.csproj" />
         <ProjectReference Include="..\AwakenServer.Domain\AwakenServer.Domain.csproj" />
     </ItemGroup>

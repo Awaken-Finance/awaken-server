@@ -418,9 +418,13 @@ namespace AwakenServer.Trade
             }
 
             dto.PairId = pair.Id;
+            var syncRecordGrainDto = _objectMapper.Map<SyncRecordDto, SyncRecordGrainDto>(dto);
+            syncRecordGrainDto.Token0PriceInUsd = await _tokenPriceProvider.GetTokenUSDPriceAsync(dto.ChainId, pair.Token0.Symbol);
+            syncRecordGrainDto.Token1PriceInUsd = await _tokenPriceProvider.GetTokenUSDPriceAsync(dto.ChainId, pair.Token1.Symbol);
+            
             await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(pair.Id, async grain =>
             {
-                return await grain.UpdatePriceAsync(_objectMapper.Map<SyncRecordDto, SyncRecordGrainDto>(dto));
+                return await grain.UpdatePriceAsync(syncRecordGrainDto);
             });
             
             await grain.AddAsync(_objectMapper.Map<SyncRecordDto, SyncRecordsGrainDto>(dto));
@@ -494,7 +498,10 @@ namespace AwakenServer.Trade
             var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
             _logger.LogInformation($"get pair {pair.Id}, supply {supply}");
             
-            var tradePairGrainDtoResult = await grain.UpdateAsync(snapshotTime, userTradeAddressCount, supply);
+            var Token0PriceInUsd = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token0.Symbol);
+            var Token1PriceInUsd = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token1.Symbol);
+            
+            var tradePairGrainDtoResult = await grain.UpdateAsync(snapshotTime, userTradeAddressCount, supply, Token0PriceInUsd, Token1PriceInUsd);
             
             if (!tradePairGrainDtoResult.Success)
             {
