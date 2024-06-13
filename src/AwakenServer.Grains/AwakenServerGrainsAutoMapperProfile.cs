@@ -6,6 +6,7 @@ using AwakenServer.Grains.State.Chain;
 using AwakenServer.Grains.State.Favorite;
 using AwakenServer.Grains.State.Tokens;
 using AwakenServer.Grains.Grain.Favorite;
+using AwakenServer.Grains.Grain.MyPortfolio;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.Grain.Trade;
@@ -13,6 +14,7 @@ using AwakenServer.Grains.State.Chain;
 using AwakenServer.Grains.State.Favorite;
 using AwakenServer.Grains.State.Trade;
 using AwakenServer.Grains.State.Favorite;
+using AwakenServer.Grains.State.MyPortfolio;
 using AwakenServer.Grains.State.Price;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
@@ -46,5 +48,8 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
             .ForMember(dest => dest.Pair, opt => opt.MapFrom(src => src.PairAddress));
         CreateMap<SyncRecordsGrainDto, SyncRecordsState>().ReverseMap();
         CreateMap<UnconfirmedTransactionsGrainDto, ToBeConfirmRecord>().ReverseMap();
+        CreateMap<CurrentTradePairState, CurrentTradePairGrainDto>().ReverseMap();
+        CreateMap<CurrentUserLiquidityState, CurrentUserLiquidityGrainDto>().ReverseMap();
+        CreateMap<UserLiquiditySnapshotState, UserLiquiditySnapshotGrainDto>().ReverseMap();
     }
 }

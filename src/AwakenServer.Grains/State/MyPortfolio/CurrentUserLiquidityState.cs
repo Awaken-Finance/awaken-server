@@ -5,10 +5,10 @@ public class CurrentUserLiquidityState
     public Guid TradePairId { get; set; }
     public string Address { get; set; }
     public long LpTokenAmount { get; set; }
-    public long LastUpdateTime { get; set; }
+    public DateTime LastUpdateTime { get; set; }
     public long Token0CumulativeAddition { get; set; }
     public long Token1CumulativeAddition { get; set; }
-    public long AverageHoldingStartTime { get; set; }
+    public DateTime AverageHoldingStartTime { get; set; }
     public long Token0UnReceivedFee { get; set; }
     public long Token1UnReceivedFee { get; set; }
     public long Token0ReceivedFee { get; set; }
