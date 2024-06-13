@@ -268,4 +268,59 @@ public class AssetAppService : ApplicationService, IAssetAppService
         defaultTokenDto.Address = input.Address;
         return defaultTokenDto;
     }
+
+    public async Task<UserPortfolioDto> GetUserPortfolioAsync(GetUserPortfolioDto input)
+    {
+        // todo
+        return new UserPortfolioDto()
+        {
+
+        };
+    }
+
+    public async Task<UserPositionsDto> UserPositionsAsync(GetUserPositionsDto input)
+    {
+        // todo
+        return new UserPositionsDto()
+        {
+
+        };
+    }
+    
+    public async Task<IdleTokensDto> GetIdleTokensAsync(GetIdleTokensDto input)
+    {
+        var tokenListDto = await GetUserAssetInfoAsync(new GetUserAssetInfoDto()
+        {
+            ChainId = input.ChainId,
+            Address = input.Address
+        });
+
+        var totalValueInUsd = 0.0;
+        foreach (var userTokenInfo in tokenListDto.ShowList)
+        {
+            totalValueInUsd += Double.Parse(userTokenInfo.PriceInUsd);
+        }
+        
+        var idleTokenList = new List<IdleToken>();
+        foreach (var userTokenInfo in tokenListDto.ShowList)
+        {
+            var percent = totalValueInUsd != 0.0 ? Double.Parse(userTokenInfo.PriceInUsd) / totalValueInUsd : 0.0;
+            var tokenDto = await _tokenAppService.GetAsync(new GetTokenInput
+            {
+                Symbol = userTokenInfo.Symbol
+            });
+            idleTokenList.Add(new IdleToken()
+            {
+                Percent = percent.ToString(),
+                ValueInUsd = userTokenInfo.PriceInUsd,
+                TokenDto = tokenDto
+            });
+        }
+
+        return new IdleTokensDto()
+        {
+            TotalValueInUsd = totalValueInUsd.ToString(),
+            IdleTokens = idleTokenList
+        };
+    }
 }
