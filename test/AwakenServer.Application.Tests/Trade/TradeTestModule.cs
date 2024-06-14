@@ -210,6 +210,7 @@ namespace AwakenServer.Trade
                     FeeRate = 0.03,
                 }));
             environmentProvider.TradePairBtcEthId = tradePairBtcEth.Id;
+            environmentProvider.TradePairBtcEthAddress = tradePairBtcEth.Address;
         }
     }
 }

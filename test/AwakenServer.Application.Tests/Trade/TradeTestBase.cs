@@ -14,6 +14,7 @@ namespace AwakenServer.Trade
         protected Guid TradePairEthUsdtId { get; }
         protected Guid TradePairBtcEthId { get; }
         protected string TradePairEthUsdtAddress { get; }
+        protected string TradePairBtcEthAddress { get; }
         protected Guid TokenUsdtId { get; }
         protected string TokenUsdtSymbol { get; }
         protected Guid TokenEthId { get; }
@@ -36,6 +37,7 @@ namespace AwakenServer.Trade
             ChainName = environmentProvider.EthChainName;
             TradePairEthUsdtId = environmentProvider.TradePairEthUsdtId;
             TradePairEthUsdtAddress = environmentProvider.TradePairEthUsdtAddress;
+            TradePairBtcEthAddress = environmentProvider.TradePairBtcEthAddress;
             TradePairBtcEthId = environmentProvider.TradePairBtcEthId;
             TokenUsdtId = environmentProvider.TokenUsdtId;
             TokenUsdtSymbol = environmentProvider.TokenUsdtSymbol;

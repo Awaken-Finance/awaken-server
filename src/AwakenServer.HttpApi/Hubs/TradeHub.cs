@@ -42,7 +42,7 @@ namespace AwakenServer.Hubs
             await Groups.AddToGroupAsync(Context.ConnectionId,
                 _tradeHubGroupProvider.GetTradeRecordGroupName(chain, pairId, timestamp));
 
-            var records = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            var records = await _tradeRecordAppService.GetListWithSubRecordsAsync(new GetTradeRecordsInput
             {
                 ChainId = chain,
                 TradePairId = pairId,
@@ -160,7 +160,7 @@ namespace AwakenServer.Hubs
             var pairId = Guid.Parse(tradePairId);
 
             _tradeHubConnectionProvider.AddUserConnection(chainId, pairId, address, Context.ConnectionId);
-            var records = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
+            var records = await _tradeRecordAppService.GetListWithSubRecordsAsync(new GetTradeRecordsInput
             {
                 ChainId = chainId,
                 TradePairId = pairId,

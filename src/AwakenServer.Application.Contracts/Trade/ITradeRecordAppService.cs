@@ -11,7 +11,8 @@ namespace AwakenServer.Trade
     {
         
         Task<PagedResultDto<TradeRecordIndexDto>> GetListAsync(GetTradeRecordsInput input);
-
+        Task<PagedResultDto<TradeRecordIndexDto>> GetListWithSubRecordsAsync(GetTradeRecordsInput input);
+        
         Task CreateAsync(TradeRecordCreateDto input);
 
 
