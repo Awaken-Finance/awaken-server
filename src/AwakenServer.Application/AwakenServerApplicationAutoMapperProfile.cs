@@ -104,6 +104,7 @@ namespace AwakenServer
             CreateMap<TradePairDto, Trade.TradePair>();
             CreateMap<TradePairGrainDto, TradePairDto>().ReverseMap();
             CreateMap<TradePairGrainDto, TradePairEto>();
+            CreateMap<TradePairGrainDto, TradePairWithTokenDto>();
             CreateMap<GetTradePairByIdsInput, GetTradePairsInput>();
 
             CreateMap<LiquidityRecordCreateDto, Trade.LiquidityRecord>().Ignore(x => x.Id).ForMember(
