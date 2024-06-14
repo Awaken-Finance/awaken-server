@@ -3,21 +3,32 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Client.MultiToken;
+using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.Commons;
+using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Asset;
+using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Price;
 using AwakenServer.Provider;
 using AwakenServer.Tokens;
 using AwakenServer.Trade;
+using AwakenServer.Trade.Dtos;
+using AwakenServer.Trade.Index;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Nest;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
+using Index = System.Index;
+using TradePair = AwakenServer.Trade.TradePair;
+using Volo.Abp.ObjectMapping;
+using ITokenPriceProvider = AwakenServer.Trade.ITokenPriceProvider;
+using TradePairMarketDataSnapshot = AwakenServer.Trade.Index.TradePairMarketDataSnapshot;
 
 namespace AwakenServer.Asset;
 
@@ -31,6 +42,14 @@ public class AssetAppService : ApplicationService, IAssetAppService
     private readonly IAElfClientProvider _aelfClientProvider;
     private readonly AssetWhenNoTransactionOptions _assetWhenNoTransactionOptions;
     private readonly IDistributedCache<UserAssetInfoDto> _userAssetInfoDtoCache;
+    private readonly INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiduidityIndexRepository;
+    private readonly INESTRepository<UserLiquiditySnapshotIndex, Guid> _userLiduiditySnapshotIndexRepository;
+    private readonly INESTRepository<TradePairMarketDataSnapshot, Guid> _tradePairSnapshotIndexRepository;
+    private readonly ITokenPriceProvider _tokenPriceProvider;
+
+    private readonly IObjectMapper _objectMapper;
+    
+    
     private const string userAssetInfoDtoPrefix = "AwakenServer:Asset:";
     private readonly IClusterClient _clusterClient;
     private readonly ILogger<AssetAppService> _logger;
@@ -42,7 +61,12 @@ public class AssetAppService : ApplicationService, IAssetAppService
         IAElfClientProvider aelfClientProvider,
         IOptionsSnapshot<AssetWhenNoTransactionOptions> showSymbolsWhenNoTransactionOptions,
         IDistributedCache<UserAssetInfoDto> userAssetInfoDtoCache, IClusterClient clusterClient,
-        ILogger<AssetAppService> logger)
+        ILogger<AssetAppService> logger,
+        INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiduidityIndexRepository,
+        INESTRepository<UserLiquiditySnapshotIndex, Guid> userLiduiditySnapshotIndexRepository,
+        INESTRepository<TradePairMarketDataSnapshot, Guid> tradePairSnapshotIndexRepository,
+        IObjectMapper objectMapper,
+        ITokenPriceProvider tokenPriceProvider)
     {
         _graphQlProvider = graphQlProvider;
         _tokenAppService = tokenAppService;
@@ -53,6 +77,11 @@ public class AssetAppService : ApplicationService, IAssetAppService
         _assetWhenNoTransactionOptions = showSymbolsWhenNoTransactionOptions.Value;
         _userAssetInfoDtoCache = userAssetInfoDtoCache;
         _logger = logger;
+        _objectMapper = objectMapper;
+        _currentUserLiduidityIndexRepository = currentUserLiduidityIndexRepository;
+        _userLiduiditySnapshotIndexRepository = userLiduiditySnapshotIndexRepository;
+        _tradePairSnapshotIndexRepository = tradePairSnapshotIndexRepository;
+        _tokenPriceProvider = tokenPriceProvider;
     }
 
     public async Task<UserAssetInfoDto> GetUserAssetInfoAsync(GetUserAssetInfoDto input)
@@ -271,20 +300,253 @@ public class AssetAppService : ApplicationService, IAssetAppService
 
     public async Task<UserPortfolioDto> GetUserPortfolioAsync(GetUserPortfolioDto input)
     {
-        // todo
-        return new UserPortfolioDto()
+        var result = new UserPortfolioDto()
         {
-
+            TradePairDistributions = new List<TradePairPortfolioDto>(),
+            TokenDistributions = new List<TokenPortfolioInfoDto>()
         };
+        
+        var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(input.Address)));
+        QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
+        var list = await _currentUserLiduidityIndexRepository.GetListAsync(Filter);
+
+        var sumValueInUsd = 0.0;
+        var sumFeeInUsd = 0.0;
+        var tokenDictionary = new Dictionary<string, TokenPortfolioInfoDto>();
+        
+        foreach (var userLiquidityIndex in list.Item2)
+        {
+            var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
+            var pair = (await tradePairGrain.GetAsync()).Data;
+
+            var lpTokenPercentage = String.IsNullOrEmpty(pair.TotalSupply) ? 0.0 : userLiquidityIndex.LpTokenAmount / Double.Parse(pair.TotalSupply);
+            var token0Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
+            var token1Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
+            var valueInUsd = lpTokenPercentage * pair.TVL;
+            var fee = userLiquidityIndex.Token0UnReceivedFee + userLiquidityIndex.Token1UnReceivedFee;
+            
+            sumValueInUsd += valueInUsd;
+            sumFeeInUsd += fee;
+            
+            result.TradePairDistributions.Add(new TradePairPortfolioDto()
+            {
+                TradePair = _objectMapper.Map<TradePairGrainDto, TradePairWithTokenDto>(pair),
+                PositionInUsd = valueInUsd,
+                FeeInUsd = fee
+            });
+
+            if (!tokenDictionary.ContainsKey(pair.Token0.Symbol))
+            {
+                tokenDictionary.Add(pair.Token0.Symbol, new TokenPortfolioInfoDto()
+                {
+                    Token = pair.Token0
+                });
+            }
+            
+            if (!tokenDictionary.ContainsKey(pair.Token1.Symbol))
+            {
+                tokenDictionary.Add(pair.Token1.Symbol, new TokenPortfolioInfoDto()
+                {
+                    Token = pair.Token1
+                });
+            }
+
+            tokenDictionary[pair.Token0.Symbol].PositionInUsd += token0Percenage * valueInUsd;
+            tokenDictionary[pair.Token1.Symbol].PositionInUsd += token1Percenage * valueInUsd;
+            tokenDictionary[pair.Token0.Symbol].FeeInUsd += token0Percenage * fee;
+            tokenDictionary[pair.Token1.Symbol].FeeInUsd += token1Percenage * fee;
+        }
+
+        foreach (var pair in result.TradePairDistributions)
+        {
+            pair.PositionPercent = sumValueInUsd != 0 ? pair.PositionInUsd / sumValueInUsd : 0;
+            pair.FeePercent = sumFeeInUsd != 0 ? pair.FeeInUsd / sumFeeInUsd : 0;
+        }
+
+        foreach (var tokenPortfolio in tokenDictionary)
+        {
+            tokenPortfolio.Value.PositionPercent =
+                sumValueInUsd != 0 ? tokenPortfolio.Value.PositionInUsd / sumValueInUsd : 0;
+            tokenPortfolio.Value.FeePercent =
+                sumFeeInUsd != 0 ? tokenPortfolio.Value.FeeInUsd / sumFeeInUsd : 0;
+            result.TokenDistributions.Add(tokenPortfolio.Value);
+        }
+
+        return result;
     }
 
-    public async Task<UserPositionsDto> UserPositionsAsync(GetUserPositionsDto input)
+    public long GetAverageHoldingPeriod(CurrentUserLiquidityIndex userLiquidityIndex)
     {
-        // todo
-        return new UserPositionsDto()
+        return (DateTimeHelper.ToUnixTimeSeconds(DateTime.UtcNow) - userLiquidityIndex.AverageHoldingStartTime) / 24 * 60 * 60;
+    }
+    
+    public long GetDayDifference(EstimatedAprType type, CurrentUserLiquidityIndex userLiquidityIndex)
+    {
+        switch (type)
         {
+            case EstimatedAprType.Week:
+            {
+                return 7;
+            }
+            case EstimatedAprType.Month:
+            {
+                return 30;
+            }
+            case EstimatedAprType.All:
+            {
+                return GetAverageHoldingPeriod(userLiquidityIndex);
+            }
+            default:
+            {
+                return 7;
+            }
+        }
+    }
+    
+    public async Task<List<UserLiquiditySnapshotIndex>> GetIndexListAsync(string chainId, Guid tradePairId,
+        DateTime? timestampMin = null, DateTime? timestampMax = null)
+    {
+        var mustQuery =
+            new List<Func<QueryContainerDescriptor<UserLiquiditySnapshotIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
 
+        if (timestampMin != null)
+        {
+            mustQuery.Add(q => q.DateRange(i =>
+                i.Field(f => f.SnapShotTime)
+                    .GreaterThan(timestampMin.Value)));
+        }
+
+        if (timestampMax != null)
+        {
+            mustQuery.Add(q => q.DateRange(i =>
+                i.Field(f => f.SnapShotTime)
+                    .LessThanOrEquals(timestampMax)));
+        }
+
+        QueryContainer Filter(QueryContainerDescriptor<UserLiquiditySnapshotIndex> f) =>
+            f.Bool(b => b.Must(mustQuery));
+
+        var list = await _userLiduiditySnapshotIndexRepository.GetListAsync(Filter);
+        return list.Item2;
+    }
+
+    private async Task<double> GetLpTokenSnapshotValueAsync(string token0Symbol, string token1Symbol, UserLiquiditySnapshotIndex userLiquiditySnapshotIndex)
+    {
+        var mustQuery =
+            new List<Func<QueryContainerDescriptor<TradePairMarketDataSnapshot>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(userLiquiditySnapshotIndex.ChainId)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(userLiquiditySnapshotIndex.TradePairId)));
+        mustQuery.Add(q => q.DateRange(i =>
+            i.Field(f => f.Timestamp)
+                .LessThanOrEquals(userLiquiditySnapshotIndex.SnapShotTime)));
+        
+        QueryContainer Filter(QueryContainerDescriptor<TradePairMarketDataSnapshot> f) =>
+            f.Bool(b => b.Must(mustQuery));
+
+        var snapshot = await _tradePairSnapshotIndexRepository.GetAsync(Filter, sortType: SortOrder.Descending, sortExp: o => o.Timestamp);
+        
+        var token0PriceInUsd = await _tokenPriceProvider.GetTokenUSDPriceAsync(snapshot.ChainId, token0Symbol);
+        var token1PriceInUsd = await _tokenPriceProvider.GetTokenUSDPriceAsync(snapshot.ChainId, token1Symbol);
+        return snapshot.ValueLocked0 * token0PriceInUsd + snapshot.ValueLocked1 * token1PriceInUsd;
+    }
+
+    private async Task<double> CalculateEstimatedAPRAsync(string token0Symbol, string token1Symbol, EstimatedAprType type, CurrentUserLiquidityIndex userLiquidityIndex)
+    {
+        if (type == EstimatedAprType.All)
+        {
+            var unReveivedFee = userLiquidityIndex.Token0UnReceivedFee + userLiquidityIndex.Token1UnReceivedFee;
+            var cumulativeAddtion = userLiquidityIndex.Token0CumulativeAddition +
+                                    userLiquidityIndex.Token1CumulativeAddition; // todo convert to usd
+            return unReveivedFee / cumulativeAddtion / GetAverageHoldingPeriod(userLiquidityIndex) * 360 * 100;
+        }
+       
+        // 7d, 30d
+        var periodInDays = GetDayDifference(type, userLiquidityIndex);
+        var userLiquiditySnapshots = await GetIndexListAsync(userLiquidityIndex.ChainId, userLiquidityIndex.TradePairId,
+            DateTime.Now.AddDays(-periodInDays));
+    
+        var sumLpTokenInUsd = 0.0;
+        var sumFee = 0.0;
+        foreach (var userLiquiditySnapshot in userLiquiditySnapshots)
+        {
+            var lpTokenValueInUsd = await GetLpTokenSnapshotValueAsync(token0Symbol, token1Symbol, userLiquiditySnapshot);
+            sumLpTokenInUsd += lpTokenValueInUsd;
+            sumFee += (userLiquiditySnapshot.Token0TotalFee + userLiquiditySnapshot.Token1TotalFee);
+        }
+
+        var avgLpTokenInUsd = sumLpTokenInUsd / periodInDays;
+        return avgLpTokenInUsd > 0 ? sumFee / periodInDays / avgLpTokenInUsd * 360 * 100 : 0;
+        
+    }
+    
+    public async Task<UserPositionsDto> ProcessUserPositionAsync(GetUserPositionsDto input, List<CurrentUserLiquidityIndex> userLiquidityIndices)
+    {
+        var result = new UserPositionsDto()
+        {
+            Address = input.Address,
+            TradePairPositions = new List<TradePairPositionDto>()
         };
+        
+        foreach (var userLiquidityIndex in userLiquidityIndices)
+        {
+            var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
+            var pair = (await tradePairGrain.GetAsync()).Data;
+
+            var lpTokenPercentage = String.IsNullOrEmpty(pair.TotalSupply) ? 0.0 : userLiquidityIndex.LpTokenAmount / Double.Parse(pair.TotalSupply);
+            var token0Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
+            var token1Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
+            var valueInUsd = lpTokenPercentage * pair.TVL;
+            
+            var estimatedAPR = await CalculateEstimatedAPRAsync(pair.Token0Symbol, pair.Token1Symbol, (EstimatedAprType)input.EstimatedAprType, userLiquidityIndex);
+            
+            result.TradePairPositions.Add(new TradePairPositionDto()
+            {
+                TradePairInfo = _objectMapper.Map<TradePairGrainDto, PositionTradePairDto>(pair),
+                Token0Amount = lpTokenPercentage * pair.ValueLocked0,
+                Token1Amount = lpTokenPercentage * pair.ValueLocked1,
+                Token0Percent = token0Percenage,
+                Token1Percent = token1Percenage,
+                LpTokenAmount = userLiquidityIndex.LpTokenAmount,
+                Position = new LiquidityPoolValueInfo()
+                {
+                    ValueInUsd = valueInUsd,
+                    Token0ValueInUsd = token0Percenage * valueInUsd,
+                    Token1ValueInUsd = token1Percenage * valueInUsd,
+                },
+                Fee = new LiquidityPoolValueInfo()
+                {
+                    ValueInUsd = userLiquidityIndex.Token0UnReceivedFee + userLiquidityIndex.Token1UnReceivedFee,
+                    Token0ValueInUsd = userLiquidityIndex.Token0UnReceivedFee,
+                    Token1ValueInUsd = userLiquidityIndex.Token1UnReceivedFee,
+                },
+                cumulativeAddition = new LiquidityPoolValueInfo()
+                {
+                    ValueInUsd = userLiquidityIndex.Token0CumulativeAddition + userLiquidityIndex.Token1CumulativeAddition,
+                    Token0ValueInUsd = userLiquidityIndex.Token0CumulativeAddition,
+                    Token1ValueInUsd = userLiquidityIndex.Token1CumulativeAddition,
+                },
+                EstimatedAPRType = (EstimatedAprType)input.EstimatedAprType,
+                EstimatedAPR = estimatedAPR,
+                ImpermanentLossInUSD = valueInUsd - (userLiquidityIndex.Token0CumulativeAddition + userLiquidityIndex.Token1CumulativeAddition), // todo convert to usd
+                DynamicAPR = 0 // todo
+            });
+        }
+
+        return result;
+    }
+    
+    public async Task<UserPositionsDto> GetUserPositionsAsync(GetUserPositionsDto input)
+    {
+        var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(input.Address)));
+        QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
+            
+        var list = await _currentUserLiduidityIndexRepository.GetListAsync(Filter);
+
+        return await ProcessUserPositionAsync(input, list.Item2);
     }
     
     public async Task<IdleTokensDto> GetIdleTokensAsync(GetIdleTokensDto input)

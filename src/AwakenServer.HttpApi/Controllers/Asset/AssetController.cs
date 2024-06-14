@@ -44,7 +44,7 @@ public class AssetController : AbpController
     [Route("liquidity/user-positions")]
     public virtual async Task<UserPositionsDto> UserPositionsAsync(GetUserPositionsDto input)
     {
-        return await _assetAppService.UserPositionsAsync(input);
+        return await _assetAppService.GetUserPositionsAsync(input);
     }
     
     [HttpGet]

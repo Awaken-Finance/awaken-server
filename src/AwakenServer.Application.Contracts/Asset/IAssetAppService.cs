@@ -18,6 +18,6 @@ public interface IAssetAppService
     
     Task<IdleTokensDto> GetIdleTokensAsync(GetIdleTokensDto input);
     
-    Task<UserPositionsDto> UserPositionsAsync(GetUserPositionsDto input);
+    Task<UserPositionsDto> GetUserPositionsAsync(GetUserPositionsDto input);
     
 }

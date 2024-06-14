@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 
 namespace AwakenServer.Asset;
@@ -18,33 +19,38 @@ public enum EstimatedAprType
 
 public class TradePairPositionDto
 {
-    public PositionPoolDto TradePairInfo { get; set; }
+    public PositionTradePairDto TradePairInfo { get; set; }
     public double Token0Amount { get; set; }
     public double Token1Amount { get; set; }
+    public double Token0Percent { get; set; }
+    public double Token1Percent { get; set; }
     public double LpTokenAmount { get; set; }
-    public PositionDto Position { get; set; }
-    public PositionDto Fee { get; set; }
-    public PositionDto cumulativeAddition { get; set; }
+    public LiquidityPoolValueInfo Position { get; set; }
+    public LiquidityPoolValueInfo Fee { get; set; }
+    public LiquidityPoolValueInfo cumulativeAddition { get; set; }
     public EstimatedAprType EstimatedAPRType { get; set; }
     public double EstimatedAPR { get; set; }
     public double DynamicAPR { get; set; }
     public double ImpermanentLossInUSD { get; set; }
 }
 
-public class PositionPoolDto
+public class PositionTradePairDto
 {
-    public TradePairWithTokenDto TradePair { get; set; }
+    public string ChainId { get; set; }
+    public string Address { get; set; }
+    public double FeeRate { get; set; }
+    public bool IsTokenReversed { get; set; }
+    public TokenDto Token0 { get; set; }
+    public TokenDto Token1 { get; set; }
     public double Price { get; set; }
     public double Volume24h { get; set; }
     public double TVL { get; set; }
 }
 
-public class PositionDto
+public class LiquidityPoolValueInfo
 {
-    public string ValueInUsd { get; set; }
-    public string Token0ValueInUsd { get; set; }
-    public string Token0ValuePercent { get; set; }
-    public string Token1ValueInUsd { get; set; }
-    public string Token1ValuePercent { get; set; }
+    public double ValueInUsd { get; set; }
+    public double Token0ValueInUsd { get; set; }
+    public double Token1ValueInUsd { get; set; }
 }
 
