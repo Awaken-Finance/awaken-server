@@ -12,9 +12,25 @@ public class UserLiquiditySnapshotGrain : Grain<UserLiquiditySnapshotState>, IUs
         _objectMapper = objectMapper;
     }
 
-    public Task<GrainResultDto<UserLiquiditySnapshotGrainDto>> AddOrUpdateAsync(UserLiquiditySnapshotGrainDto dto)
+    public async Task<GrainResultDto<UserLiquiditySnapshotGrainDto>> AddOrUpdateAsync(UserLiquiditySnapshotGrainDto dto)
     {
-        return null;
+        if (State.TradePairId == Guid.Empty)
+        {
+            _objectMapper.Map(dto, State);
+        }
+        else
+        {
+            State.LpTokenAmount = dto.LpTokenAmount;
+            State.Token0TotalFee += dto.Token0TotalFee;
+            State.Token1TotalFee += dto.Token1TotalFee;
+        }
+
+        await WriteStateAsync();
+        return new GrainResultDto<UserLiquiditySnapshotGrainDto>()
+        {
+            Success = true,
+            Data = _objectMapper.Map<UserLiquiditySnapshotState, UserLiquiditySnapshotGrainDto>(State)
+        };
     }
 
     public async Task<GrainResultDto<UserLiquiditySnapshotGrainDto>> GetAsync()
