@@ -1,4 +1,5 @@
 using AutoMapper;
+using AwakenServer.Asset;
 using AwakenServer.Grains.Grain.Chain;
 using AwakenServer.Grains.Grain.Favorite;
 using AwakenServer.Grains.Grain.Tokens;
@@ -36,6 +37,7 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
         CreateMap<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>().ReverseMap();
         CreateMap<TradePairGrainDto, TradePairState>().ReverseMap();
         CreateMap<TradePairGrainDto, TradePairDto>().ReverseMap();
+        CreateMap<TradePairGrainDto, PositionTradePairDto>();
         CreateMap<TradeRecordGrainDto, TradeRecordState>().ReverseMap();
         CreateMap<TradeRecordGrainDto, TradeRecordIndexDto>().ReverseMap();
         CreateMap<UserTradeSummaryState, UserTradeSummaryGrainDto>().ReverseMap();

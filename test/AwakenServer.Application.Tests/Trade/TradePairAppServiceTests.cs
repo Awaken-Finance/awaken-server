@@ -34,7 +34,6 @@ namespace AwakenServer.Trade
         private readonly IFavoriteAppService _favoriteAppService;
         private readonly IObjectMapper _objectMapper;
         private readonly MockGraphQLProvider _mockGraphQLProvider;
-        private readonly IClusterClient _clusterClient;
 
         public TradePairAppServiceTests()
         {
@@ -50,7 +49,6 @@ namespace AwakenServer.Trade
             _tradePairInfoIndex = GetService<INESTRepository<TradePairInfoIndex, Guid>>();
             _favoriteAppService = GetRequiredService<IFavoriteAppService>();
             _mockGraphQLProvider = new MockGraphQLProvider(_objectMapper, _tradePairInfoIndex, _tokenAppService);
-            _clusterClient = GetRequiredService<IClusterClient>();
         }
 
         [Fact]
@@ -748,7 +746,7 @@ namespace AwakenServer.Trade
             {
                 Id = TradePairEthUsdtId,
             };
-            var grain = _clusterClient.GetGrain<ITradePairGrain>(
+            var grain = Cluster.Client.GetGrain<ITradePairGrain>(
                 GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
             await grain.AddOrUpdateAsync(_objectMapper.Map<Index.TradePair, TradePairGrainDto>(tradePairIndex));
             await _tradePairIndexRepository.UpdateAsync(tradePairIndex);

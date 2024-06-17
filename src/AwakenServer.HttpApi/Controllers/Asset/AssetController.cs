@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using AwakenServer.Asset;
 using Microsoft.AspNetCore.Mvc;
 using Volo.Abp;
+using Volo.Abp.Application.Dtos;
 using Volo.Abp.AspNetCore.Mvc;
 
 namespace AwakenServer.Controllers.Asset;
@@ -13,10 +14,13 @@ namespace AwakenServer.Controllers.Asset;
 public class AssetController : AbpController
 {
     private readonly IAssetAppService _assetAppService;
-
-    public AssetController(IAssetAppService assetAppService)
+    private readonly IMyPortfolioAppService _myPortfolioAppService;
+    
+    public AssetController(IAssetAppService assetAppService,
+        IMyPortfolioAppService myPortfolioAppService)
     {
         _assetAppService = assetAppService;
+        _myPortfolioAppService = myPortfolioAppService;
     }
 
     [HttpGet]
@@ -30,7 +34,7 @@ public class AssetController : AbpController
     [Route("asset/user-portfolio")]
     public virtual async Task<UserPortfolioDto> UserPortfolioAsync(GetUserPortfolioDto input)
     {
-        return await _assetAppService.GetUserPortfolioAsync(input);
+        return await _myPortfolioAppService.GetUserPortfolioAsync(input);
     }
     
     [HttpGet]
@@ -42,9 +46,9 @@ public class AssetController : AbpController
     
     [HttpGet]
     [Route("liquidity/user-positions")]
-    public virtual async Task<UserPositionsDto> UserPositionsAsync(GetUserPositionsDto input)
+    public virtual async Task<PagedResultDto<TradePairPositionDto>> UserPositionsAsync(GetUserPositionsDto input)
     {
-        return await _assetAppService.GetUserPositionsAsync(input);
+        return await _myPortfolioAppService.GetUserPositionsAsync(input);
     }
     
     [HttpGet]

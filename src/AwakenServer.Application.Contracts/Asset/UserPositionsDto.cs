@@ -20,18 +20,18 @@ public enum EstimatedAprType
 public class TradePairPositionDto
 {
     public PositionTradePairDto TradePairInfo { get; set; }
-    public double Token0Amount { get; set; }
-    public double Token1Amount { get; set; }
-    public double Token0Percent { get; set; }
-    public double Token1Percent { get; set; }
-    public double LpTokenAmount { get; set; }
+    public string Token0Amount { get; set; }
+    public string Token1Amount { get; set; }
+    public string Token0Percent { get; set; }
+    public string Token1Percent { get; set; }
+    public string LpTokenAmount { get; set; }
     public LiquidityPoolValueInfo Position { get; set; }
     public LiquidityPoolValueInfo Fee { get; set; }
     public LiquidityPoolValueInfo cumulativeAddition { get; set; }
     public EstimatedAprType EstimatedAPRType { get; set; }
-    public double EstimatedAPR { get; set; }
-    public double DynamicAPR { get; set; }
-    public double ImpermanentLossInUSD { get; set; }
+    public string EstimatedAPR { get; set; }
+    public string DynamicAPR { get; set; }
+    public string ImpermanentLossInUSD { get; set; }
 }
 
 public class PositionTradePairDto
@@ -49,8 +49,10 @@ public class PositionTradePairDto
 
 public class LiquidityPoolValueInfo
 {
-    public double ValueInUsd { get; set; }
-    public double Token0ValueInUsd { get; set; }
-    public double Token1ValueInUsd { get; set; }
+    public string ValueInUsd { get; set; }
+    public string Token0Value { get; set; }
+    public string Token0ValueInUsd { get; set; }
+    public string Token1Value { get; set; }
+    public string Token1ValueInUsd { get; set; }
 }
 
