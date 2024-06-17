@@ -223,7 +223,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 ? 0.0
                 : Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(pair.TotalSupply);
             var token0Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
-            var token1Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
+            var token1Percenage = pair.ValueLocked1 / (pair.ValueLocked0 + pair.ValueLocked1);
             var valueInUsd = lpTokenPercentage * pair.TVL;
             var fee = Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals)) +
                       Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
@@ -283,7 +283,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
 
     public long GetAverageHoldingPeriod(CurrentUserLiquidityIndex userLiquidityIndex)
     {
-        return (DateTimeHelper.ToUnixTimeSeconds(DateTime.UtcNow) - DateTimeHelper.ToUnixTimeSeconds(userLiquidityIndex.AverageHoldingStartTime)) / 24 * 60 * 60;
+        return (DateTimeHelper.ToUnixTimeSeconds(DateTime.UtcNow) - DateTimeHelper.ToUnixTimeSeconds(userLiquidityIndex.AverageHoldingStartTime)) / (24 * 60 * 60);
     }
     
     public long GetDayDifference(EstimatedAprType type, CurrentUserLiquidityIndex userLiquidityIndex)
@@ -396,7 +396,9 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var currentTradePairGrain =
                 _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
             var currentTotalSupply = await currentTradePairGrain.GetAsync();
-            var lpTokenValueInUsd = tvl * Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / currentTotalSupply.Data.TotalSupply;
+            var lpTokenPercentage = userLiquidityIndex.LpTokenAmount /
+                                    currentTotalSupply.Data.TotalSupply;
+            var lpTokenValueInUsd = lpTokenPercentage * tvl;
             sumLpTokenInUsd += lpTokenValueInUsd;
             sumFee +=
                 (Double.Parse(userLiquiditySnapshot.Token0TotalFee.ToDecimalsString(token0Decimal)) * token0Price +
@@ -430,7 +432,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 ? 0.0
                 : Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(pair.TotalSupply);
             var token0Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
-            var token1Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
+            var token1Percenage = pair.ValueLocked1 / (pair.ValueLocked0 + pair.ValueLocked1);
             var valueInUsd = lpTokenPercentage * pair.TVL;
             var token0UnReceivedFee =
                 Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
@@ -458,8 +460,6 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                                    $"averageHoldingPeriod: {averageHoldingPeriod}," +
                                    $"lpTokenPercentage: {lpTokenPercentage}, " +
                                    $"valueInUsd: {valueInUsd}");
-
-            _logger.LogInformation($"");
             
             result.Add(new TradePairPositionDto()
             {

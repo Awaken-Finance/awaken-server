@@ -28,7 +28,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
     private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
     private readonly IMyPortfolioAppService _myPortfolioAppService;
     
-    protected readonly string UserAddress = "0x1";
+    protected readonly string UserAddress = "0x123456789";
     public MyPortfolioAppServiceTests()
     {
         _graphQlProvider = GetRequiredService<MockGraphQLProvider>();
@@ -40,7 +40,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         _tradePairMarketDataProvider = GetRequiredService<ITradePairMarketDataProvider>();
         _myPortfolioAppService = GetRequiredService<IMyPortfolioAppService>();
     }
-
+    
     private async Task PrepareTradePairData()
     {
         await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(TradePairEthUsdtId, async grain =>
@@ -50,8 +50,8 @@ public class MyPortfolioAppServiceTests : TradeTestBase
                 ChainId = ChainName,
                 Timestamp = DateTime.Now.AddDays(-3),
                 Type = LiquidityType.Mint,
-                LpTokenAmount = "1000000",
-                TotalSupply = "1000000",
+                LpTokenAmount = "1",
+                TotalSupply = "1",
                 BlockHeight = 100
             });
         });
@@ -63,8 +63,8 @@ public class MyPortfolioAppServiceTests : TradeTestBase
                 ChainId = ChainName,
                 PairAddress = TradePairEthUsdtAddress,
                 Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-2)),
-                ReserveA = 100000000,
-                ReserveB = 1000000,
+                ReserveA = NumberFormatter.WithDecimals(10, 8),
+                ReserveB = NumberFormatter.WithDecimals(90, 6),
                 BlockHeight = 101,
                 SymbolA = "ETH",
                 SymbolB = "USDT",
@@ -72,76 +72,6 @@ public class MyPortfolioAppServiceTests : TradeTestBase
                 Token1PriceInUsd = 1
             });
         });
-    }
-
-    private async Task PrepareUserData()
-    {
-        
-        var index1 = new CurrentUserLiquidityIndex
-        {
-            TradePairId = TradePairEthUsdtId,
-            Address = UserAddress,
-            ChainId = ChainId,
-            LpTokenAmount = 10000
-        };
-        await _currentUserLiquidityIndexRepository.AddAsync(index1);
-
-        var index2 = new UserLiquiditySnapshotIndex
-        {
-            TradePairId = TradePairEthUsdtId,
-            Address = UserAddress,
-            LpTokenAmount = 10000,
-            SnapShotTime = DateTime.Today,
-            Token0TotalFee = 10,
-            Token1TotalFee = 10
-        };
-        await _userLiquiditySnapshotIndexRepository.AddAsync(index2);
-    }
-    
-    [Fact]
-    public async Task GetUserPositionTest()
-    {
-        await PrepareTradePairData();
-        await PrepareUserData();
-
-        var result = await _myPortfolioAppService.GetUserPositionsAsync(new GetUserPositionsDto()
-        {
-            ChainId = ChainName,
-            Address = UserAddress,
-            EstimatedAprType = (int)EstimatedAprType.All
-        });
-        result.Items.Count.ShouldBe(1);
-        
-        result = await _myPortfolioAppService.GetUserPositionsAsync(new GetUserPositionsDto()
-        {
-            ChainId = ChainName,
-            Address = UserAddress,
-            EstimatedAprType = (int)EstimatedAprType.Week
-        });
-        result.Items.Count.ShouldBe(1);
-        
-        result = await _myPortfolioAppService.GetUserPositionsAsync(new GetUserPositionsDto()
-        {
-            ChainId = ChainName,
-            Address = UserAddress,
-            EstimatedAprType = (int)EstimatedAprType.Month
-        });
-        result.Items.Count.ShouldBe(1);
-    }
-
-    [Fact]
-    public async Task GetUserPortfolioTest()
-    {
-        await PrepareTradePairData();
-        await PrepareUserData();
-
-        var result = await _myPortfolioAppService.GetUserPortfolioAsync(new GetUserPortfolioDto()
-        {
-            ChainId = ChainName,
-            Address = UserAddress,
-        });
-        result.TradePairDistributions.Count.ShouldBe(1);
-        result.TokenDistributions.Count.ShouldBe(2);
     }
 
     private async Task SyncAddLiquidityRecordTest()
@@ -394,5 +324,89 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
         snapshotIndex.LpTokenAmount.ShouldBe(25000);
+    }
+    
+    [Fact]
+    public async Task GetUserPositionTest()
+    {
+        await PrepareTradePairData();
+        await SyncSwapRecordTest();
+
+        var result = await _myPortfolioAppService.GetUserPositionsAsync(new GetUserPositionsDto()
+        {
+            ChainId = ChainName,
+            Address = UserAddress,
+            EstimatedAprType = (int)EstimatedAprType.All
+        });
+        result.Items.Count.ShouldBe(1);
+        result.Items[0].LpTokenAmount.ShouldBe("0.0005");
+        result.Items[0].Token0Amount.ShouldBe("0.005");
+        result.Items[0].Token1Amount.ShouldBe("0.045");
+        result.Items[0].cumulativeAddition.ValueInUsd.ShouldBe("0.001");
+        result.Items[0].cumulativeAddition.Token0ValueInUsd.ShouldBe("0");
+        result.Items[0].cumulativeAddition.Token1ValueInUsd.ShouldBe("0.001");
+        result.Items[0].Fee.ValueInUsd.ShouldBe("0.0001");
+        result.Items[0].Fee.Token0ValueInUsd.ShouldBe("0");
+        result.Items[0].Fee.Token1ValueInUsd.ShouldBe("0.0001");
+        result.Items[0].DynamicAPR.Substring(0, 8).ShouldBe("0.886833");
+        result.Items[0].ImpermanentLossInUSD.ShouldBe("0.049");
+        result.Items[0].EstimatedAPR.Substring(0, 8).ShouldBe("0.180986");
+    }
+    
+    [Fact]
+    public async Task GetEstimatedAPRWeekTest()
+    {
+        await PrepareTradePairData();
+        await SyncAddLiquidityRecordTest();
+        var swapRecordDto = new SwapRecordDto
+        {
+            ChainId = "tDVV",
+            PairAddress = TradePairEthUsdtAddress,
+            Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+            TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+            Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1)),
+            AmountOut = NumberFormatter.WithDecimals(1000, 8),
+            AmountIn = NumberFormatter.WithDecimals(1000, 6),
+            SymbolOut = TokenEthSymbol,
+            SymbolIn = TokenUsdtSymbol,
+            TotalFee = 100,
+            Channel = "test",
+            BlockHeight = 99,
+        };
+        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto);
+
+        var result = await _myPortfolioAppService.GetUserPositionsAsync(new GetUserPositionsDto()
+        {
+            ChainId = ChainName,
+            Address = UserAddress,
+            EstimatedAprType = (int)EstimatedAprType.Week
+        });
+        result.Items.Count.ShouldBe(1);
+        result.Items[0].EstimatedAPRType.ShouldBe(EstimatedAprType.Week);
+        result.Items[0].EstimatedAPR.Substring(0, 4).ShouldBe("0.04");
+    }
+
+    [Fact]
+    public async Task GetUserPortfolioTest()
+    {
+        await PrepareTradePairData();
+        await SyncSwapRecordTest();
+        var result = await _myPortfolioAppService.GetUserPortfolioAsync(new GetUserPortfolioDto()
+        {
+            ChainId = ChainName,
+            Address = UserAddress,
+        });
+        result.TradePairDistributions.Count.ShouldBe(1);
+        result.TradePairDistributions[0].PositionInUsd.ShouldBe("0.05");
+        result.TradePairDistributions[0].PositionPercent.ShouldBe("1");
+        result.TradePairDistributions[0].FeeInUsd.Substring(0,6).ShouldBe("0.0001");
+        result.TradePairDistributions[0].FeePercent.ShouldBe("1");
+        result.TokenDistributions.Count.ShouldBe(2);
+        result.TokenDistributions[0].PositionInUsd.Substring(0,5).ShouldBe("0.005");
+        result.TokenDistributions[0].PositionPercent.Substring(0,3).ShouldBe("0.1");
+        result.TokenDistributions[0].FeePercent.ShouldBe("0.1");
+        result.TokenDistributions[1].PositionInUsd.Substring(0,5).ShouldBe("0.045");
+        result.TokenDistributions[1].PositionPercent.Substring(0,3).ShouldBe("0.9");
+        result.TokenDistributions[1].FeePercent.ShouldBe("0.9");
     }
 }
