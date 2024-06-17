@@ -25,7 +25,7 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
  
     protected readonly IChainAppService _chainAppService;
     protected readonly IGraphQLProvider _graphQlProvider;
-    private readonly MyPortfolioAppService _portfolioAppService;
+    private readonly IMyPortfolioAppService _portfolioAppService;
 
     public PortfolioEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
         ILogger<AwakenServerWorkerBase> logger,
@@ -33,7 +33,7 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
-        MyPortfolioAppService portfolioAppService)
+        IMyPortfolioAppService portfolioAppService)
         : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
     {
         _chainAppService = chainAppService;
@@ -46,6 +46,8 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
         var currentConfirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Id);
         var liquidityRecordList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
+        _logger.LogInformation("portfolioWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
+            liquidityRecordList.Count, swapRecordList.Count);
         long blockHeight = -1;
         try
         {

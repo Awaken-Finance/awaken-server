@@ -6,29 +6,40 @@ using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.MyPortfolio;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
+using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
+using Microsoft.Extensions.Logging;
 using Nest;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
+using Volo.Abp.EventBus.Distributed;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 
 namespace AwakenServer.Asset;
 
 [RemoteService(false)]
-public class MyPortfolioAppService : ApplicationService
+public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
 {
-    public const string SyncedTransactionCachePrefix = "MyPortfolioSyned";
+    public const string SyncedTransactionCachePrefix = "MyPortfolioSynced";
     private readonly IClusterClient _clusterClient;
     private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
     private readonly INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiquidityIndexRepository;
     private readonly IDistributedCache<string> _syncedTransactionIdCache;
-    public MyPortfolioAppService(IClusterClient clusterClient, INESTRepository<TradePair, Guid> tradePairIndexRepository, INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiquidityIndexRepository)
+    private readonly IDistributedEventBus _distributedEventBus;
+    private readonly ILogger<MyPortfolioAppService> _logger;
+    public MyPortfolioAppService(IClusterClient clusterClient, INESTRepository<TradePair, Guid> tradePairIndexRepository,
+        INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiquidityIndexRepository,
+        IDistributedCache<string> syncedTransactionIdCache,
+        IDistributedEventBus distributedEventBus, ILogger<MyPortfolioAppService> logger)
     {
         _clusterClient = clusterClient;
         _tradePairIndexRepository = tradePairIndexRepository;
         _currentUserLiquidityIndexRepository = currentUserLiquidityIndexRepository;
+        _syncedTransactionIdCache = syncedTransactionIdCache;
+        _distributedEventBus = distributedEventBus;
+        _logger = logger;
     }
 
     public async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto)
@@ -42,17 +53,21 @@ public class MyPortfolioAppService : ApplicationService
         var tradePair = await GetTradePairAsync(liquidityRecordDto.ChainId, liquidityRecordDto.Pair);
         if (tradePair == null)
         {
+            _logger.LogInformation("can not find trade pair: {chainId}, {pairAddress}", liquidityRecordDto.ChainId,
+                liquidityRecordDto.Address);
             return false;
         }
         var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
         await currentTradePairGrain.AddTotalSupplyAsync(liquidityRecordDto.Type == LiquidityType.Mint ? 
-            liquidityRecordDto.LpTokenAmount : -liquidityRecordDto.LpTokenAmount);
+            liquidityRecordDto.LpTokenAmount : -liquidityRecordDto.LpTokenAmount, liquidityRecordDto.Timestamp);
         
         var currentUserLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(GrainIdHelper.GenerateGrainId(liquidityRecordDto.Address, tradePair.Id));
         var currentUserLiquidityGrainResult = liquidityRecordDto.Type == LiquidityType.Mint
             ? await currentUserLiquidityGrain.AddLiquidityAsync(tradePair, liquidityRecordDto)
             : await currentUserLiquidityGrain.RemoveLiquidityAsync(tradePair, liquidityRecordDto);
         // publish eto
+        await _distributedEventBus.PublishAsync(
+            ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
         var userLiquiditySnapshotGrainDto = new UserLiquiditySnapshotGrainDto()
         {
             Address = liquidityRecordDto.Address,
@@ -62,8 +77,9 @@ public class MyPortfolioAppService : ApplicationService
         };
         var userLiquiditySnapshotGrain = _clusterClient.GetGrain<IUserLiquiditySnapshotGrain>(
             GrainIdHelper.GenerateGrainId(liquidityRecordDto.Address, tradePair.Id, userLiquiditySnapshotGrainDto.SnapShotTime));
-        await userLiquiditySnapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
+        var userLiquiditySnapshotResult = await userLiquiditySnapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
         // publish eto
+        await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshot, UserLiquiditySnapshotEto>(userLiquiditySnapshotResult.Data));
         await _syncedTransactionIdCache.SetAsync(key, "1");
         return true;
     }
@@ -94,6 +110,8 @@ public class MyPortfolioAppService : ApplicationService
         var tradePair = await GetTradePairAsync(swapRecordDto.ChainId, swapRecordDto.PairAddress);
         if (tradePair == null)
         {
+            _logger.LogInformation("can not find trade pair: {chainId}, {pairAddress}", swapRecordDto.ChainId,
+                swapRecordDto.PairAddress);
             return false;
         }
         var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
@@ -112,8 +130,10 @@ public class MyPortfolioAppService : ApplicationService
                 continue;
             }
             var currentLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(GrainIdHelper.GenerateGrainId(userLiquidity.Address, tradePair.Id));
-            var currentLiquidityGrainResult = await currentLiquidityGrain.AddTotalFee(userToken0Fee, userToken1Fee);
+            var currentLiquidityGrainResult = await currentLiquidityGrain.AddTotalFee(userToken0Fee, userToken1Fee, swapRecordDto);
             // publish CurrentUserLiquidityEto
+            await _distributedEventBus.PublishAsync(
+                ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentLiquidityGrainResult.Data));
             
             var userLiquiditySnapshotGrainDto = new UserLiquiditySnapshotGrainDto()
             {
@@ -126,8 +146,9 @@ public class MyPortfolioAppService : ApplicationService
             };
             var snapshotGrain = _clusterClient.GetGrain<IUserLiquiditySnapshotGrain>(
                 GrainIdHelper.GenerateGrainId(userLiquidity.Address, tradePair.Id, currentLiquidityGrainResult.Data.LastUpdateTime.Date));
-            await snapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
+            var snapshotResult = await snapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
             // publish UserLiquiditySnapshotEto
+            await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshot, UserLiquiditySnapshotEto>(snapshotResult.Data));
         }
         return true;
     }

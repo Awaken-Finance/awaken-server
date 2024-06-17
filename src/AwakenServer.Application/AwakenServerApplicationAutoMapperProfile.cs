@@ -156,6 +156,9 @@ namespace AwakenServer
             CreateMap<PathNode, PathNodeDto>();
             CreateMap<TradePairGrainDto, TradePairDto>();
             CreateMap<GetTokenPathsInput, GetTokenPathGrainDto>();
+
+            CreateMap<CurrentUserLiquidityEto, CurrentUserLiquidityIndex>();
+            CreateMap<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>();
             
             //Favorite
             CreateMapForFavorite();

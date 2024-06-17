@@ -378,7 +378,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
 
     public long GetAverageHoldingPeriod(CurrentUserLiquidityIndex userLiquidityIndex)
     {
-        return (DateTimeHelper.ToUnixTimeSeconds(DateTime.UtcNow) - userLiquidityIndex.AverageHoldingStartTime) / 24 * 60 * 60;
+        return (DateTimeHelper.ToUnixTimeSeconds(DateTime.UtcNow) - DateTimeHelper.ToUnixTimeSeconds(userLiquidityIndex.AverageHoldingStartTime)) / 24 * 60 * 60;
     }
     
     public long GetDayDifference(EstimatedAprType type, CurrentUserLiquidityIndex userLiquidityIndex)
