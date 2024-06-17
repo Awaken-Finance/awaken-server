@@ -12,14 +12,14 @@ public class CurrentTradePairGrain : Grain<CurrentTradePairState>, ICurrentTrade
         _objectMapper = objectMapper;
     }
 
-    public async Task<GrainResultDto<CurrentTradePairGrainDto>> AddTotalSupplyAsync(long lpTokenAmount)
+    public async Task<GrainResultDto<CurrentTradePairGrainDto>> AddTotalSupplyAsync(long lpTokenAmount, long timestamp)
     {
         if (State.TradePairId == Guid.Empty)
         {
             State.TradePairId = Guid.Parse(this.GetPrimaryKeyString());
         }
         State.TotalSupply += lpTokenAmount;
-        State.LastUpdateTime = DateTime.UtcNow;
+        State.LastUpdateTime = DateTimeHelper.FromUnixTimeMilliseconds(timestamp);
         await WriteStateAsync();
         return new GrainResultDto<CurrentTradePairGrainDto>()
         {
