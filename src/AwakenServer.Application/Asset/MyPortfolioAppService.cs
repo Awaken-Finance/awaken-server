@@ -338,7 +338,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return list.Item2;
     }
 
-    private async Task<double> GetLpTokenSnapshotValueAsync(string token0Symbol, string token1Symbol, UserLiquiditySnapshotIndex userLiquiditySnapshotIndex)
+    private async Task<double> GetTvlSnapshotAsync(string token0Symbol, string token1Symbol, UserLiquiditySnapshotIndex userLiquiditySnapshotIndex)
     {
         var mustQuery =
             new List<Func<QueryContainerDescriptor<TradePairMarketDataSnapshot>, QueryContainer>>();
@@ -392,7 +392,11 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var sumFee = 0.0;
         foreach (var userLiquiditySnapshot in userLiquiditySnapshots)
         {
-            var lpTokenValueInUsd = await GetLpTokenSnapshotValueAsync(token0Symbol, token1Symbol, userLiquiditySnapshot);
+            var tvl = await GetTvlSnapshotAsync(token0Symbol, token1Symbol, userLiquiditySnapshot);
+            var currentTradePairGrain =
+                _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
+            var currentTotalSupply = await currentTradePairGrain.GetAsync();
+            var lpTokenValueInUsd = tvl * Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / currentTotalSupply.Data.TotalSupply;
             sumLpTokenInUsd += lpTokenValueInUsd;
             sumFee +=
                 (Double.Parse(userLiquiditySnapshot.Token0TotalFee.ToDecimalsString(token0Decimal)) * token0Price +
