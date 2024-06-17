@@ -44,11 +44,19 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
     public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
     {
         var currentConfirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Id);
-        var liquidityRecordList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
-        var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
+        
+        var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, currentConfirmedHeight, 0, _workerOptions.QueryOnceLimit);
+        var maxBlockHeight = currentConfirmedHeight;
+        if (swapRecordList.Count >= _workerOptions.QueryOnceLimit)
+        {
+            maxBlockHeight = swapRecordList[_workerOptions.QueryOnceLimit - 1].BlockHeight;
+        }
+        var liquidityRecordList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 
+            maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
         _logger.LogInformation("portfolioWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
             liquidityRecordList.Count, swapRecordList.Count);
         long blockHeight = -1;
+        var logCount = 0;
         try
         {
             for (;;)
@@ -62,17 +70,24 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
                 {
                     await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord);
                     blockHeight = Math.Max(blockHeight, liquidityRecord.BlockHeight);
+                    await Task.Delay(3000);
                 }
                 else
                 {
                     await _portfolioAppService.SyncSwapRecordAsync(swapRecord);
                     blockHeight = Math.Max(blockHeight, swapRecord.BlockHeight);
                 }
+
+                if (logCount++ == 10)
+                {
+                    _logger.LogInformation("Portfolio blockHeight : {height}", blockHeight);
+                    logCount = 0;
+                }
             }
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Portfolio liquidity event fail.");
+            _logger.LogError(e, "Portfolio event fail.");
         }
 
         return blockHeight;
