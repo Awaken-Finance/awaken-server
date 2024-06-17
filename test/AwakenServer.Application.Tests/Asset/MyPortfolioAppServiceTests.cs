@@ -3,29 +3,147 @@ using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.MyPortfolio;
+using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.Tests;
+using AwakenServer.Price;
+using AwakenServer.Provider;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
 using Shouldly;
 using Xunit;
+using TradePairMarketDataSnapshot = AwakenServer.Trade.TradePairMarketDataSnapshot;
 
 namespace AwakenServer.Asset;
 
 [Collection(ClusterCollection.Name)]
 public class MyPortfolioAppServiceTests : TradeTestBase
 {
+    private readonly MockGraphQLProvider _graphQlProvider;
+    private readonly IAssetAppService _assetAppService;
+    private readonly IPriceAppService _priceAppService;
+    private readonly INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiquidityIndexRepository;
+    private readonly INESTRepository<UserLiquiditySnapshotIndex, Guid> _userLiquiditySnapshotIndexRepository;
+    private readonly INESTRepository<TradePairMarketDataSnapshot, Guid> _tradePairSnapshotIndexRepository;
+    private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
     private readonly IMyPortfolioAppService _myPortfolioAppService;
-    private readonly INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiquidityRepository;
-    private readonly INESTRepository<UserLiquiditySnapshotIndex, Guid> _userLiquiditySnapshotRepository;
-
+    
+    protected readonly string UserAddress = "0x1";
     public MyPortfolioAppServiceTests()
     {
+        _graphQlProvider = GetRequiredService<MockGraphQLProvider>();
+        _assetAppService = GetRequiredService<IAssetAppService>();
+        _priceAppService = GetRequiredService<IPriceAppService>();
+        _currentUserLiquidityIndexRepository = GetRequiredService<INESTRepository<CurrentUserLiquidityIndex, Guid>>();
+        _userLiquiditySnapshotIndexRepository = GetRequiredService<INESTRepository<UserLiquiditySnapshotIndex, Guid>>();
+        _tradePairSnapshotIndexRepository = GetRequiredService<INESTRepository<TradePairMarketDataSnapshot, Guid>>();
+        _tradePairMarketDataProvider = GetRequiredService<ITradePairMarketDataProvider>();
         _myPortfolioAppService = GetRequiredService<IMyPortfolioAppService>();
-        _currentUserLiquidityRepository = GetRequiredService<INESTRepository<CurrentUserLiquidityIndex, Guid>>();
-        _userLiquiditySnapshotRepository = GetRequiredService<INESTRepository<UserLiquiditySnapshotIndex, Guid>>();
+    }
+
+    private async Task PrepareTradePairData()
+    {
+        await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(TradePairEthUsdtId, async grain =>
+        {
+            return await grain.UpdateTotalSupplyAsync(new LiquidityRecordGrainDto()
+            {
+                ChainId = ChainName,
+                Timestamp = DateTime.Now.AddDays(-3),
+                Type = LiquidityType.Mint,
+                LpTokenAmount = "1000000",
+                TotalSupply = "1000000",
+                BlockHeight = 100
+            });
+        });
+        
+        await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(TradePairEthUsdtId, async grain =>
+        {
+            return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
+            {
+                ChainId = ChainName,
+                PairAddress = TradePairEthUsdtAddress,
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-2)),
+                ReserveA = 100000000,
+                ReserveB = 1000000,
+                BlockHeight = 101,
+                SymbolA = "ETH",
+                SymbolB = "USDT",
+                Token0PriceInUsd = 1,
+                Token1PriceInUsd = 1
+            });
+        });
+    }
+
+    private async Task PrepareUserData()
+    {
+        
+        var index1 = new CurrentUserLiquidityIndex
+        {
+            TradePairId = TradePairEthUsdtId,
+            Address = UserAddress,
+            ChainId = ChainId,
+            LpTokenAmount = 10000
+        };
+        await _currentUserLiquidityIndexRepository.AddAsync(index1);
+
+        var index2 = new UserLiquiditySnapshotIndex
+        {
+            TradePairId = TradePairEthUsdtId,
+            Address = UserAddress,
+            LpTokenAmount = 10000,
+            SnapShotTime = DateTime.Today,
+            Token0TotalFee = 10,
+            Token1TotalFee = 10
+        };
+        await _userLiquiditySnapshotIndexRepository.AddAsync(index2);
     }
     
+    [Fact]
+    public async Task GetUserPositionTest()
+    {
+        await PrepareTradePairData();
+        await PrepareUserData();
+
+        var result = await _myPortfolioAppService.GetUserPositionsAsync(new GetUserPositionsDto()
+        {
+            ChainId = ChainName,
+            Address = UserAddress,
+            EstimatedAprType = (int)EstimatedAprType.All
+        });
+        result.Items.Count.ShouldBe(1);
+        
+        result = await _myPortfolioAppService.GetUserPositionsAsync(new GetUserPositionsDto()
+        {
+            ChainId = ChainName,
+            Address = UserAddress,
+            EstimatedAprType = (int)EstimatedAprType.Week
+        });
+        result.Items.Count.ShouldBe(1);
+        
+        result = await _myPortfolioAppService.GetUserPositionsAsync(new GetUserPositionsDto()
+        {
+            ChainId = ChainName,
+            Address = UserAddress,
+            EstimatedAprType = (int)EstimatedAprType.Month
+        });
+        result.Items.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task GetUserPortfolioTest()
+    {
+        await PrepareTradePairData();
+        await PrepareUserData();
+
+        var result = await _myPortfolioAppService.GetUserPortfolioAsync(new GetUserPortfolioDto()
+        {
+            ChainId = ChainName,
+            Address = UserAddress,
+        });
+        result.TradePairDistributions.Count.ShouldBe(1);
+        result.TokenDistributions.Count.ShouldBe(2);
+    }
+
     private async Task SyncAddLiquidityRecordTest()
     {
         var inputMint = new LiquidityRecordDto()
@@ -57,7 +175,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentTradePairResult.Data.TotalSupply.ShouldBe(50000);
 
 
-        var currentUserLiquidityIndex = await _currentUserLiquidityRepository.GetAsync(q =>
+        var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint.Address)));
         currentUserLiquidityIndex.LpTokenAmount.ShouldBe(50000);
@@ -67,7 +185,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentUserLiquidityIndex.AverageHoldingStartTime.ShouldBe(currentUserLiquidityIndex.LastUpdateTime);
 
         var snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
-        var snapshotIndex = await _userLiquiditySnapshotRepository.GetAsync(q =>
+        var snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint.Address)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
@@ -107,7 +225,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentTradePairResult.Data.LastUpdateTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(2000));
         currentTradePairResult.Data.TotalSupply.ShouldBe(100000);
 
-        var currentUserLiquidityIndex = await _currentUserLiquidityRepository.GetAsync(q =>
+        var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint1.Address)));
         currentUserLiquidityIndex.LpTokenAmount.ShouldBe(100000);
@@ -117,7 +235,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentUserLiquidityIndex.AverageHoldingStartTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(1500));
         
         var snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
-        var snapshotIndex = await _userLiquiditySnapshotRepository.GetAsync(q =>
+        var snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint1.Address)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
@@ -148,7 +266,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentTradePairResult.Data.TotalSupply.ShouldBe(50000);
         
         
-        currentUserLiquidityIndex = await _currentUserLiquidityRepository.GetAsync(q =>
+        currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint1.Address)));
         currentUserLiquidityIndex.LpTokenAmount.ShouldBe(50000);
@@ -158,7 +276,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentUserLiquidityIndex.AverageHoldingStartTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(1500));
         
         snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
-        snapshotIndex = await _userLiquiditySnapshotRepository.GetAsync(q =>
+        snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint1.Address)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
@@ -210,14 +328,14 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentTradePairResult.Data.Token0TotalFee.ShouldBe(10);
         currentTradePairResult.Data.Token1TotalFee.ShouldBe(100);
         
-        var currentUserLiquidityIndex = await _currentUserLiquidityRepository.GetAsync(q =>
+        var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value("0x123456789")));
         currentUserLiquidityIndex.Token0UnReceivedFee.ShouldBe(10);
         currentUserLiquidityIndex.Token1UnReceivedFee.ShouldBe(100);
         
         var snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
-        var snapshotIndex = await _userLiquiditySnapshotRepository.GetAsync(q =>
+        var snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value("0x123456789")) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
@@ -257,7 +375,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentTradePairResult.Data.TotalSupply.ShouldBe(25000);
         
         
-        var currentUserLiquidityIndex = await _currentUserLiquidityRepository.GetAsync(q =>
+        var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)));
         currentUserLiquidityIndex.LpTokenAmount.ShouldBe(25000);
@@ -271,7 +389,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentUserLiquidityIndex.AverageHoldingStartTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(1000));
         
         var snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
-        var snapshotIndex = await _userLiquiditySnapshotRepository.GetAsync(q =>
+        var snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
