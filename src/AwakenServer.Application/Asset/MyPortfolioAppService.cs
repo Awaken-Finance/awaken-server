@@ -203,11 +203,12 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
 
             var lpTokenPercentage = String.IsNullOrEmpty(pair.TotalSupply) || pair.TotalSupply == "0"
                 ? 0.0
-                : userLiquidityIndex.LpTokenAmount / Double.Parse(pair.TotalSupply);
+                : Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(pair.TotalSupply);
             var token0Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
             var token1Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
             var valueInUsd = lpTokenPercentage * pair.TVL;
-            var fee = userLiquidityIndex.Token0UnReceivedFee + userLiquidityIndex.Token1UnReceivedFee;
+            var fee = Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals)) +
+                      Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
             
             sumValueInUsd += valueInUsd;
             sumFeeInUsd += fee;
@@ -339,16 +340,17 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return snapshot.ValueLocked0 * token0PriceInUsd + snapshot.ValueLocked1 * token1PriceInUsd;
     }
 
-    private async Task<double> CalculateEstimatedAPRAsync(string token0Symbol, string token1Symbol, EstimatedAprType type, CurrentUserLiquidityIndex userLiquidityIndex)
+    private async Task<double> CalculateEstimatedAPRAsync(string token0Symbol, string token1Symbol, int token0Decimal, int token1Decimal, EstimatedAprType type, CurrentUserLiquidityIndex userLiquidityIndex)
     {
         var token0Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(userLiquidityIndex.ChainId, token0Symbol);
         var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(userLiquidityIndex.ChainId, token1Symbol);
         
         if (type == EstimatedAprType.All)
         {
-            var unReveivedFee = userLiquidityIndex.Token0UnReceivedFee * token0Price + userLiquidityIndex.Token1UnReceivedFee * token1Price;
-            var cumulativeAddtion = userLiquidityIndex.Token0CumulativeAddition * token0Price +
-                                    userLiquidityIndex.Token1CumulativeAddition * token1Price;
+            var unReveivedFee = Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(token0Decimal)) * token0Price +
+                                             Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(token1Decimal)) * token1Price;
+            var cumulativeAddtion = Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(token0Decimal)) * token0Price +
+                                                 Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(token1Decimal)) * token1Price;
             var averageHoldingPeriod = GetAverageHoldingPeriod(userLiquidityIndex);
             if (cumulativeAddtion == 0 || averageHoldingPeriod == 0)
             {
@@ -374,7 +376,9 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         {
             var lpTokenValueInUsd = await GetLpTokenSnapshotValueAsync(token0Symbol, token1Symbol, userLiquiditySnapshot);
             sumLpTokenInUsd += lpTokenValueInUsd;
-            sumFee += (userLiquiditySnapshot.Token0TotalFee * token0Price + userLiquiditySnapshot.Token1TotalFee * token1Price);
+            sumFee +=
+                (Double.Parse(userLiquiditySnapshot.Token0TotalFee.ToDecimalsString(token0Decimal)) * token0Price +
+                 Double.Parse(userLiquiditySnapshot.Token1TotalFee.ToDecimalsString(token1Decimal)) * token1Price);
         }
 
         var avgLpTokenInUsd = sumLpTokenInUsd / periodInDays;
@@ -402,16 +406,20 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             
             var lpTokenPercentage = String.IsNullOrEmpty(pair.TotalSupply) || pair.TotalSupply == "0"
                 ? 0.0
-                : userLiquidityIndex.LpTokenAmount / Double.Parse(pair.TotalSupply);
+                : Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(pair.TotalSupply);
             var token0Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
             var token1Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
             var valueInUsd = lpTokenPercentage * pair.TVL;
+            var token0UnReceivedFee =
+                Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
+            var token1UnReceivedFee =
+                Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
             var token0Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token0.Symbol);
             var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token1.Symbol);
-            var cumulativeAdditionInUsd = userLiquidityIndex.Token0CumulativeAddition * token0Price +
-                                          userLiquidityIndex.Token1CumulativeAddition * token1Price;
+            var cumulativeAdditionInUsd = Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals)) * token0Price +
+                                          Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals)) * token1Price;
             var averageHoldingPeriod = GetAverageHoldingPeriod(userLiquidityIndex);
-            var estimatedAPR = await CalculateEstimatedAPRAsync(pair.Token0Symbol, pair.Token1Symbol, (EstimatedAprType)input.EstimatedAprType, userLiquidityIndex);
+            var estimatedAPR = await CalculateEstimatedAPRAsync(pair.Token0Symbol, pair.Token1Symbol, pair.Token0.Decimals, pair.Token1.Decimals, (EstimatedAprType)input.EstimatedAprType, userLiquidityIndex);
             var dynamicAPR = (averageHoldingPeriod != 0 && cumulativeAdditionInUsd != 0)
                 ? (valueInUsd - cumulativeAdditionInUsd) / cumulativeAdditionInUsd * 360 /
                   averageHoldingPeriod
@@ -438,7 +446,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 Token1Amount = (lpTokenPercentage * pair.ValueLocked1).ToString(),
                 Token0Percent = token0Percenage.ToString(),
                 Token1Percent = token1Percenage.ToString(),
-                LpTokenAmount = userLiquidityIndex.LpTokenAmount.ToString(),
+                LpTokenAmount = userLiquidityIndex.LpTokenAmount.ToDecimalsString(8),
                 Position = new LiquidityPoolValueInfo()
                 {
                     ValueInUsd = valueInUsd.ToString(),
@@ -449,19 +457,19 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 },
                 Fee = new LiquidityPoolValueInfo()
                 {
-                    ValueInUsd = (userLiquidityIndex.Token0UnReceivedFee * token0Price + userLiquidityIndex.Token1UnReceivedFee * token1Price).ToString(),
-                    Token0Value = userLiquidityIndex.Token0UnReceivedFee.ToString(),
-                    Token0ValueInUsd = (userLiquidityIndex.Token0UnReceivedFee * token0Price).ToString(),
-                    Token1Value = userLiquidityIndex.Token1UnReceivedFee.ToString(),
-                    Token1ValueInUsd = (userLiquidityIndex.Token1UnReceivedFee * token1Price).ToString(),
+                    ValueInUsd = (token0UnReceivedFee * token0Price + token1UnReceivedFee * token1Price).ToString(),
+                    Token0Value = token0UnReceivedFee.ToString(),
+                    Token0ValueInUsd = (token0UnReceivedFee * token0Price).ToString(),
+                    Token1Value = token1UnReceivedFee.ToString(),
+                    Token1ValueInUsd = (token1UnReceivedFee * token1Price).ToString(),
                 },
                 cumulativeAddition = new LiquidityPoolValueInfo()
                 {
                     ValueInUsd = cumulativeAdditionInUsd.ToString(),
-                    Token0Value = userLiquidityIndex.Token0CumulativeAddition.ToString(),
-                    Token0ValueInUsd = (userLiquidityIndex.Token0CumulativeAddition * token0Price).ToString(),
-                    Token1Value = userLiquidityIndex.Token1CumulativeAddition.ToString(),
-                    Token1ValueInUsd = (userLiquidityIndex.Token1CumulativeAddition * token1Price).ToString(),
+                    Token0Value = userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals),
+                    Token0ValueInUsd = (Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals)) * token0Price).ToString(),
+                    Token1Value = userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals),
+                    Token1ValueInUsd = (Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals)) * token1Price).ToString(),
                 },
                 EstimatedAPRType = (EstimatedAprType)input.EstimatedAprType,
                 EstimatedAPR = estimatedAPR.ToString(),
