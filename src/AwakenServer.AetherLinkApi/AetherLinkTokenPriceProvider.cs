@@ -38,13 +38,13 @@ public class AetherLinkTokenPriceProvider : ITokenPriceProvider
                 AggregateType = AggregateType.Latest
             })).Data;
 
-            _logger.LogInformation($"get token price from Aetherlink price service, {result.TokenPair}, {result.Price}, {result.Decimal}");
+            _logger.LogInformation($"Get token price from Aetherlink price service, pair: {result.TokenPair}, price: {result.Price}, decimal: {result.Decimal}");
     
             return (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
         }
         catch (Exception e)
         {
-            _logger.LogError($"get token price from Aetherlink price service faild, {pair}, {e}");
+            _logger.LogError($"Get token price from Aetherlink price service faild, pair: {pair}, exception: {e}");
             throw;
         }
     }
@@ -61,13 +61,13 @@ public class AetherLinkTokenPriceProvider : ITokenPriceProvider
                 TimeStamp = date
             })).Data;
 
-            _logger.LogInformation($"get token daily price from Aetherlink price service, tokenPair: {tokenPair}, TimeStamp: {date}, result.Price: {result.Price}, result.Decimal: {result.Decimal}");
+            _logger.LogInformation($"Get history token price from Aetherlink price service, tokenPair: {tokenPair}, TimeStamp: {date}, result.Price: {result.Price}, result.Decimal: {result.Decimal}");
     
             return (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
         }
         catch (Exception e)
         {
-            _logger.LogError($"get token daily price from Aetherlink price service faild, {pair}, {dateTime}, {e}");
+            _logger.LogError($"Get history token price from Aetherlink price service faild, {pair}, {dateTime}, {e}");
             return 0;
         }
     }

@@ -56,9 +56,16 @@ namespace AwakenServer.Price
                 return null;
             }
 
-            _tokenPriceOptions.Value.PriceTokenMapping.TryGetValue(symbol.ToUpper(), out var priceTradePair);
-            
-            return priceTradePair;
+            try
+            {
+                _tokenPriceOptions.Value.PriceTokenMapping.TryGetValue(symbol.ToUpper(), out var priceTradePair);
+                return priceTradePair;
+            }
+            catch (Exception e)
+            {
+                Logger.LogInformation($"Get token price symbol: {symbol}, nonexistent mapping symbol");
+                return null;
+            }
         }
         
         private async Task<decimal> ProcessTokenPrice(string symbol, decimal rawPrice, string time)
@@ -78,14 +85,14 @@ namespace AwakenServer.Price
             var pair = GetPriceTradePair(symbol);
             if (String.IsNullOrEmpty(pair))
             {
-                Logger.LogInformation($"Get price, symbol: {symbol}, result price: 0");
+                Logger.LogInformation($"Get token price symbol: {symbol}, nonexistent mapping result price: 0");
                 return 0;
             }
             
             var rawPrice = await _tokenPriceProvider.GetPriceAsync(pair);
             var result = await ProcessTokenPrice(symbol, rawPrice, null);
             
-            Logger.LogInformation($"Get price, symbol: {symbol}, pair: {pair}, rawPrice: {rawPrice}, result price: {result}");
+            Logger.LogInformation($"Get token price symbol: {symbol}, pair: {pair}, rawPrice: {rawPrice}, result price: {result}");
             
             return result;
         }
@@ -95,14 +102,14 @@ namespace AwakenServer.Price
             var pair = GetPriceTradePair(symbol);
             if (String.IsNullOrEmpty(pair))
             {
-                Logger.LogInformation($"Get price, symbol: {symbol}, result price: 0");
+                Logger.LogInformation($"Get history token price symbol: {symbol}, nonexistent mapping result price: 0");
                 return 0;
             }
             
             var rawPrice = await _tokenPriceProvider.GetHistoryPriceAsync(pair, time);
             var result = await ProcessTokenPrice(symbol, rawPrice, time);
             
-            Logger.LogInformation($"Get price, symbol: {symbol}, pair: {pair}, time: {time}, rawPrice: {rawPrice}, result price: {result}");
+            Logger.LogInformation($"Get history token price symbol: {symbol}, pair: {pair}, time: {time}, rawPrice: {rawPrice}, result price: {result}");
             
             return result;
         }
@@ -139,11 +146,23 @@ namespace AwakenServer.Price
                         }
                         catch (Exception e)
                         {
-                            Logger.LogError(e, $"Get price symbol: {symbolList[i]} failed. Return old data price: {price.PriceInUsd}");
+                            // TODO: Remove this code in the next version (v2.2)
+                            // This code is temporarily added to fix historical data issues.
+                            if (price.PriceUpdateTime == DateTime.MinValue)
+                            {
+                                price.PriceUpdateTime = DateTime.UtcNow.AddHours(-1);
+                                await _priceCache.SetAsync(key, price);
+                            }
+                            if (price.PriceInUsd == PriceOptions.DefaultPriceValue)
+                            {
+                                price.PriceInUsd = 0;
+                                await _priceCache.SetAsync(key, price);
+                            }
+                            Logger.LogError(e, $"Get token price symbol: {symbolList[i]} failed. Return old data price: {price.PriceInUsd}");
                         }
                     }
                     
-                    Logger.LogInformation("Get price, {symbol}, {priceInUsd}", symbolList[i], price.PriceInUsd);
+                    Logger.LogInformation($"Get token price symbol: {symbolList[i]}, return price: {price.PriceInUsd}");
                     
                     result.Add(new TokenPriceDataDto
                     {
@@ -154,7 +173,7 @@ namespace AwakenServer.Price
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Get price failed.");
+                Logger.LogError(ex, "Get token price failed.");
                 throw;
             }
 
@@ -192,12 +211,12 @@ namespace AwakenServer.Price
                         }
                         catch (Exception e)
                         {
-                            Logger.LogError(e, $"Get history price symbol: {input.Symbol}, time: {time} failed. Return old data price: {price.PriceInUsd}");
+                            Logger.LogError(e, $"Get history token price symbol: {input.Symbol}, time: {time} failed. Return old data price: {price.PriceInUsd}");
                         }
                        
                     }
                     
-                    Logger.LogInformation("Get history price, {symbol}, {time}, {priceInUsd}", input.Symbol, time, price.PriceInUsd);
+                    Logger.LogInformation($"Get history token price symbol: {input.Symbol}, time: {time}, return price: {price.PriceInUsd}");
                     
                     result.Add(new TokenPriceDataDto
                     {
@@ -208,7 +227,7 @@ namespace AwakenServer.Price
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Get history price failed.");
+                Logger.LogError(ex, "Get history token price failed.");
                 throw;
             }
 
