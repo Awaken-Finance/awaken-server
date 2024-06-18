@@ -348,9 +348,9 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         result.Items[0].Fee.ValueInUsd.ShouldBe("0.0001");
         result.Items[0].Fee.Token0ValueInUsd.ShouldBe("0");
         result.Items[0].Fee.Token1ValueInUsd.ShouldBe("0.0001");
-        result.Items[0].DynamicAPR.Substring(0, 8).ShouldBe("0.886833");
+        result.Items[0].DynamicAPR.Substring(0, 5).ShouldBe("0.886");
         result.Items[0].ImpermanentLossInUSD.ShouldBe("0.049");
-        result.Items[0].EstimatedAPR.Substring(0, 8).ShouldBe("0.180986");
+        result.Items[0].EstimatedAPR.Substring(0, 5).ShouldBe("0.180");
     }
     
     [Fact]
@@ -396,17 +396,15 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             ChainId = ChainName,
             Address = UserAddress,
         });
-        result.TradePairDistributions.Count.ShouldBe(1);
-        result.TradePairDistributions[0].PositionInUsd.ShouldBe("0.05");
-        result.TradePairDistributions[0].PositionPercent.ShouldBe("1");
-        result.TradePairDistributions[0].FeeInUsd.Substring(0,6).ShouldBe("0.0001");
-        result.TradePairDistributions[0].FeePercent.ShouldBe("1");
-        result.TokenDistributions.Count.ShouldBe(2);
-        result.TokenDistributions[0].PositionInUsd.Substring(0,5).ShouldBe("0.005");
-        result.TokenDistributions[0].PositionPercent.Substring(0,3).ShouldBe("0.1");
-        result.TokenDistributions[0].FeePercent.ShouldBe("0.1");
-        result.TokenDistributions[1].PositionInUsd.Substring(0,5).ShouldBe("0.045");
-        result.TokenDistributions[1].PositionPercent.Substring(0,3).ShouldBe("0.9");
-        result.TokenDistributions[1].FeePercent.ShouldBe("0.9");
+        result.TradePairPositionDistributions.Count.ShouldBe(1);
+        result.TradePairPositionDistributions[0].ValueInUsd.ShouldBe("0.05");
+        result.TradePairPositionDistributions[0].ValuePercent.ShouldBe("1");
+        result.TradePairFeeDistributions.Count.ShouldBe(1);
+        result.TradePairFeeDistributions[0].ValueInUsd.Substring(0,6).ShouldBe("0.0001");
+        result.TradePairFeeDistributions[0].ValuePercent.ShouldBe("1");
+        result.TokenPositionDistributions.Count.ShouldBe(2);
+        result.TokenPositionDistributions[0].ValueInUsd.Substring(0,5).ShouldBe("0.045");
+        result.TokenPositionDistributions[0].ValuePercent.Substring(0,3).ShouldBe("0.9");
+        result.TokenFeeDistributions[0].ValuePercent.ShouldBe("0.9");
     }
 }

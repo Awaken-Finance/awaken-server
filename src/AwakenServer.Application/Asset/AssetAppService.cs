@@ -42,8 +42,8 @@ public class AssetAppService : ApplicationService, IAssetAppService
     private readonly IAElfClientProvider _aelfClientProvider;
     private readonly AssetWhenNoTransactionOptions _assetWhenNoTransactionOptions;
     private readonly IDistributedCache<UserAssetInfoDto> _userAssetInfoDtoCache;
-   
-    
+
+
     private const string userAssetInfoDtoPrefix = "AwakenServer:Asset:";
     private readonly IClusterClient _clusterClient;
     private readonly ILogger<AssetAppService> _logger;
@@ -282,7 +282,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
         return defaultTokenDto;
     }
 
-    
+
     public async Task<IdleTokensDto> GetIdleTokensAsync(GetIdleTokensDto input)
     {
         var tokenListDto = await GetUserAssetInfoAsync(new GetUserAssetInfoDto()
@@ -296,22 +296,54 @@ public class AssetAppService : ApplicationService, IAssetAppService
         {
             totalValueInUsd += Double.Parse(userTokenInfo.PriceInUsd);
         }
+
+        var sortedList = tokenListDto.ShowList
+            .Where(u => double.TryParse(u.PriceInUsd, out _))
+            .OrderByDescending(u => double.Parse(u.PriceInUsd))
+            .ToList();
         
         var idleTokenList = new List<IdleToken>();
-        foreach (var userTokenInfo in tokenListDto.ShowList)
+        for (int i = 0; i < sortedList.Count; i++)
         {
+            var userTokenInfo = sortedList[i];
             var percent = totalValueInUsd != 0.0 ? Double.Parse(userTokenInfo.PriceInUsd) / totalValueInUsd : 0.0;
             var tokenDto = await _tokenAppService.GetAsync(new GetTokenInput
             {
                 Symbol = userTokenInfo.Symbol
             });
-            idleTokenList.Add(new IdleToken()
+            if (i < input.ShowCount)
             {
-                Percent = percent.ToString(),
-                ValueInUsd = userTokenInfo.PriceInUsd,
-                TokenDto = tokenDto
-            });
-            _logger.LogInformation($"get idle tokens symbol: {tokenDto.Symbol}, price usd: {userTokenInfo.PriceInUsd}, total usd: {totalValueInUsd}, percent: {percent}");
+                idleTokenList.Add(new IdleToken()
+                {
+                    Percent = percent.ToString(),
+                    ValueInUsd = userTokenInfo.PriceInUsd,
+                    TokenDto = tokenDto
+                });
+            }
+            else if (i == input.ShowCount)
+            {
+                idleTokenList.Add(new IdleToken()
+                {
+                    Percent = percent.ToString(),
+                    ValueInUsd = userTokenInfo.PriceInUsd,
+                    TokenDto = new TokenDto
+                    {
+                        ChainId = tokenDto.ChainId,
+                        Symbol = "Other"
+                    }
+                });
+            }
+            else
+            {
+                var otherSumPercentage = double.Parse(idleTokenList[idleTokenList.Count - 1].Percent) + percent;
+                var otherSumValueInUsd = double.Parse(idleTokenList[idleTokenList.Count - 1].ValueInUsd) +
+                                         double.Parse(userTokenInfo.PriceInUsd);
+                idleTokenList[idleTokenList.Count - 1].Percent = otherSumPercentage.ToString();
+                idleTokenList[idleTokenList.Count - 1].ValueInUsd = otherSumValueInUsd.ToString();
+            }
+
+            _logger.LogInformation(
+                $"get idle tokens symbol: {tokenDto.Symbol}, price usd: {userTokenInfo.PriceInUsd}, total usd: {totalValueInUsd}, percent: {percent}");
         }
 
         return new IdleTokensDto()
