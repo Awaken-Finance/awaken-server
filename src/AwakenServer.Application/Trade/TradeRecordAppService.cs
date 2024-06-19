@@ -189,7 +189,11 @@ namespace AwakenServer.Trade
                 item2 = list.Item2;
             }
 
-            item2.Where(t => t.Side == TradeSide.Swap).Select(t => t.Price = 1 / t.Price);
+            foreach (var tradeRecord in item2.Where(t => t.Side == TradeSide.Swap))
+            {
+                tradeRecord.Price = 1 / tradeRecord.Price;
+            }
+            
             var totalCount = await _tradeRecordIndexRepository.CountAsync(Filter);
 
             return new PagedResultDto<TradeRecordIndexDto>
