@@ -219,6 +219,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             pair.ValuePercent = total != 0 ? (Double.Parse(pair.ValueInUsd) / total).ToString() : "0";
             if (i < showCount)
             {
+                pair.Name = pair.TradePair.Token0.Symbol + '/' + pair.TradePair.Token1.Symbol + '-' + pair.TradePair.FeeRate;
                 result.Add(pair);
             }
             else if (i == showCount)
@@ -271,8 +272,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                     Token = new TokenDto()
                     {
                         ChainId = tokenInfoPair.Value.Token.ChainId,
+                        Symbol = "Other",
                     },
-                    Name = "Other",
                     ValuePercent = tokenInfoPair.Value.ValuePercent,
                     ValueInUsd = tokenInfoPair.Value.ValueInUsd
                 });
@@ -491,7 +492,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return list.Item1 > 0 ? list.Item2[0] : null;
     }
 
-    private async Task<double> GetTvlSnapshotAsync(string token0Symbol, string token1Symbol, double token0PriceInUsd, double token1PriceInUsd, UserLiquiditySnapshotIndex userLiquiditySnapshotIndex)
+    private async Task<TradePairMarketDataSnapshot> GetTradePairMarketSnapshotAsync(
+        UserLiquiditySnapshotIndex userLiquiditySnapshotIndex)
     {
         var mustQuery =
             new List<Func<QueryContainerDescriptor<TradePairMarketDataSnapshot>, QueryContainer>>();
@@ -505,86 +507,129 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             f.Bool(b => b.Must(mustQuery));
 
         var snapshot = await _tradePairSnapshotIndexRepository.GetAsync(Filter, sortType: SortOrder.Descending, sortExp: o => o.Timestamp);
-        return snapshot.ValueLocked0 * token0PriceInUsd + snapshot.ValueLocked1 * token1PriceInUsd;
+        return snapshot;
     }
 
     private async Task<double> CalculateEstimatedAPRAsync(
-    string token0Symbol,
-    string token1Symbol,
-    int token0Decimal,
-    int token1Decimal,
-    double token0Price,
-    double token1Price,
-    EstimatedAprType type,
-    CurrentUserLiquidityIndex userLiquidityIndex)
-{
-    if (type == EstimatedAprType.All)
+        EstimatedAprType type,
+        int token0Decimal,
+        int token1Decimal,
+        double token0Price,
+        double token1Price,
+        CurrentUserLiquidityIndex userLiquidityIndex)
     {
-        var unReveivedFee = Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(token0Decimal)) * token0Price +
-                            Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(token1Decimal)) * token1Price;
-        var cumulativeAddition = Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(token0Decimal)) * token0Price +
-                                 Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(token1Decimal)) * token1Price;
-        var averageHoldingPeriod = GetAverageHoldingPeriod(userLiquidityIndex);
-        if (cumulativeAddition == 0 || averageHoldingPeriod == 0)
+        switch (type)
         {
-            return 0.0;
+            case EstimatedAprType.Week:
+            case EstimatedAprType.Month:
+            {
+                var periodInDays = GetDayDifference(type, userLiquidityIndex);
+                var userLiquiditySnapshots = await GetSnapshotIndexListAsync(userLiquidityIndex.Address,
+                    userLiquidityIndex.ChainId, userLiquidityIndex.TradePairId,
+                    periodInDays);
+
+                _logger.LogInformation($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
+                                       $"get snapshot from es begin, " +
+                                       $"pair: {userLiquidityIndex.TradePairId}, " +
+                                       $"snapshot count: {userLiquiditySnapshots.Count}");
+                if (userLiquiditySnapshots.Count == 0)
+                {
+                    return 0.0;
+                }
+
+                var sumLpTokenInUsdBag = new ConcurrentBag<double>();
+                var sumFeeBag = new ConcurrentBag<double>();
+                var actualSnapshotCount = 0;
+                var tasks = userLiquiditySnapshots.Select(async userLiquiditySnapshot =>
+                {
+                    var tradePairMarketSnapshot = await GetTradePairMarketSnapshotAsync(userLiquiditySnapshot);
+                    if (tradePairMarketSnapshot != null)
+                    {
+                        ++actualSnapshotCount;
+                        var tvl = tradePairMarketSnapshot.ValueLocked0 * token0Price + tradePairMarketSnapshot.ValueLocked1 * token1Price;
+                        var lpTokenPercentage =
+                            string.IsNullOrEmpty(tradePairMarketSnapshot.TotalSupply) ||
+                            tradePairMarketSnapshot.TotalSupply == "0"
+                                ? 0.0
+                                : double.Parse(userLiquiditySnapshot.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(tradePairMarketSnapshot.TotalSupply);
+                        var lpTokenValueInUsd = lpTokenPercentage * tvl;
+                        sumLpTokenInUsdBag.Add(lpTokenValueInUsd);
+                        var token0FeeInUsd = Double.Parse(userLiquiditySnapshot.Token0TotalFee.ToDecimalsString(token0Decimal)) *
+                                             token0Price;
+                        var token1FeeInUsd = Double.Parse(userLiquiditySnapshot.Token1TotalFee.ToDecimalsString(token1Decimal)) *
+                                             token1Price;
+                        sumFeeBag.Add(token0FeeInUsd + token1FeeInUsd);
+                    }
+                }).ToArray();
+
+                await Task.WhenAll(tasks);
+
+                if (actualSnapshotCount == 0)
+                {
+                    return 0.0;
+                }
+                
+                var sumLpTokenInUsd = sumLpTokenInUsdBag.Sum();
+                var sumFeeInUsd = sumFeeBag.Sum();
+
+                var avgLpTokenInUsd = sumLpTokenInUsd / actualSnapshotCount;
+
+                _logger.LogInformation($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
+                                       $"type: {type}, " +
+                                       $"sumFee: {sumFeeInUsd}," +
+                                       $"avgLpTokenInUsd: {avgLpTokenInUsd}, " +
+                                       $"periodInDays: {periodInDays}");
+
+                return avgLpTokenInUsd > 0 ? (sumFeeInUsd / avgLpTokenInUsd) * (360 / actualSnapshotCount) * 100 : 0;
+            }
+          
+            case EstimatedAprType.All:
+            {
+                var unReveivedFee = Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(token0Decimal)) *
+                                    token0Price +
+                                    Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(token1Decimal)) *
+                                    token1Price;
+                var cumulativeAddition =
+                    Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(token0Decimal)) *
+                    token0Price +
+                    Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(token1Decimal)) * token1Price;
+                var averageHoldingPeriod = GetAverageHoldingPeriod(userLiquidityIndex);
+                if (cumulativeAddition == 0 || averageHoldingPeriod == 0)
+                {
+                    return 0.0;
+                }
+
+                _logger.LogInformation($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
+                                       $"type: {type}, " +
+                                       $"unReveivedFee: {unReveivedFee}, " +
+                                       $"cumulativeAddition: {cumulativeAddition}," +
+                                       $"averageHoldingPeriod: {averageHoldingPeriod}");
+
+                return ((unReveivedFee / cumulativeAddition) * (360d / averageHoldingPeriod)) * 100;
+            }
+            default:
+            {
+                return 0.0;
+            }
         }
-        _logger.LogInformation($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
-                               $"type: {type}, " +
-                               $"unReveivedFee: {unReveivedFee}, " +
-                               $"cumulativeAddition: {cumulativeAddition}," +
-                               $"averageHoldingPeriod: {averageHoldingPeriod}");
-
-        return unReveivedFee / cumulativeAddition / averageHoldingPeriod * 360 * 100;
-    }
-
-    // 7d, 30d
-    var periodInDays = GetDayDifference(type, userLiquidityIndex);
-    var userLiquiditySnapshots = await GetSnapshotIndexListAsync(userLiquidityIndex.Address, userLiquidityIndex.ChainId, userLiquidityIndex.TradePairId,
-        periodInDays);
-
-    _logger.LogInformation($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
-                           $"get snapshot from es begin, " +
-                           $"pair: {userLiquidityIndex.TradePairId}, " +
-                           $"snapshot count: {userLiquiditySnapshots.Count}");
-    if (userLiquiditySnapshots.Count == 0)
-    {
-        return 0.0;
     }
     
-    var sumLpTokenInUsdBag = new ConcurrentBag<double>();
-    var sumFeeBag = new ConcurrentBag<double>();
-    var tasks = userLiquiditySnapshots.Select(async userLiquiditySnapshot =>
+
+    private async Task<Tuple<double, double, double>> CalculateAllEstimatedAPRAsync(
+        int token0Decimal,
+        int token1Decimal,
+        double token0Price,
+        double token1Price,
+        CurrentUserLiquidityIndex userLiquidityIndex)
     {
-        
-        var tvl = await GetTvlSnapshotAsync(token0Symbol, token1Symbol, token0Price, token1Price, userLiquiditySnapshot);
-        
-        var currentTradePairGrain =
-            _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
-        var currentTotalSupply = await currentTradePairGrain.GetAsync();
-        var lpTokenPercentage = userLiquidityIndex.LpTokenAmount / currentTotalSupply.Data.TotalSupply;
-        var lpTokenValueInUsd = lpTokenPercentage * tvl;
-        sumLpTokenInUsdBag.Add(lpTokenValueInUsd);
-        var token0Fee = Double.Parse(userLiquiditySnapshot.Token0TotalFee.ToDecimalsString(token0Decimal)) * token0Price;
-        var token1Fee = Double.Parse(userLiquiditySnapshot.Token1TotalFee.ToDecimalsString(token1Decimal)) * token1Price;
-        sumFeeBag.Add(token0Fee + token1Fee);
-    }).ToArray();
-
-    await Task.WhenAll(tasks);
-
-    var sumLpTokenInUsd = sumLpTokenInUsdBag.Sum();
-    var sumFee = sumFeeBag.Sum();
-    
-    var avgLpTokenInUsd = sumLpTokenInUsd / userLiquiditySnapshots.Count;
-
-    _logger.LogInformation($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
-                           $"type: {type}, " +
-                           $"sumFee: {sumFee}," +
-                           $"avgLpTokenInUsd: {avgLpTokenInUsd}, " +
-                           $"periodInDays: {periodInDays}");
-
-    return avgLpTokenInUsd > 0 ? sumFee / userLiquiditySnapshots.Count / avgLpTokenInUsd * 360 * 100 : 0;
-}
+        var week = await CalculateEstimatedAPRAsync(EstimatedAprType.Week, token0Decimal, token1Decimal, token0Price,
+            token1Price, userLiquidityIndex);
+        var month = await CalculateEstimatedAPRAsync(EstimatedAprType.Month, token0Decimal, token1Decimal, token0Price,
+            token1Price, userLiquidityIndex);
+        var all = await CalculateEstimatedAPRAsync(EstimatedAprType.All, token0Decimal, token1Decimal, token0Price,
+            token1Price, userLiquidityIndex);
+        return new Tuple<double, double, double>(week, month, all);
+    }
 
     
     public async Task<List<TradePairPositionDto>> ProcessUserPositionAsync(GetUserPositionsDto input, List<CurrentUserLiquidityIndex> userLiquidityIndices)
@@ -614,18 +659,16 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                                           Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals)) * token1Price;
             var averageHoldingPeriod = GetAverageHoldingPeriod(userLiquidityIndex);
             
-            var estimatedAPR = await CalculateEstimatedAPRAsync(pair.Token0Symbol, 
-                pair.Token1Symbol, 
+            var estimatedAPR = await CalculateAllEstimatedAPRAsync(
                 pair.Token0.Decimals, 
                 pair.Token1.Decimals,
                 token0Price,
                 token1Price,
-                (EstimatedAprType)input.EstimatedAprType, 
                 userLiquidityIndex);
             
             var dynamicAPR = (averageHoldingPeriod != 0 && cumulativeAdditionInUsd != 0)
-                ? (valueInUsd - cumulativeAdditionInUsd) / cumulativeAdditionInUsd * 360 /
-                  averageHoldingPeriod
+                ? (valueInUsd - cumulativeAdditionInUsd) / cumulativeAdditionInUsd * (360d /
+                  averageHoldingPeriod)
                 : 0;
             
             _logger.LogInformation($"process user position input user address: {input.Address}, " +
@@ -638,7 +681,10 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                                    $"pair.TVL: {pair.TVL}, " +
                                    $"averageHoldingPeriod: {averageHoldingPeriod}," +
                                    $"lpTokenPercentage: {lpTokenPercentage}, " +
-                                   $"valueInUsd: {valueInUsd}");
+                                   $"valueInUsd: {valueInUsd}, " +
+                                   $"estimatedAPR7d: {estimatedAPR.Item1}, " +
+                                   $"estimatedAPR30d: {estimatedAPR.Item2}, " +
+                                   $"estimatedAPRAll: {estimatedAPR.Item3}");
 
             result.Add(new TradePairPositionDto()
             {
@@ -664,7 +710,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                     Token1Value = token1UnReceivedFee.ToString(),
                     Token1ValueInUsd = (token1UnReceivedFee * token1Price).ToString(),
                 },
-                cumulativeAddition = new LiquidityPoolValueInfo()
+                CumulativeAddition = new LiquidityPoolValueInfo()
                 {
                     ValueInUsd = cumulativeAdditionInUsd.ToString(),
                     Token0Value = userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals),
@@ -672,8 +718,24 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                     Token1Value = userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals),
                     Token1ValueInUsd = (Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals)) * token1Price).ToString(),
                 },
-                EstimatedAPRType = (EstimatedAprType)input.EstimatedAprType,
-                EstimatedAPR = estimatedAPR.ToString(),
+                EstimatedAPR = new List<EstimatedAPR>()
+                {
+                    new EstimatedAPR()
+                    {
+                        Type = EstimatedAprType.Week,
+                        Percent = estimatedAPR.Item1.ToString()
+                    },
+                    new EstimatedAPR()
+                    {
+                        Type = EstimatedAprType.Month,
+                        Percent = estimatedAPR.Item2.ToString()
+                    },
+                    new EstimatedAPR()
+                    {
+                        Type = EstimatedAprType.All,
+                        Percent = estimatedAPR.Item3.ToString()
+                    }
+                },
                 ImpermanentLossInUSD = (valueInUsd - cumulativeAdditionInUsd).ToString(),
                 DynamicAPR = dynamicAPR.ToString()
             });
@@ -690,17 +752,22 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(input.Address)));
         QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
-        var list = await _currentUserLiquidityIndexRepository.GetListAsync(Filter);
+        var list = await _currentUserLiquidityIndexRepository.GetSortListAsync(Filter,
+            sortFunc: s => s.Descending(t => t.TradePairId),
+            limit: input.MaxResultCount == 0 ? TradePairConst.MaxPageSize :
+            input.MaxResultCount > TradePairConst.MaxPageSize ? TradePairConst.MaxPageSize : input.MaxResultCount,
+            skip: input.SkipCount);
+        var totalCount = await _currentUserLiquidityIndexRepository.CountAsync(Filter);
         var userPositions = await ProcessUserPositionAsync(input, list.Item2);
         
         stopwatch.Stop();
         var elapsedMilliseconds = stopwatch.ElapsedMilliseconds;
         
-        _logger.LogInformation($"GetUserPositionsAsync executed in {elapsedMilliseconds} ms, address: {input.Address}, estimatedApr type: {input.EstimatedAprType}, trade pair count: {list.Item2.Count}");
-
+        _logger.LogInformation($"GetUserPositionsAsync executed in {elapsedMilliseconds} ms, address: {input.Address}, trade pair count: {list.Item2.Count}");
+        
         return new PagedResultDto<TradePairPositionDto>()
         {
-            TotalCount = list.Item1,
+            TotalCount = totalCount.Count,
             Items = userPositions
         };
     }

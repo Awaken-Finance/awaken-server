@@ -24,7 +24,6 @@ public class TradePairPortfolioDto
 
 public class TokenPortfolioInfoDto
 {
-    public string Name { get; set; }
     public TokenDto Token { get; set; }
     public string ValueInUsd { get; set; }
     public string ValuePercent { get; set; }

@@ -43,7 +43,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
     
     private async Task PrepareTradePairData()
     {
-        await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(TradePairEthUsdtId, async grain =>
+        await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(TradePairBtcUsdtId, async grain =>
         {
             return await grain.UpdateTotalSupplyAsync(new LiquidityRecordGrainDto()
             {
@@ -56,17 +56,17 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             });
         });
         
-        await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(TradePairEthUsdtId, async grain =>
+        await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(TradePairBtcUsdtId, async grain =>
         {
             return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
             {
                 ChainId = ChainName,
-                PairAddress = TradePairEthUsdtAddress,
-                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-2)),
+                PairAddress = TradePairBtcUsdtAddress,
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
                 ReserveA = NumberFormatter.WithDecimals(10, 8),
                 ReserveB = NumberFormatter.WithDecimals(90, 6),
                 BlockHeight = 101,
-                SymbolA = "ETH",
+                SymbolA = "BTC",
                 SymbolB = "USDT",
                 Token0PriceInUsd = 1,
                 Token1PriceInUsd = 1
@@ -79,11 +79,11 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         var inputMint = new LiquidityRecordDto()
         {
             ChainId = ChainName,
-            Pair = TradePairEthUsdtAddress,
+            Pair = TradePairBtcUsdtAddress,
             Address = "0x123456789",
             Timestamp = 1000,
             Token0Amount = 100,
-            Token0 = "ETH",
+            Token0 = "BTC",
             Token1Amount = 1000,
             Token1 = "USDT",
             LpTokenAmount = 50000,
@@ -98,7 +98,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         syncResult.ShouldBeTrue();
 
         var currentTradePairGrain =
-            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
+            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId));
         var currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.LastUpdateTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(1000));
@@ -106,7 +106,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
 
 
         var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint.Address)));
         currentUserLiquidityIndex.LpTokenAmount.ShouldBe(50000);
         currentUserLiquidityIndex.Token0CumulativeAddition.ShouldBe(100);
@@ -116,7 +116,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
 
         var snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
         var snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint.Address)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
         snapshotIndex.LpTokenAmount.ShouldBe(50000);
@@ -131,11 +131,11 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         var inputMint1 = new LiquidityRecordDto()
         {
             ChainId = ChainName,
-            Pair = TradePairEthUsdtAddress,
+            Pair = TradePairBtcUsdtAddress,
             Address = "0x123456789",
             Timestamp = 2000,
             Token0Amount = 100,
-            Token0 = "ETH",
+            Token0 = "BTC",
             Token1Amount = 1000,
             Token1 = "USDT",
             LpTokenAmount = 50000,
@@ -149,14 +149,14 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint1);
         
         var currentTradePairGrain =
-            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
+            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId));
         var currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.LastUpdateTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(2000));
         currentTradePairResult.Data.TotalSupply.ShouldBe(100000);
 
         var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint1.Address)));
         currentUserLiquidityIndex.LpTokenAmount.ShouldBe(100000);
         currentUserLiquidityIndex.Token0CumulativeAddition.ShouldBe(200);
@@ -166,7 +166,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         
         var snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
         var snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint1.Address)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
         snapshotIndex.LpTokenAmount.ShouldBe(100000);
@@ -174,11 +174,11 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         var inputBurn = new LiquidityRecordDto()
         {
             ChainId = ChainName,
-            Pair = TradePairEthUsdtAddress,
+            Pair = TradePairBtcUsdtAddress,
             Address = "0x123456789",
             Timestamp = 3000,
             Token0Amount = 100,
-            Token0 = "ETH",
+            Token0 = "BTC",
             Token1Amount = 1000,
             Token1 = "USDT",
             LpTokenAmount = 50000,
@@ -197,7 +197,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         
         
         currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint1.Address)));
         currentUserLiquidityIndex.LpTokenAmount.ShouldBe(50000);
         currentUserLiquidityIndex.Token0CumulativeAddition.ShouldBe(100);
@@ -207,7 +207,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         
         snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
         snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputMint1.Address)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
         snapshotIndex.LpTokenAmount.ShouldBe(50000);
@@ -220,13 +220,13 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         var swapRecordDto = new SwapRecordDto
         {
             ChainId = "tDVV",
-            PairAddress = TradePairEthUsdtAddress,
+            PairAddress = TradePairBtcUsdtAddress,
             Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
             TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
             Timestamp = 4000,
             AmountOut = NumberFormatter.WithDecimals(1000, 8),
             AmountIn = NumberFormatter.WithDecimals(1000, 6),
-            SymbolOut = TokenEthSymbol,
+            SymbolOut = TokenBtcSymbol,
             SymbolIn = TokenUsdtSymbol,
             TotalFee = 100,
             Channel = "test",
@@ -236,14 +236,14 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         var swapRecordDto1 = new SwapRecordDto
         {
             ChainId = "tDVV",
-            PairAddress = TradePairEthUsdtAddress,
+            PairAddress = TradePairBtcUsdtAddress,
             Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
             TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d38",
             Timestamp = 4000,
             AmountOut = NumberFormatter.WithDecimals(1000, 8),
             AmountIn = NumberFormatter.WithDecimals(1000, 6),
             SymbolOut = TokenUsdtSymbol,
-            SymbolIn = TokenEthSymbol,
+            SymbolIn = TokenBtcSymbol,
             TotalFee = 10,
             Channel = "test",
             BlockHeight = 99,
@@ -251,7 +251,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1);
         
         var currentTradePairGrain =
-            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
+            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId));
         var currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.TotalSupply.ShouldBe(50000);
@@ -259,14 +259,14 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         currentTradePairResult.Data.Token1TotalFee.ShouldBe(100);
         
         var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value("0x123456789")));
         currentUserLiquidityIndex.Token0UnReceivedFee.ShouldBe(10);
         currentUserLiquidityIndex.Token1UnReceivedFee.ShouldBe(100);
         
         var snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
         var snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value("0x123456789")) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
         snapshotIndex.Token0TotalFee.ShouldBe(10);
@@ -280,11 +280,11 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         var inputBurn = new LiquidityRecordDto()
         {
             ChainId = ChainName,
-            Pair = TradePairEthUsdtAddress,
+            Pair = TradePairBtcUsdtAddress,
             Address = "0x123456789",
             Timestamp = 5000,
             Token0Amount = 50,
-            Token0 = "ETH",
+            Token0 = "BTC",
             Token1Amount = 500,
             Token1 = "USDT",
             LpTokenAmount = 25000,
@@ -298,7 +298,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn);
         
         var currentTradePairGrain =
-            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
+            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId));
         var currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.LastUpdateTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(5000));
@@ -306,7 +306,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         
         
         var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)));
         currentUserLiquidityIndex.LpTokenAmount.ShouldBe(25000);
         currentUserLiquidityIndex.Token0CumulativeAddition.ShouldBe(55);
@@ -320,7 +320,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         
         var snapshotTime = currentUserLiquidityIndex.LastUpdateTime.Date;
         var snapshotIndex = await _userLiquiditySnapshotIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairEthUsdtId)) &&
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(snapshotTime)));
         snapshotIndex.LpTokenAmount.ShouldBe(25000);
@@ -336,21 +336,24 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         {
             ChainId = ChainName,
             Address = UserAddress,
-            EstimatedAprType = (int)EstimatedAprType.All
         });
         result.Items.Count.ShouldBe(1);
         result.Items[0].LpTokenAmount.ShouldBe("0.0005");
         result.Items[0].Token0Amount.ShouldBe("0.005");
         result.Items[0].Token1Amount.ShouldBe("0.045");
-        result.Items[0].cumulativeAddition.ValueInUsd.ShouldBe("0.001");
-        result.Items[0].cumulativeAddition.Token0ValueInUsd.ShouldBe("0");
-        result.Items[0].cumulativeAddition.Token1ValueInUsd.ShouldBe("0.001");
-        result.Items[0].Fee.ValueInUsd.ShouldBe("0.0001");
-        result.Items[0].Fee.Token0ValueInUsd.ShouldBe("0");
+        result.Items[0].Position.ValueInUsd.ShouldBe("0.05");
+        result.Items[0].Position.Token0ValueInUsd.Substring(0,5).ShouldBe("0.005");
+        result.Items[0].Position.Token1ValueInUsd.Substring(0,5).ShouldBe("0.045");
+        result.Items[0].CumulativeAddition.ValueInUsd.Substring(0,5).ShouldBe("0.001");
+        result.Items[0].CumulativeAddition.Token0ValueInUsd.ShouldBe("1E-06");
+        result.Items[0].CumulativeAddition.Token1ValueInUsd.ShouldBe("0.001");
+        result.Items[0].Fee.ValueInUsd.Substring(0,6).ShouldBe("0.0001");
+        result.Items[0].Fee.Token0ValueInUsd.ShouldBe("1E-07");
         result.Items[0].Fee.Token1ValueInUsd.ShouldBe("0.0001");
-        result.Items[0].DynamicAPR.Substring(0, 5).ShouldBe("0.886");
-        result.Items[0].ImpermanentLossInUSD.ShouldBe("0.049");
-        result.Items[0].EstimatedAPR.Substring(0, 5).ShouldBe("0.180");
+        result.Items[0].DynamicAPR.Substring(0, 5).ShouldBe("0.885");
+        result.Items[0].ImpermanentLossInUSD.ShouldBe("0.048999");
+        result.Items[0].EstimatedAPR[2].Type.ShouldBe(EstimatedAprType.All);
+        result.Items[0].EstimatedAPR[2].Percent.Substring(0, 5).ShouldBe("0.180");
     }
     
     [Fact]
@@ -361,15 +364,15 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         var swapRecordDto = new SwapRecordDto
         {
             ChainId = "tDVV",
-            PairAddress = TradePairEthUsdtAddress,
+            PairAddress = TradePairBtcUsdtAddress,
             Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
             TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
             Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1)),
             AmountOut = NumberFormatter.WithDecimals(1000, 8),
             AmountIn = NumberFormatter.WithDecimals(1000, 6),
-            SymbolOut = TokenEthSymbol,
+            SymbolOut = TokenBtcSymbol,
             SymbolIn = TokenUsdtSymbol,
-            TotalFee = 100,
+            TotalFee = 5,
             Channel = "test",
             BlockHeight = 99,
         };
@@ -379,11 +382,12 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         {
             ChainId = ChainName,
             Address = UserAddress,
-            EstimatedAprType = (int)EstimatedAprType.Week
         });
         result.Items.Count.ShouldBe(1);
-        result.Items[0].EstimatedAPRType.ShouldBe(EstimatedAprType.Week);
-        result.Items[0].EstimatedAPR.Substring(0, 4).ShouldBe("0.04");
+        result.Items[0].EstimatedAPR[0].Type.ShouldBe(EstimatedAprType.Week);
+        result.Items[0].EstimatedAPR[0].Percent.Substring(0, 3).ShouldBe("1.8");
+        result.Items[0].EstimatedAPR[1].Type.ShouldBe(EstimatedAprType.Month);
+        result.Items[0].EstimatedAPR[1].Percent.Substring(0, 3).ShouldBe("1.8");
     }
 
     [Fact]

@@ -290,7 +290,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             ChainId = input.ChainId,
             Address = input.Address
         });
-
+        var showCount = input.ShowCount >= 1 ? input.ShowCount - 1 : 0;
         var totalValueInUsd = 0.0;
         foreach (var userTokenInfo in tokenListDto.ShowList)
         {
@@ -311,7 +311,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             {
                 Symbol = userTokenInfo.Symbol
             });
-            if (i < input.ShowCount)
+            if (i < showCount)
             {
                 idleTokenList.Add(new IdleToken()
                 {
@@ -320,7 +320,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
                     TokenDto = tokenDto
                 });
             }
-            else if (i == input.ShowCount)
+            else if (i == showCount)
             {
                 idleTokenList.Add(new IdleToken()
                 {

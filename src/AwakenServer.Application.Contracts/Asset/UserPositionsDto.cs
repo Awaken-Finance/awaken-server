@@ -27,11 +27,16 @@ public class TradePairPositionDto
     public string LpTokenAmount { get; set; }
     public LiquidityPoolValueInfo Position { get; set; }
     public LiquidityPoolValueInfo Fee { get; set; }
-    public LiquidityPoolValueInfo cumulativeAddition { get; set; }
-    public EstimatedAprType EstimatedAPRType { get; set; }
-    public string EstimatedAPR { get; set; }
+    public LiquidityPoolValueInfo CumulativeAddition { get; set; }
+    public List<EstimatedAPR> EstimatedAPR { get; set; }
     public string DynamicAPR { get; set; }
     public string ImpermanentLossInUSD { get; set; }
+}
+
+public class EstimatedAPR
+{
+    public EstimatedAprType Type { get; set; }
+    public string Percent { get; set; }
 }
 
 public class PositionTradePairDto
