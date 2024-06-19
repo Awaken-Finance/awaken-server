@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices.JavaScript;
 using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
@@ -419,34 +420,75 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         }
     }
     
-    public async Task<List<UserLiquiditySnapshotIndex>> GetIndexListAsync(string userAddress, string chainId, Guid tradePairId,
-        DateTime? timestampMin = null, DateTime? timestampMax = null)
+    public async Task<List<UserLiquiditySnapshotIndex>> GetSnapshotIndexListAsync(string userAddress, string chainId, Guid tradePairId,
+        long periodInDays)
     {
         var mustQuery =
             new List<Func<QueryContainerDescriptor<UserLiquiditySnapshotIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(userAddress)));
-
-        if (timestampMin != null)
-        {
-            mustQuery.Add(q => q.DateRange(i =>
-                i.Field(f => f.SnapShotTime)
-                    .GreaterThan(timestampMin.Value)));
-        }
-
-        if (timestampMax != null)
-        {
-            mustQuery.Add(q => q.DateRange(i =>
-                i.Field(f => f.SnapShotTime)
-                    .LessThanOrEquals(timestampMax)));
-        }
-
+        var timestampMin = DateTime.UtcNow.AddDays(-periodInDays).Date;
+        var timestampMax = DateTime.UtcNow.AddDays(-1).Date;
+        mustQuery.Add(q => q.DateRange(i =>
+            i.Field(f => f.SnapShotTime)
+                .GreaterThanOrEquals(timestampMin)));
+        mustQuery.Add(q => q.DateRange(i =>
+            i.Field(f => f.SnapShotTime)
+                .LessThanOrEquals(timestampMax)));
+            
         QueryContainer Filter(QueryContainerDescriptor<UserLiquiditySnapshotIndex> f) =>
             f.Bool(b => b.Must(mustQuery));
 
         var list = await _userLiduiditySnapshotIndexRepository.GetListAsync(Filter);
+        if (list.Item1 == periodInDays || list.Item1 == 0)
+        {
+            return list.Item2;
+        }
+
+        var latestSnapshotIndex = await GetLatestUserLiquiditySnapshotIndexAsync(userAddress,
+            chainId, tradePairId, timestampMin);
+        var latestLpTokenAmount = latestSnapshotIndex?.LpTokenAmount ?? 0;
+        for (var day = 0; day < periodInDays; day++)
+        {
+            var snapshotTime = timestampMin.AddDays(day);
+            var snapshotIndex = list.Item2.FirstOrDefault(t => t.SnapShotTime == snapshotTime);
+            if (snapshotIndex == null)
+            {
+                list.Item2.Add(new UserLiquiditySnapshotIndex
+                {
+                    ChainId = chainId,
+                    TradePairId = tradePairId,
+                    Address = userAddress,
+                    LpTokenAmount = latestLpTokenAmount,
+                    SnapShotTime = snapshotTime
+                });
+            }
+            else
+            {
+                latestLpTokenAmount = snapshotIndex.LpTokenAmount;
+            }
+        }
+
         return list.Item2;
+    }
+
+    public async Task<UserLiquiditySnapshotIndex> GetLatestUserLiquiditySnapshotIndexAsync(string userAddress, string chainId,
+        Guid tradePairId, DateTime timestampMax)
+    {
+        var mustQuery =
+            new List<Func<QueryContainerDescriptor<UserLiquiditySnapshotIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(userAddress)));
+        mustQuery.Add(q => q.DateRange(i =>
+            i.Field(f => f.SnapShotTime)
+                .LessThan(timestampMax)));
+        QueryContainer Filter(QueryContainerDescriptor<UserLiquiditySnapshotIndex> f) =>
+            f.Bool(b => b.Must(mustQuery));
+        var list = await _userLiduiditySnapshotIndexRepository.GetListAsync(Filter, 
+            sortExp:k=>k.SnapShotTime, sortType:SortOrder.Descending, skip:0, limit: 1);
+        return list.Item1 > 0 ? list.Item2[0] : null;
     }
 
     private async Task<double> GetTvlSnapshotAsync(string token0Symbol, string token1Symbol, double token0PriceInUsd, double token1PriceInUsd, UserLiquiditySnapshotIndex userLiquiditySnapshotIndex)
@@ -463,7 +505,6 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             f.Bool(b => b.Must(mustQuery));
 
         var snapshot = await _tradePairSnapshotIndexRepository.GetAsync(Filter, sortType: SortOrder.Descending, sortExp: o => o.Timestamp);
-        
         return snapshot.ValueLocked0 * token0PriceInUsd + snapshot.ValueLocked1 * token1PriceInUsd;
     }
 
@@ -499,13 +540,17 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
 
     // 7d, 30d
     var periodInDays = GetDayDifference(type, userLiquidityIndex);
-    var userLiquiditySnapshots = await GetIndexListAsync(userLiquidityIndex.Address, userLiquidityIndex.ChainId, userLiquidityIndex.TradePairId,
-        DateTime.Now.AddDays(-periodInDays));
+    var userLiquiditySnapshots = await GetSnapshotIndexListAsync(userLiquidityIndex.Address, userLiquidityIndex.ChainId, userLiquidityIndex.TradePairId,
+        periodInDays);
 
     _logger.LogInformation($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
                            $"get snapshot from es begin, " +
                            $"pair: {userLiquidityIndex.TradePairId}, " +
                            $"snapshot count: {userLiquiditySnapshots.Count}");
+    if (userLiquiditySnapshots.Count == 0)
+    {
+        return 0.0;
+    }
     
     var sumLpTokenInUsdBag = new ConcurrentBag<double>();
     var sumFeeBag = new ConcurrentBag<double>();
@@ -530,7 +575,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
     var sumLpTokenInUsd = sumLpTokenInUsdBag.Sum();
     var sumFee = sumFeeBag.Sum();
     
-    var avgLpTokenInUsd = sumLpTokenInUsd / periodInDays;
+    var avgLpTokenInUsd = sumLpTokenInUsd / userLiquiditySnapshots.Count;
 
     _logger.LogInformation($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
                            $"type: {type}, " +
@@ -538,7 +583,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                            $"avgLpTokenInUsd: {avgLpTokenInUsd}, " +
                            $"periodInDays: {periodInDays}");
 
-    return avgLpTokenInUsd > 0 ? sumFee / periodInDays / avgLpTokenInUsd * 360 * 100 : 0;
+    return avgLpTokenInUsd > 0 ? sumFee / userLiquiditySnapshots.Count / avgLpTokenInUsd * 360 * 100 : 0;
 }
 
     
