@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Price.Dtos;
 using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +12,7 @@ using Xunit;
 
 namespace AwakenServer.Price
 {
+    [Collection(ClusterCollection.Name)]
     public sealed class PriceAppServiceTests : PriceAppServiceTestBase
     {
         private readonly IPriceAppService _priceAppService;
