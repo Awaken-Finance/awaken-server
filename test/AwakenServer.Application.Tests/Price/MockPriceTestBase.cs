@@ -13,6 +13,7 @@ namespace AwakenServer.Price
 
         private readonly IChainAppService _chainAppService;
         private readonly ITokenAppService _tokenAppService;
+        private readonly ChainTestHelper _chainTestHelper;
         // protected readonly ILendingTokenPriceAppService LendingTokenPriceAppService;
         // protected readonly IOtherLpTokenAppService OtherLpTokenAppService;
         protected string ChainId;
@@ -32,7 +33,9 @@ namespace AwakenServer.Price
             // OtherLpTokenAppService = GetRequiredService<IOtherLpTokenAppService>();
             _chainAppService = GetRequiredService<IChainAppService>();
             _tokenAppService = GetRequiredService<ITokenAppService>();
-            var chainDto = AsyncHelper.RunSync(async () => await _chainAppService.CreateAsync(new ChainCreateDto
+            _chainTestHelper = GetRequiredService<ChainTestHelper>();
+            
+            var chainDto = AsyncHelper.RunSync(async () => await _chainTestHelper.CreateAsync(new ChainCreateDto
             {
                 Name = "Ethereum"
             }));

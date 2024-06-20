@@ -319,53 +319,6 @@ namespace AwakenServer.Trade
             return ObjectMapper.Map<List<Index.TradePair>, List<TradePairIndexDto>>(list.Item2);
         }
 
-        /// <summary>
-        /// this function is for unit test and some unuse processor
-        /// the only way to create trade pair is timer in TradePairSyncWorker
-        /// </summary>
-        /// <param name="input"></param>
-        /// <returns></returns>
-        public async Task<TradePairDto> CreateAsync(TradePairCreateDto input)
-        {
-            if (input.Id == Guid.Empty)
-            {
-                input.Id = Guid.NewGuid();
-            }
-
-            var token0 = await _tokenAppService.GetAsync(input.Token0Id);
-            var token1 = await _tokenAppService.GetAsync(input.Token1Id);
-            var tradePairInfo = ObjectMapper.Map<TradePairCreateDto, TradePairInfoIndex>(input);
-            tradePairInfo.Token0Symbol = token0.Symbol;
-            tradePairInfo.Token1Symbol = token1.Symbol;
-            
-            var tradePairGrainDto = _objectMapper.Map<TradePairCreateDto, TradePairGrainDto>(input);
-            tradePairGrainDto.Token0 = token0;
-            tradePairGrainDto.Token1 = token1;
-            
-            var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePairInfo.Id));
-            await grain.AddOrUpdateAsync(tradePairGrainDto);
-            
-            var chainTradePairsGrain = _clusterClient.GetGrain<IChainTradePairsGrain>(input.ChainId);
-            await chainTradePairsGrain.AddOrUpdateAsync(new ChainTradePairsGrainDto()
-            {
-                TradePairAddress = input.Address,
-                TradePairGrainId = grain.GetPrimaryKeyString()
-            });
-            
-            var index = ObjectMapper.Map<TradePairCreateDto, Index.TradePair>(input);
-            index.Token0 = ObjectMapper.Map<TokenDto, Token>(token0);
-            index.Token1 = ObjectMapper.Map<TokenDto, Token>(token1);
-            
-            await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairInfoEto>(
-                _objectMapper.Map<TradePairInfoIndex, TradePairInfoEto>(tradePairInfo)
-            ));
-            await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairEto>(
-                _objectMapper.Map<Index.TradePair, TradePairEto>(index)
-            ));
-
-            return ObjectMapper.Map<TradePairInfoIndex, TradePairDto>(tradePairInfo);
-        }
-
         public async Task DoRevertAsync(string chainId, List<string> needDeletedTradeRecords)
         {
             if (needDeletedTradeRecords.IsNullOrEmpty())
