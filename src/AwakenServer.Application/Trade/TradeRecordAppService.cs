@@ -284,7 +284,7 @@ namespace AwakenServer.Trade
             };
         }
         
-        public async Task CreateUserTradeSummary(TradeRecordCreateDto input)
+        public async Task CreateUserTradeSummary(TradeRecord input)
         {
             var userTradeSummaryGrain =
                 _clusterClient.GetGrain<IUserTradeSummaryGrain>(
@@ -298,7 +298,7 @@ namespace AwakenServer.Trade
                     ChainId = input.ChainId,
                     TradePairId = input.TradePairId,
                     Address = input.Address,
-                    LatestTradeTime = DateTimeHelper.FromUnixTimeMilliseconds(input.Timestamp)
+                    LatestTradeTime = input.Timestamp
                 };
 
                 await userTradeSummaryGrain.AddOrUpdateAsync(userTradeSummary);
@@ -308,7 +308,7 @@ namespace AwakenServer.Trade
             }
             else
             {
-                userTradeSummaryResult.Data.LatestTradeTime = DateTimeHelper.FromUnixTimeMilliseconds(input.Timestamp);
+                userTradeSummaryResult.Data.LatestTradeTime = input.Timestamp;
                 await userTradeSummaryGrain.AddOrUpdateAsync(userTradeSummaryResult.Data);
                 await _distributedEventBus.PublishAsync(
                     _objectMapper.Map<UserTradeSummaryGrainDto, UserTradeSummaryEto>(userTradeSummaryResult.Data)
@@ -333,7 +333,7 @@ namespace AwakenServer.Trade
                 ObjectMapper.Map<TradeRecord, TradeRecordEto>(tradeRecord)
             ));
 
-            await CreateUserTradeSummary(input);
+            await CreateUserTradeSummary(tradeRecord);
 
             await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
         }
@@ -363,13 +363,14 @@ namespace AwakenServer.Trade
             } 
 
             var isSell = pair.Token0.Symbol == dto.SymbolIn;
-            var record = new TradeRecordCreateDto
+            var tradeRecord = new TradeRecord()
             {
+                Id = Guid.NewGuid(),
                 ChainId = dto.ChainId,
                 TradePairId = pair.Id,
                 Address = dto.Sender,
                 TransactionHash = dto.TransactionHash,
-                Timestamp = dto.Timestamp,
+                Timestamp = DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp),
                 Side = isSell ? TradeSide.Sell : TradeSide.Buy,
                 Token0Amount = isSell
                     ? dto.AmountIn.ToDecimalsString(pair.Token0.Decimals)
@@ -382,18 +383,14 @@ namespace AwakenServer.Trade
                 Sender = dto.Sender,
                 BlockHeight = dto.BlockHeight
             };
+            tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
 
             _logger.LogInformation(
                 "SwapEvent, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
                 "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
                 "blockHeight: {blockHeight}, totalFee: {totalFee}", dto.ChainId, pair.Id, dto.Sender,
                 dto.TransactionHash, dto.Timestamp,
-                record.Side, dto.Channel, record.Token0Amount, record.Token1Amount, dto.BlockHeight, dto.TotalFee);
-
-
-            var tradeRecord = ObjectMapper.Map<TradeRecordCreateDto, TradeRecord>(record);
-            tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
-            tradeRecord.Id = Guid.NewGuid();
+                tradeRecord.Side, dto.Channel, tradeRecord.Token0Amount, tradeRecord.Token1Amount, dto.BlockHeight, dto.TotalFee);
 
             await tradeRecordGrain.InsertAsync(ObjectMapper.Map<TradeRecord, TradeRecordGrainDto>(tradeRecord));
 
@@ -401,7 +398,7 @@ namespace AwakenServer.Trade
                 ObjectMapper.Map<TradeRecord, TradeRecordEto>(tradeRecord)
             ));
 
-            await CreateUserTradeSummary(record);
+            await CreateUserTradeSummary(tradeRecord);
             
             await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
 
@@ -454,13 +451,15 @@ namespace AwakenServer.Trade
             var lastTradePair = pairList.Last();
             var firstIsSell = firstTradePair.Token0.Symbol == dto.SwapRecords[0].SymbolIn;
             var lastIsSell = lastTradePair.Token0.Symbol == dto.SwapRecords[swapRecordCount - 1].SymbolIn;
-            var record = new TradeRecordCreateDto
+
+            var tradeRecord = new TradeRecord()
             {
+                Id = Guid.NewGuid(),
                 ChainId = dto.ChainId,
                 TradePairId = Guid.Empty,
                 Address = dto.Sender,
                 TransactionHash = dto.TransactionHash,
-                Timestamp = dto.Timestamp,
+                Timestamp = DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp),
                 Side = TradeSide.Swap,
                 Token0Amount = firstIsSell ? indexSwapRecords[0].AmountIn.ToDecimalsString(firstTradePair.Token0.Decimals)
                     : indexSwapRecords[0].AmountIn.ToDecimalsString(firstTradePair.Token1.Decimals),
@@ -470,21 +469,18 @@ namespace AwakenServer.Trade
                            * (1 - Math.Pow(1 - firstTradePair.FeeRate, swapRecordCount)),
                 Channel = dto.Channel,
                 Sender = dto.Sender,
-                BlockHeight = dto.BlockHeight
+                BlockHeight = dto.BlockHeight,
+                SwapRecords = indexSwapRecords
             };
+            tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
 
             _logger.LogInformation(
                 "creare multi swap records, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
                 "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
                 "blockHeight: {blockHeight}, totalFee: {totalFee}", dto.ChainId, "multiSwap no tradePairId", dto.Sender,
                 dto.TransactionHash, dto.Timestamp,
-                record.Side, dto.Channel, record.Token0Amount, record.Token1Amount, dto.BlockHeight, dto.TotalFee);
+                tradeRecord.Side, dto.Channel, tradeRecord.Token0Amount, tradeRecord.Token1Amount, dto.BlockHeight, dto.TotalFee);
             
-            var tradeRecord = ObjectMapper.Map<TradeRecordCreateDto, TradeRecord>(record);
-            tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
-            tradeRecord.Id = Guid.NewGuid();
-            tradeRecord.SwapRecords = indexSwapRecords;
-
             await tradeRecordGrain.InsertAsync(ObjectMapper.Map<TradeRecord, TradeRecordGrainDto>(tradeRecord));
             await _distributedEventBus.PublishAsync(new EntityCreatedEto<MultiTradeRecordEto>(
                 ObjectMapper.Map<TradeRecord, MultiTradeRecordEto>(tradeRecord)
@@ -492,8 +488,8 @@ namespace AwakenServer.Trade
 
             foreach (var indexSwapRecord in indexSwapRecords)
             {
-                record.TradePairId = indexSwapRecord.TradePairId;
-                await CreateUserTradeSummary(record);
+                tradeRecord.TradePairId = indexSwapRecord.TradePairId;
+                await CreateUserTradeSummary(tradeRecord);
 
                 var pair = pairList.First(t => t.Id == indexSwapRecord.TradePairId);
                 var isSell = pair.Token0.Symbol == indexSwapRecord.SymbolIn;
