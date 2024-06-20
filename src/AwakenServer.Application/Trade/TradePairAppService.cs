@@ -9,9 +9,9 @@ using AwakenServer.CMS;
 using AwakenServer.Common;
 using AwakenServer.Favorite;
 using AwakenServer.Grains;
-using AwakenServer.Grains.Grain.SwapTokenPath;
 using AwakenServer.Grains.Grain.Price;
 using AwakenServer.Grains.Grain.Price.TradePair;
+using AwakenServer.Grains.Grain.SwapTokenPath;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
 using AwakenServer.Tokens;
@@ -23,17 +23,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
 using Orleans;
-using Orleans.Runtime;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
-using Token = AwakenServer.Tokens.Token;
-using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
-
+using Volo.Abp.ObjectMapping;
 using IndexTradePair = AwakenServer.Trade.Index.TradePair;
+using Token = AwakenServer.Tokens.Token;
 
 namespace AwakenServer.Trade
 {
@@ -44,7 +41,7 @@ namespace AwakenServer.Trade
         private readonly ITokenPriceProvider _tokenPriceProvider;
         private readonly ITokenAppService _tokenAppService;
         private readonly IBlockchainAppService _blockchainAppService;
-        private readonly INESTRepository<Index.TradePair, Guid> _tradePairIndexRepository;
+        private readonly INESTRepository<IndexTradePair, Guid> _tradePairIndexRepository;
         private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
         private readonly ITradeRecordAppService _tradeRecordAppService;
         private readonly IFavoriteAppService _favoriteAppService;
@@ -79,7 +76,7 @@ namespace AwakenServer.Trade
         public TradePairAppService(INESTRepository<TradePairInfoIndex, Guid> tradePairInfoIndex,
             ITokenPriceProvider tokenPriceProvider,
             IGraphQLProvider iGraphQlProvider,
-            INESTRepository<Index.TradePair, Guid> tradePairIndexRepository,
+            INESTRepository<IndexTradePair, Guid> tradePairIndexRepository,
             ITradePairMarketDataProvider tradePairMarketDataProvider,
             ITradeRecordAppService tradeRecordAppService,
             IDistributedEventBus distributedEventBus,
@@ -139,7 +136,7 @@ namespace AwakenServer.Trade
 
         public async Task<TradePairIndexDto> GetAsync(Guid id)
         {
-            return ObjectMapper.Map<Index.TradePair, TradePairIndexDto>(
+            return ObjectMapper.Map<IndexTradePair, TradePairIndexDto>(
                 await _tradePairIndexRepository.GetAsync(id));
         }
         
@@ -185,7 +182,7 @@ namespace AwakenServer.Trade
 
         public async Task<TradePairIndexDto> GetTradePairAsync(string chainId, string address)
         {
-            var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradePair>, QueryContainer>>();
+            var mustQuery = new List<Func<QueryContainerDescriptor<IndexTradePair>, QueryContainer>>();
             if (!string.IsNullOrEmpty(chainId))
             {
                 mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
@@ -196,11 +193,11 @@ namespace AwakenServer.Trade
                 mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(address)));
             }
             mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
-            QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> f) => f.Bool(b => b.Must(mustQuery));
+            QueryContainer Filter(QueryContainerDescriptor<IndexTradePair> f) => f.Bool(b => b.Must(mustQuery));
 
             var list = await _tradePairIndexRepository.GetListAsync(Filter);
 
-            return ObjectMapper.Map<Index.TradePair, TradePairIndexDto>(list.Item2.FirstOrDefault());
+            return ObjectMapper.Map<IndexTradePair, TradePairIndexDto>(list.Item2.FirstOrDefault());
         }
 
         public async Task<ListResultDto<TradePairIndexDto>> GetByIdsAsync(GetTradePairByIdsInput input)
@@ -254,8 +251,8 @@ namespace AwakenServer.Trade
             // var pairs = await _tradePairIndexRepository.GetListAsync(q =>
             //     q.Term(i => i.Field(f => f.ChainId).Value(input.ChainId)));
             
-            var token0 = new Dictionary<Guid, Tokens.Token>();
-            var token1 = new Dictionary<Guid, Tokens.Token>();
+            var token0 = new Dictionary<Guid, Token>();
+            var token1 = new Dictionary<Guid, Token>();
 
             foreach (var pair in pairs)
             {
@@ -272,8 +269,8 @@ namespace AwakenServer.Trade
 
             return new TokenListDto
             {
-                Token0 = ObjectMapper.Map<List<Tokens.Token>, List<TokenDto>>(token0.Values.ToList()),
-                Token1 = ObjectMapper.Map<List<Tokens.Token>, List<TokenDto>>(token1.Values.ToList())
+                Token0 = ObjectMapper.Map<List<Token>, List<TokenDto>>(token0.Values.ToList()),
+                Token1 = ObjectMapper.Map<List<Token>, List<TokenDto>>(token1.Values.ToList())
             };
         }
 
@@ -309,14 +306,14 @@ namespace AwakenServer.Trade
         
         public async Task<List<TradePairIndexDto>> GetListFromEsAsync(string chainId, IEnumerable<string> addresses)
         {
-            QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> q) =>
+            QueryContainer Filter(QueryContainerDescriptor<IndexTradePair> q) =>
                 q.Term(i => i.Field(f => f.ChainId).Value(chainId)) &&
                 q.Terms(i => i.Field(f => f.Address).Terms(addresses));
             
             var list = await _tradePairIndexRepository.GetListAsync(Filter,
                 limit: addresses.Count(), skip: 0);
             
-            return ObjectMapper.Map<List<Index.TradePair>, List<TradePairIndexDto>>(list.Item2);
+            return ObjectMapper.Map<List<IndexTradePair>, List<TradePairIndexDto>>(list.Item2);
         }
 
         /// <summary>
@@ -352,7 +349,7 @@ namespace AwakenServer.Trade
                 TradePairGrainId = grain.GetPrimaryKeyString()
             });
             
-            var index = ObjectMapper.Map<TradePairCreateDto, Index.TradePair>(input);
+            var index = ObjectMapper.Map<TradePairCreateDto, IndexTradePair>(input);
             index.Token0 = ObjectMapper.Map<TokenDto, Token>(token0);
             index.Token1 = ObjectMapper.Map<TokenDto, Token>(token1);
             
@@ -360,7 +357,7 @@ namespace AwakenServer.Trade
                 _objectMapper.Map<TradePairInfoIndex, TradePairInfoEto>(tradePairInfo)
             ));
             await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairEto>(
-                _objectMapper.Map<Index.TradePair, TradePairEto>(index)
+                _objectMapper.Map<IndexTradePair, TradePairEto>(index)
             ));
 
             return ObjectMapper.Map<TradePairInfoIndex, TradePairDto>(tradePairInfo);
@@ -378,7 +375,7 @@ namespace AwakenServer.Trade
             {
                 tradePair.IsDeleted = true;
                 var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
-                await grain.AddOrUpdateAsync(_objectMapper.Map<Index.TradePair, TradePairGrainDto>(tradePair));
+                await grain.AddOrUpdateAsync(_objectMapper.Map<IndexTradePair, TradePairGrainDto>(tradePair));
             }
 
             if (needDeleteIndexes.Count > 0)
@@ -644,7 +641,7 @@ namespace AwakenServer.Trade
                 .WithTradePairFeatureAsync(input.ChainId, input.Address, input.TradePairFeature);
 
             var mustQuery = queryBuilder.Build();
-            QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> f) => f.Bool(b => b.Must(mustQuery));
+            QueryContainer Filter(QueryContainerDescriptor<IndexTradePair> f) => f.Bool(b => b.Must(mustQuery));
 
             var sorting = GetSortFunction(input.Sorting, input.Page);
             var list = await _tradePairIndexRepository.GetSortListAsync(Filter,
@@ -655,7 +652,7 @@ namespace AwakenServer.Trade
 
             var totalCount = await _tradePairIndexRepository.CountAsync(Filter);
 
-            var items = ObjectMapper.Map<List<Index.TradePair>, List<TradePairIndexDto>>(list.Item2);
+            var items = ObjectMapper.Map<List<IndexTradePair>, List<TradePairIndexDto>>(list.Item2);
 
             try
             {
@@ -701,24 +698,24 @@ namespace AwakenServer.Trade
             return inTradePairIndexDtos;
         }
 
-        private async Task<Index.TradePair> GetAsync(string chainName, string address)
+        private async Task<IndexTradePair> GetAsync(string chainName, string address)
         {
-            var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradePair>, QueryContainer>>();
+            var mustQuery = new List<Func<QueryContainerDescriptor<IndexTradePair>, QueryContainer>>();
             mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainName)));
             mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(address)));
             mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
-            QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> f) => f.Bool(b => b.Must(mustQuery));
+            QueryContainer Filter(QueryContainerDescriptor<IndexTradePair> f) => f.Bool(b => b.Must(mustQuery));
             return await _tradePairIndexRepository.GetAsync(Filter);
         }
         
-        private async Task<List<Index.TradePair>> GetListAsync(string chainId, List<string> transactionHashs, int maxResultCount)
+        private async Task<List<IndexTradePair>> GetListAsync(string chainId, List<string> transactionHashs, int maxResultCount)
         {
-            var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradePair>, QueryContainer>>();
+            var mustQuery = new List<Func<QueryContainerDescriptor<IndexTradePair>, QueryContainer>>();
             mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
             mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
             mustQuery.Add(q => q.Terms(i => i.Field(f => f.TransactionHash).Terms(transactionHashs)));
             
-            QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> f) => f.Bool(b => b.Must(mustQuery));
+            QueryContainer Filter(QueryContainerDescriptor<IndexTradePair> f) => f.Bool(b => b.Must(mustQuery));
             var list = await _tradePairIndexRepository.GetListAsync(Filter, limit: maxResultCount);
             return list.Item2;
         }
@@ -731,7 +728,7 @@ namespace AwakenServer.Trade
             return lastSnapshot != null && lastSnapshot.Timestamp < time.AddHours(-1);
         }
         
-        private static Func<SortDescriptor<Index.TradePair>, IPromise<IList<ISort>>> GetDefaultSort(TradePairPage page)
+        private static Func<SortDescriptor<IndexTradePair>, IPromise<IList<ISort>>> GetDefaultSort(TradePairPage page)
         {
             switch (page)
             {
@@ -748,7 +745,7 @@ namespace AwakenServer.Trade
             }
         }
 
-        private static Func<SortDescriptor<Index.TradePair>, IPromise<IList<ISort>>> GetSortFunction(string sorting,
+        private static Func<SortDescriptor<IndexTradePair>, IPromise<IList<ISort>>> GetSortFunction(string sorting,
             TradePairPage page)
         {
             if (string.IsNullOrWhiteSpace(sorting))
@@ -757,7 +754,7 @@ namespace AwakenServer.Trade
             }
 
             var sortingArray = sorting.Split(" ", StringSplitOptions.RemoveEmptyEntries);
-            Func<SortDescriptor<Index.TradePair>, IPromise<IList<ISort>>> sortDescriptor;
+            Func<SortDescriptor<IndexTradePair>, IPromise<IList<ISort>>> sortDescriptor;
             switch (sortingArray.Length)
             {
                 case 1:
@@ -779,7 +776,7 @@ namespace AwakenServer.Trade
             return sortDescriptor;
         }
 
-        private static Func<SortDescriptor<Index.TradePair>, IPromise<IList<ISort>>> GetSortDescriptorForSingleColumn(
+        private static Func<SortDescriptor<IndexTradePair>, IPromise<IList<ISort>>> GetSortDescriptorForSingleColumn(
             string columnName)
         {
             switch (columnName.Trim().ToLower())
@@ -810,7 +807,7 @@ namespace AwakenServer.Trade
             }
         }
 
-        private static Func<SortDescriptor<Index.TradePair>, IPromise<IList<ISort>>> GetSortDescriptorForDoubleColumns(
+        private static Func<SortDescriptor<IndexTradePair>, IPromise<IList<ISort>>> GetSortDescriptorForDoubleColumns(
             string columnName, SortOrder order)
         {
             switch (columnName.Trim().ToLower())

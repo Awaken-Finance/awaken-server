@@ -3,8 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices.JavaScript;
-using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains;
@@ -16,19 +14,17 @@ using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Logging;
-using MongoDB.Driver.Linq;
 using Nest;
+using Newtonsoft.Json;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
-using Volo.Abp.ObjectMapping;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
 using Volo.Abp.EventBus.Distributed;
+using Volo.Abp.ObjectMapping;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using TradePairMarketDataSnapshot = AwakenServer.Trade.Index.TradePairMarketDataSnapshot;
-
 
 namespace AwakenServer.Asset;
 
@@ -39,7 +35,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
     private readonly IClusterClient _clusterClient;
     private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
     private readonly INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiquidityIndexRepository;
-    private readonly INESTRepository<UserLiquiditySnapshotIndex, Guid> _userLiduiditySnapshotIndexRepository;
+    private readonly INESTRepository<UserLiquiditySnapshotIndex, Guid> _userLiquiditySnapshotIndexRepository;
     private readonly INESTRepository<TradePairMarketDataSnapshot, Guid> _tradePairSnapshotIndexRepository;
     private readonly ITokenPriceProvider _tokenPriceProvider;
     private readonly IObjectMapper _objectMapper;
@@ -50,7 +46,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
     public MyPortfolioAppService(IClusterClient clusterClient, 
         INESTRepository<TradePair, Guid> tradePairIndexRepository, 
         INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiquidityIndexRepository,
-        INESTRepository<UserLiquiditySnapshotIndex, Guid> userLiduiditySnapshotIndexRepository,
+        INESTRepository<UserLiquiditySnapshotIndex, Guid> userLiquiditySnapshotIndexRepository,
         INESTRepository<TradePairMarketDataSnapshot, Guid> tradePairSnapshotIndexRepository,
         IObjectMapper objectMapper,
         ITokenPriceProvider tokenPriceProvider,
@@ -62,7 +58,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         _tradePairIndexRepository = tradePairIndexRepository;
         _currentUserLiquidityIndexRepository = currentUserLiquidityIndexRepository;
         _objectMapper = objectMapper;
-        _userLiduiditySnapshotIndexRepository = userLiduiditySnapshotIndexRepository;
+        _userLiquiditySnapshotIndexRepository = userLiquiditySnapshotIndexRepository;
         _tradePairSnapshotIndexRepository = tradePairSnapshotIndexRepository;
         _tokenPriceProvider = tokenPriceProvider;
         _logger = logger;
@@ -441,7 +437,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         QueryContainer Filter(QueryContainerDescriptor<UserLiquiditySnapshotIndex> f) =>
             f.Bool(b => b.Must(mustQuery));
 
-        var list = await _userLiduiditySnapshotIndexRepository.GetListAsync(Filter);
+        var list = await _userLiquiditySnapshotIndexRepository.GetListAsync(Filter);
         if (list.Item1 == periodInDays || list.Item1 == 0)
         {
             return list.Item2;
@@ -487,7 +483,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 .LessThan(timestampMax)));
         QueryContainer Filter(QueryContainerDescriptor<UserLiquiditySnapshotIndex> f) =>
             f.Bool(b => b.Must(mustQuery));
-        var list = await _userLiduiditySnapshotIndexRepository.GetListAsync(Filter, 
+        var list = await _userLiquiditySnapshotIndexRepository.GetListAsync(Filter, 
             sortExp:k=>k.SnapShotTime, sortType:SortOrder.Descending, skip:0, limit: 1);
         return list.Item1 > 0 ? list.Item2[0] : null;
     }

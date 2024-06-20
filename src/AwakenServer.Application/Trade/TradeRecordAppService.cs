@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
-using AwakenServer.Chains;
-using AwakenServer.CMS;
 using AwakenServer.Common;
 using AwakenServer.Grains;
-using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
@@ -15,7 +12,6 @@ using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using AwakenServer.Worker;
 using MassTransit;
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
@@ -23,7 +19,6 @@ using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
-using Volo.Abp.Caching;
 using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using Volo.Abp.EventBus.Local;
@@ -43,10 +38,8 @@ namespace AwakenServer.Trade
         private readonly ILogger<TradeRecordAppService> _logger;
         private readonly TradeRecordRevertWorkerSettings _tradeRecordRevertWorkerOptions;
         private readonly IDistributedEventBus _distributedEventBus;
-        private readonly IGraphQLProvider _graphQlProvider;
         private readonly IBus _bus;
         private readonly IRevertProvider _revertProvider;
-        private readonly IAElfClientProvider _aelfClientProvider;
 
 
         private const string ASC = "asc";
@@ -65,9 +58,7 @@ namespace AwakenServer.Trade
             ILogger<TradeRecordAppService> logger,
             IOptionsSnapshot<TradeRecordRevertWorkerSettings> tradeRecordOptions,
             IDistributedEventBus distributedEventBus,
-            IGraphQLProvider graphQlProvider,
             IBus bus,
-            IAElfClientProvider aefClientProvider,
             IRevertProvider revertProvider)
         {
             _tradeRecordIndexRepository = tradeRecordIndexRepository;
@@ -79,10 +70,8 @@ namespace AwakenServer.Trade
             _logger = logger;
             _tradeRecordRevertWorkerOptions = tradeRecordOptions.Value;
             _distributedEventBus = distributedEventBus;
-            _graphQlProvider = graphQlProvider;
             _bus = bus;
             _revertProvider = revertProvider;
-            _aelfClientProvider = aefClientProvider;
         }
         
 

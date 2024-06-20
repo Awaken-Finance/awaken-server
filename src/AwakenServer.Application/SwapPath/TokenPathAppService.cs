@@ -1,23 +1,19 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
-using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.SwapTokenPath;
-using AwakenServer.Grains.Grain.Price;
 using AwakenServer.SwapTokenPath.Dtos;
 using AwakenServer.Trade;
-using AwakenServer.Trade.Dtos;
+using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Logging;
 using Nest;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
-using AwakenServer.Trade.Index;
+using Volo.Abp.ObjectMapping;
 using TradePair = AwakenServer.Trade.Index.TradePair;
-using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
 
 namespace AwakenServer.SwapTokenPath
 {

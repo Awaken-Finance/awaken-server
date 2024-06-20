@@ -2,24 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AElf.Client.MultiToken;
-using Volo.Abp.ObjectMapping;
 using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Grains;
-using AwakenServer.Grains.Grain.Price.TradePair;
-using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
 using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.EventBus.Local;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
+using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Trade
 {
@@ -29,15 +25,12 @@ namespace AwakenServer.Trade
         private readonly ITokenPriceProvider _tokenPriceProvider;
         private readonly ITradePairAppService _tradePairAppService;
         private readonly IGraphQLProvider _graphQlProvider;
-        private readonly IChainAppService _chainAppService;
         private readonly IClusterClient _clusterClient;
         private readonly IAElfClientProvider _aelfClientProvider;
         private readonly ILocalEventBus _localEventBus;
         private readonly ILogger<LiquidityAppService> _logger;
         private readonly IRevertProvider _revertProvider;
         private readonly IObjectMapper _objectMapper;
-        private readonly IAElfClientProvider _blockchainClientProvider;
-        private readonly ContractsTokenOptions _contractsTokenOptions;
         
         private const string ASC = "asc";
         private const string ASCEND = "ascend";
@@ -48,28 +41,22 @@ namespace AwakenServer.Trade
             ITokenPriceProvider tokenPriceProvider,
             ITradePairAppService tradePairAppService,
             IGraphQLProvider graphQlProvider,
-            IChainAppService chainAppService,
             IClusterClient clusterClient,
             IAElfClientProvider aefClientProvider,
             ILocalEventBus localEventBus,
             ILogger<LiquidityAppService> logger,
             IRevertProvider revertProvider,
-            IObjectMapper objectMapper,
-            IAElfClientProvider blockchainClientProvider,
-            IOptions<ContractsTokenOptions> contractsTokenOptions)
+            IObjectMapper objectMapper)
         {
             _tokenPriceProvider = tokenPriceProvider;
             _tradePairAppService = tradePairAppService;
             _graphQlProvider = graphQlProvider;
-            _chainAppService = chainAppService;
             _clusterClient = clusterClient;
             _aelfClientProvider = aefClientProvider;
             _localEventBus = localEventBus;
             _logger = logger;
             _revertProvider = revertProvider;
             _objectMapper = objectMapper;
-            _blockchainClientProvider = blockchainClientProvider;
-            _contractsTokenOptions = contractsTokenOptions.Value;
         }
 
         
