@@ -742,17 +742,17 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                     new EstimatedAPR()
                     {
                         Type = EstimatedAprType.Week,
-                        Percent = estimatedAPR.Item1.ToString()
+                        Percent = estimatedAPR.Item1.ToString("F2")
                     },
                     new EstimatedAPR()
                     {
                         Type = EstimatedAprType.Month,
-                        Percent = estimatedAPR.Item2.ToString()
+                        Percent = estimatedAPR.Item2.ToString("F2")
                     },
                     new EstimatedAPR()
                     {
                         Type = EstimatedAprType.All,
-                        Percent = estimatedAPR.Item3.ToString()
+                        Percent = estimatedAPR.Item3.ToString("F2")
                     }
                 },
                 ImpermanentLossInUSD = (valueInUsd - cumulativeAdditionInUsd).ToString(),

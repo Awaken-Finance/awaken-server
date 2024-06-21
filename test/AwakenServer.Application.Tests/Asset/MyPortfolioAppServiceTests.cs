@@ -353,7 +353,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         result.Items[0].DynamicAPR.Substring(0, 5).ShouldBe("0.885");
         result.Items[0].ImpermanentLossInUSD.ShouldBe("0.048999");
         result.Items[0].EstimatedAPR[2].Type.ShouldBe(EstimatedAprType.All);
-        result.Items[0].EstimatedAPR[2].Percent.Substring(0, 5).ShouldBe("0.180");
+        result.Items[0].EstimatedAPR[2].Percent.ShouldBe("0.18");
     }
     
     [Fact]
