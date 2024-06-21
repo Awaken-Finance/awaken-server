@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Shouldly;
 using Xunit;
+using TradePairIndex = AwakenServer.Trade.Index.TradePair;
 
 namespace AwakenServer.Price
 {
@@ -64,6 +65,13 @@ namespace AwakenServer.Price
             result.Items[0].PriceInUsd.ShouldBe(3.3m);
             
         }
+        
+        [Fact]
+        public async Task PriceRelationTest()
+        {
+            //todo
+        }
+
         
     }
 }

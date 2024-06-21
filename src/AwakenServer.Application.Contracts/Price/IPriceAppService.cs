@@ -5,6 +5,7 @@ using AwakenServer.Tokens.Dtos;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 
+
 namespace AwakenServer.Price
 {
     public interface IPriceAppService : IApplicationService
@@ -12,6 +13,7 @@ namespace AwakenServer.Price
         public Task<string> GetTokenPriceAsync(GetTokenPriceInput input);
         Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols);
         Task<ListResultDto<TokenPriceDataDto>> GetTokenHistoryPriceDataAsync(List<GetTokenHistoryPriceInput> inputs);
+        
     }
     
 }

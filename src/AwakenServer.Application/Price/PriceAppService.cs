@@ -2,16 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Price.Dtos;
+using AwakenServer.Tokens;
 using AwakenServer.Tokens.Dtos;
+using AwakenServer.Trade.Dtos;
+using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Nest;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
+using Index = System.Index;
+using IndexTradePair = AwakenServer.Trade.Index.TradePair;
 
 namespace AwakenServer.Price
 {
@@ -21,14 +28,18 @@ namespace AwakenServer.Price
         private readonly IDistributedCache<PriceDto> _priceCache;
         private readonly ITokenPriceProvider _tokenPriceProvider;
         private readonly IOptionsSnapshot<TokenPriceOptions> _tokenPriceOptions;
+        private readonly INESTRepository<IndexTradePair, Guid> _tradePairIndexRepository;
+        private readonly IDistributedCache<TokenPricingMap> _tokenPricingMap;
         
         public PriceAppService(IDistributedCache<PriceDto> priceCache,
             ITokenPriceProvider tokenPriceProvider,
-            IOptionsSnapshot<TokenPriceOptions> options)
+            IOptionsSnapshot<TokenPriceOptions> options,
+            INESTRepository<IndexTradePair, Guid> tradePairIndexRepository)
         {
             _priceCache = priceCache;
             _tokenPriceProvider = tokenPriceProvider;
             _tokenPriceOptions = options;
+            _tradePairIndexRepository = tradePairIndexRepository;
         }
 
         public async Task<string> GetTokenPriceAsync(GetTokenPriceInput input)
@@ -236,12 +247,194 @@ namespace AwakenServer.Price
                 Items = result
             };
         }
+        
+        private int GetTokenPriority(string token)
+        {
+            switch (token)
+            {
+                //todo from config
+                // case "ELF": return 1;
+                // case "USDT": return 2;
+                // case "BNB": return 3;
+                default: return 0; 
+            }
+        }
+        
+        private bool CanPriceFrom(string from, string to, TradePairsGraph graph)
+        {
+            return graph.Relations.ContainsKey(from) && graph.Relations[from].ContainsKey(to);
+        }
+
+        private string GetHighestPriorityTradePairAddress(string from, string to, TradePairsGraph graph)
+        {
+            if (!graph.Relations.ContainsKey(from) || !graph.Relations[from].ContainsKey(to))
+            {
+                return null;
+            }
+
+            var sortedTradePairs = graph.Relations[from][to]
+                .OrderByDescending(tradePair => tradePair.ValueLocked0 + tradePair.ValueLocked1);
+
+            return sortedTradePairs.FirstOrDefault()?.Address;
+        }
+
+        private async Task<Tuple<List<string>,List<string>>> GetPriceTokensAsync(TradePairsGraph graph)
+        {
+            var withPriceTokens = new List<string>();
+            var noPriceTokens = new List<string>();
+            foreach (var relation in graph.Relations)
+            {
+                var key = $"{PriceOptions.PriceCachePrefix}:{relation.Key}";
+                var price = await _priceCache.GetAsync(key);
+                if (price != null)
+                {
+                    withPriceTokens.Add(relation.Key);
+                }
+                else
+                {
+                    noPriceTokens.Add(relation.Key);
+                }
+            }
+
+            return new Tuple<List<string>, List<string>>(withPriceTokens,noPriceTokens);
+        }
+
+        private async Task<TradePairsGraph> BuildRelationsAsync(List<TradePair> tradePairs)
+        {
+            var graph = new TradePairsGraph();
+            foreach (var pair in tradePairs)
+            {
+
+                if (!graph.Relations.ContainsKey(pair.Token0.Symbol))
+                {
+                    graph.Relations[pair.Token0.Symbol] = new Dictionary<string, List<TradePair>>();
+                }
+                
+                if (!graph.Relations.ContainsKey(pair.Token1.Symbol))
+                {
+                    graph.Relations[pair.Token1.Symbol] = new Dictionary<string, List<TradePair>>();
+                }
+                
+                if (!graph.Relations[pair.Token0.Symbol].ContainsKey(pair.Token1.Symbol))
+                {
+                    graph.Relations[pair.Token0.Symbol][pair.Token1.Symbol] = new List<TradePair>();
+                }
+                
+                if (!graph.Relations[pair.Token1.Symbol].ContainsKey(pair.Token0.Symbol))
+                {
+                    graph.Relations[pair.Token1.Symbol][pair.Token0.Symbol] = new List<TradePair>();
+                }
+                
+                graph.Relations[pair.Token0.Symbol][pair.Token1.Symbol].Add(pair);
+                graph.Relations[pair.Token1.Symbol][pair.Token0.Symbol].Add(pair);
+            }
+
+            return graph;
+        }
+        
+        public async Task<TokenPricingMap> BuildPriceSpreadTrees(List<TradePair> tradePairs)
+        {
+            var graph = await BuildRelationsAsync(tradePairs);
+            var priceTokens = await GetPriceTokensAsync(graph);
+            var tokensWithUSDPrice = priceTokens.Item1;
+            var tokensNoPrice = priceTokens.Item2;
+            var priceSpreadTrees = new List<PricingNode>();
+            foreach (var token in tokensWithUSDPrice)
+            {
+                priceSpreadTrees.Add(new PricingNode
+                {
+                    FromTokenSymbol = null,
+                    TokenSymbol = token,
+                    Depth = 0,
+                    FromTradePairAddress = null,
+                    ToTokens = new List<PricingNode>()
+                });
+            }
+
+            // Iterate until all TokensNoPrice are priced
+            int currentDepth = 1;
+            while (tokensNoPrice.Count > 0)
+            {
+                List<PricingNode> currentLayer = priceSpreadTrees.Where(node => node.Depth == currentDepth - 1)
+                    .OrderBy(node => GetTokenPriority(node.FromTokenSymbol))
+                    .ToList();
+
+                foreach (var node in currentLayer)
+                {
+                    List<string> tokensToPrice = tokensNoPrice.Where(to => CanPriceFrom(node.TokenSymbol, to, graph)).ToList();
+
+                    foreach (var tokenToPrice in tokensToPrice)
+                    {
+                        string tradePairAddress = GetHighestPriorityTradePairAddress(node.TokenSymbol, tokenToPrice, graph);
+
+                        node.ToTokens.Add(new PricingNode
+                        {
+                            FromTokenSymbol = node.TokenSymbol,
+                            TokenSymbol = tokenToPrice,
+                            Depth = currentDepth,
+                            FromTradePairAddress = tradePairAddress,
+                            ToTokens = new List<PricingNode>()
+                        });
+
+                        tokensNoPrice.Remove(tokenToPrice);
+                        tokensWithUSDPrice.Add(tokenToPrice);
+                    }
+                }
+
+                currentDepth++;
+            }
+            return new TokenPricingMap()
+            {
+                PriceSpreadTrees = priceSpreadTrees
+            };
+        }
+
+        public async Task<List<TradePair>> GetTradePairAsync(string chainId)
+        {
+            var mustQuery = new List<Func<QueryContainerDescriptor<IndexTradePair>, QueryContainer>>();
+            if (!string.IsNullOrEmpty(chainId))
+            {
+                mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
+            }
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
+            QueryContainer Filter(QueryContainerDescriptor<IndexTradePair> f) => f.Bool(b => b.Must(mustQuery));
+
+            var tradePairList = await _tradePairIndexRepository.GetListAsync(Filter);
+            return tradePairList.Item2;
+        }
+
+        public async Task UpdatePricingMapAsync(string chainId)
+        {
+            var tradePairList = await GetTradePairAsync(chainId);
+            var tokenPricingMap = await BuildPriceSpreadTrees(tradePairList);
+            // todo
+        }
     }
+    
     
     public class PriceDto
     {
         public decimal PriceInUsd { get; set; } = PriceOptions.DefaultPriceValue;
         public DateTime PriceUpdateTime { get; set; }
         
+    }
+    
+    public class TokenPricingMap
+    {
+        public List<PricingNode> PriceSpreadTrees { get; set; }
+    }
+    
+    public class PricingNode
+    {
+        public int Depth { get; set; }
+        public string FromTokenSymbol { get; set; }
+        public string FromTradePairAddress { get; set; }
+        public string TokenSymbol { get; set; }
+        public List<PricingNode> ToTokens { get; set; }
+    }
+
+    public class TradePairsGraph
+    {
+        public Dictionary<string, Dictionary<string, List<TradePair>>> Relations { get; set; } = new();
     }
 }
