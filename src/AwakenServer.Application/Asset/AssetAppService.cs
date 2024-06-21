@@ -315,7 +315,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             {
                 idleTokenList.Add(new IdleToken()
                 {
-                    Percent = percent.ToString(),
+                    Percent = (percent * 100).ToString("F2"),
                     ValueInUsd = userTokenInfo.PriceInUsd,
                     TokenDto = tokenDto
                 });
@@ -324,7 +324,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             {
                 idleTokenList.Add(new IdleToken()
                 {
-                    Percent = percent.ToString(),
+                    Percent = (percent * 100).ToString("F2"), 
                     ValueInUsd = userTokenInfo.PriceInUsd,
                     TokenDto = new TokenDto
                     {
@@ -335,10 +335,10 @@ public class AssetAppService : ApplicationService, IAssetAppService
             }
             else
             {
-                var otherSumPercentage = double.Parse(idleTokenList[idleTokenList.Count - 1].Percent) + percent;
+                var otherSumPercentage = double.Parse(idleTokenList[idleTokenList.Count - 1].Percent) + (percent * 100);
                 var otherSumValueInUsd = double.Parse(idleTokenList[idleTokenList.Count - 1].ValueInUsd) +
                                          double.Parse(userTokenInfo.PriceInUsd);
-                idleTokenList[idleTokenList.Count - 1].Percent = otherSumPercentage.ToString();
+                idleTokenList[idleTokenList.Count - 1].Percent = Math.Round(otherSumPercentage, 2).ToString("F2");
                 idleTokenList[idleTokenList.Count - 1].ValueInUsd = otherSumValueInUsd.ToString();
             }
 
@@ -346,6 +346,13 @@ public class AssetAppService : ApplicationService, IAssetAppService
                 $"get idle tokens symbol: {tokenDto.Symbol}, price usd: {userTokenInfo.PriceInUsd}, total usd: {totalValueInUsd}, percent: {percent}");
         }
 
+        double totalPercent = idleTokenList.Sum(r => double.Parse(r.Percent));
+        if (totalPercent != 100.0)
+        {
+            double difference = 100.0 - totalPercent;
+            idleTokenList[idleTokenList.Count - 1].Percent = (double.Parse(idleTokenList[idleTokenList.Count - 1].Percent) + difference).ToString("F2");
+        }
+        
         return new IdleTokensDto()
         {
             TotalValueInUsd = totalValueInUsd.ToString(),

@@ -216,10 +216,10 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         for (int i = 0; i < sortedPositionDistributions.Count; i++)
         {
             var pair = sortedPositionDistributions[i];
-            pair.ValuePercent = total != 0 ? (Double.Parse(pair.ValueInUsd) / total).ToString() : "0";
+            pair.ValuePercent = total != 0 ? (Double.Parse(pair.ValueInUsd) / total * 100).ToString("F2") : "0";
             if (i < showCount)
             {
-                pair.Name = pair.TradePair.Token0.Symbol + '/' + pair.TradePair.Token1.Symbol + '-' + pair.TradePair.FeeRate;
+                pair.Name = $"{pair.TradePair.Token0.Symbol}/{pair.TradePair.Token1.Symbol}-{pair.TradePair.FeeRate}";
                 result.Add(pair);
             }
             else if (i == showCount)
@@ -240,9 +240,18 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 var sumValueInUsd = double.Parse(result[result.Count - 1].ValueInUsd) + double.Parse(pair.ValueInUsd);
                 var sumPercent = double.Parse(result[result.Count - 1].ValuePercent) + double.Parse(pair.ValuePercent);
                 result[result.Count - 1].ValueInUsd = sumValueInUsd.ToString();
-                result[result.Count - 1].ValuePercent = sumPercent.ToString();
+                result[result.Count - 1].ValuePercent = sumPercent.ToString("F2");
             }
         }
+
+        // Ensure the sum of all ValuePercent is exactly 100%
+        double finalTotalPercent = result.Sum(r => double.Parse(r.ValuePercent));
+        if (finalTotalPercent != 100.00)
+        {
+            double difference = 100.00 - finalTotalPercent;
+            result[result.Count - 1].ValuePercent = (double.Parse(result[result.Count - 1].ValuePercent) + difference).ToString("F2");
+        }
+
         
         return result;
     }
@@ -260,7 +269,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         for (int i = 0; i < sortedPositionDistributions.Count; i++)
         {
             var tokenInfoPair = sortedPositionDistributions[i];
-            tokenInfoPair.Value.ValuePercent = total != 0 ? (Double.Parse(tokenInfoPair.Value.ValueInUsd) / total).ToString() : "0";
+            tokenInfoPair.Value.ValuePercent = total != 0 ? (Double.Parse(tokenInfoPair.Value.ValueInUsd) / total * 100).ToString("F2") : "0";
             if (i < showCount)
             {
                 result.Add(tokenInfoPair.Value);
@@ -283,8 +292,16 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 var sumValueInUsd = double.Parse(result[result.Count - 1].ValueInUsd) + double.Parse(tokenInfoPair.Value.ValueInUsd);
                 var sumPercent = double.Parse(result[result.Count - 1].ValuePercent) + double.Parse(tokenInfoPair.Value.ValuePercent);
                 result[result.Count - 1].ValueInUsd = sumValueInUsd.ToString();
-                result[result.Count - 1].ValuePercent = sumPercent.ToString();
+                result[result.Count - 1].ValuePercent = sumPercent.ToString("F2");
             }
+        }
+        
+        // Ensure the sum of all ValuePercent is exactly 100%
+        double finalTotalPercent = result.Sum(r => double.Parse(r.ValuePercent));
+        if (finalTotalPercent != 100.00)
+        {
+            double difference = 100.00 - finalTotalPercent;
+            result[result.Count - 1].ValuePercent = (double.Parse(result[result.Count - 1].ValuePercent) + difference).ToString("F2");
         }
         
         return result;
@@ -648,6 +665,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 : Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(pair.TotalSupply);
             var token0Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
             var token1Percenage = pair.ValueLocked1 / (pair.ValueLocked0 + pair.ValueLocked1);
+            var token0PercentStr = Math.Round(token0Percenage * 100,2).ToString();
+            var token1PercentStr = Math.Round(100 - double.Parse(token0PercentStr),2).ToString();
             var valueInUsd = lpTokenPercentage * pair.TVL;
             var token0UnReceivedFee =
                 Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
@@ -691,8 +710,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 TradePairInfo = _objectMapper.Map<TradePairGrainDto, PositionTradePairDto>(pair),
                 Token0Amount = (lpTokenPercentage * pair.ValueLocked0).ToString(),
                 Token1Amount = (lpTokenPercentage * pair.ValueLocked1).ToString(),
-                Token0Percent = token0Percenage.ToString(),
-                Token1Percent = token1Percenage.ToString(),
+                Token0Percent = token0PercentStr,
+                Token1Percent = token1PercentStr,
                 LpTokenAmount = userLiquidityIndex.LpTokenAmount.ToDecimalsString(8),
                 Position = new LiquidityPoolValueInfo()
                 {

@@ -402,13 +402,13 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         });
         result.TradePairPositionDistributions.Count.ShouldBe(1);
         result.TradePairPositionDistributions[0].ValueInUsd.ShouldBe("0.05");
-        result.TradePairPositionDistributions[0].ValuePercent.ShouldBe("1");
+        result.TradePairPositionDistributions[0].ValuePercent.ShouldBe("100.00");
         result.TradePairFeeDistributions.Count.ShouldBe(1);
         result.TradePairFeeDistributions[0].ValueInUsd.Substring(0,6).ShouldBe("0.0001");
-        result.TradePairFeeDistributions[0].ValuePercent.ShouldBe("1");
+        result.TradePairFeeDistributions[0].ValuePercent.ShouldBe("100.00");
         result.TokenPositionDistributions.Count.ShouldBe(2);
         result.TokenPositionDistributions[0].ValueInUsd.Substring(0,5).ShouldBe("0.045");
-        result.TokenPositionDistributions[0].ValuePercent.Substring(0,3).ShouldBe("0.9");
-        result.TokenFeeDistributions[0].ValuePercent.ShouldBe("0.9");
+        result.TokenPositionDistributions[0].ValuePercent.ShouldBe("90.00");
+        result.TokenFeeDistributions[0].ValuePercent.ShouldBe("90.00");
     }
 }
