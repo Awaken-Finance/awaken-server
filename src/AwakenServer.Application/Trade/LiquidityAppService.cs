@@ -187,34 +187,6 @@ namespace AwakenServer.Trade
 
             return result;
         }
-
-        public async Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityAsync(GetUserLiquidityInput input)
-        {
-            var grain = _clusterClient.GetGrain<IUserLiquidityGrain>(
-                GrainIdHelper.GenerateGrainId(input.ChainId, input.Address));
-            var result = await grain.GetAsync();
-            if (!result.Success)
-            {
-                return await GetUserLiquidityFromGraphQLAsync(input);
-            }
-
-            var dataList = result.Data.Select(dto => new UserLiquidityIndexDto
-            {
-                TradePair = dto.TradePair,
-                Address = dto.Address,
-                AssetUSD = dto.AssetUSD,
-                LpTokenAmount = dto.LpTokenAmount.ToDecimalsString(8),
-                Token0Amount = dto.Token0Amount,
-                Token1Amount = dto.Token1Amount
-            }).ToList();
-            
-            dataList = SortingUserLiquidity(input.Sorting, dataList);
-            return new PagedResultDto<UserLiquidityIndexDto>
-            {
-                Items = dataList,
-                TotalCount = dataList.Count
-            };
-        }
         
         public async Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityFromGraphQLAsync(GetUserLiquidityInput input)
         {
@@ -302,25 +274,6 @@ namespace AwakenServer.Trade
         }
 
         
-        public async Task<UserAssetDto> GetUserAssetAsync(GetUserAssertInput input)
-        {
-            var grain = _clusterClient.GetGrain<IUserLiquidityGrain>(
-                GrainIdHelper.GenerateGrainId(input.ChainId, input.Address));
-            var result = await grain.GetAssetAsync();
-            if (!result.Success)
-            {
-                return await GetUserAssetFromGraphQLAsync(input);
-            }
-
-            var btcPrice = await _tokenPriceProvider.GetTokenUSDPriceAsync(input.ChainId, BTCSymbol);
-            
-            return new UserAssetDto
-            {
-                AssetUSD = result.Data.AssetUSD,
-                AssetBTC = btcPrice == 0 ? 0 : result.Data.AssetUSD / btcPrice
-            };
-        }
-
         public async Task<UserAssetDto> GetUserAssetFromGraphQLAsync(GetUserAssertInput input)
         {
             var getUserLiquidityInput = new GetUserLiquidityInput();
@@ -368,13 +321,6 @@ namespace AwakenServer.Trade
                     input.Pair);
                 return;
             }
-            
-            var dto = ObjectMapper.Map<LiquidityRecordDto, UserLiquidityGrainDto>(input);
-            dto.TradePair = tradePair;
-            
-            var userLiquidityGrain = _clusterClient.GetGrain<IUserLiquidityGrain>(
-                GrainIdHelper.GenerateGrainId(input.ChainId, input.Address));
-            await userLiquidityGrain.AddOrUpdateAsync(dto);
             
             var liquidityEvent = new NewLiquidityRecordEvent
             {

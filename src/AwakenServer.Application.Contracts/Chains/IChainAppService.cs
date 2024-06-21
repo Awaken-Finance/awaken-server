@@ -14,9 +14,7 @@ namespace AwakenServer.Chains
         Task<ChainDto> GetByNameCacheAsync(string name);
 
         Task<ChainDto> GetByChainIdCacheAsync(string chainId);
-
-        Task<ChainDto> CreateAsync(ChainCreateDto input);
-
+        
         Task<ChainDto> UpdateAsync(ChainUpdateDto input);
 
         Task<ChainStatusDto> GetChainStatusAsync(string chainId);

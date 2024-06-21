@@ -28,11 +28,5 @@
         <ProjectReference Include="..\AwakenServer.Application.Contracts\AwakenServer.Application.Contracts.csproj" />
         <ProjectReference Include="..\AwakenServer.Domain\AwakenServer.Domain.csproj" />
     </ItemGroup>
-
-    <ItemGroup>
-      <Orleans_CodeGenInputs Remove="Grain\Price\UserRecord\IUserRecordGrain.cs" />
-      <Orleans_CodeGenInputs Remove="Grain\Price\UserRecord\UserRecordGrain.cs" />
-      <Orleans_CodeGenInputs Remove="Grain\Price\UserRecord\UserRecordGrainDto.cs" />
-    </ItemGroup>
     
 </Project>

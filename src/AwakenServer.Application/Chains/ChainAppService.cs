@@ -170,23 +170,6 @@ namespace AwakenServer.Chains
             return _objectMapper.Map<ChainGrainDto, ChainDto>(await chainGrain.GetByIdAsync(input.Id));
         }
 
-        /// <summary>
-        /// this function is for unit test
-        /// </summary>
-        /// <param name="input"></param>
-        /// <returns></returns>
-        public virtual async Task<ChainDto> CreateAsync(ChainCreateDto input)
-        {
-            var chain = _objectMapper.Map<ChainCreateDto, Chain>(input);
-            chain.Id = string.IsNullOrEmpty(chain.Id) ? Guid.NewGuid().ToString() : chain.Id;
-
-            var chainGrain = _clusterClient.GetGrain<IChainGrain>(chain.Id);
-            await chainGrain.AddChainAsync(_objectMapper.Map<Chain, ChainGrainDto>(chain));
-            
-            await _distributedEventBus.PublishAsync(_objectMapper.Map<Chain, NewChainEvent>(chain));
-            return _objectMapper.Map<Chain, ChainDto>(chain);
-        }
-
         public async Task<ChainStatusDto> GetChainStatusAsync(string chainId)
         {
             var chainGrain = _clusterClient.GetGrain<IChainGrain>(chainId);

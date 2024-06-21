@@ -34,6 +34,9 @@ namespace AwakenServer.Trade
         private readonly IFavoriteAppService _favoriteAppService;
         private readonly IObjectMapper _objectMapper;
         private readonly MockGraphQLProvider _mockGraphQLProvider;
+        private readonly IClusterClient _clusterClient;
+        private readonly TradePairTestHelper _tradePairTestHelper;
+        
 
         public TradePairAppServiceTests()
         {
@@ -49,6 +52,8 @@ namespace AwakenServer.Trade
             _tradePairInfoIndex = GetService<INESTRepository<TradePairInfoIndex, Guid>>();
             _favoriteAppService = GetRequiredService<IFavoriteAppService>();
             _mockGraphQLProvider = new MockGraphQLProvider(_objectMapper, _tradePairInfoIndex, _tokenAppService);
+            _clusterClient = GetRequiredService<IClusterClient>();
+            _tradePairTestHelper = GetRequiredService<TradePairTestHelper>();
         }
 
         [Fact]
@@ -65,7 +70,7 @@ namespace AwakenServer.Trade
                 Token0Id = TokenBtcId,
                 Token1Id = TokenUsdtId
             };
-            var pair = await _tradePairAppService.CreateAsync(pairDto);
+            var pair = await _tradePairTestHelper.CreateAsync(pairDto);
 
             var tradePair = await _tradePairAppService.GetTradePairInfoAsync(pair.Id);
             tradePair.ChainId.ShouldBe(pairDto.ChainId);
@@ -100,7 +105,12 @@ namespace AwakenServer.Trade
                 Token0Id = TokenBtcId,
                 Token1Id = TokenUsdtId
             };
-            await _tradePairAppService.CreateAsync(pairDto);
+            await 
+            
+            
+            
+            
+            .CreateAsync(pairDto);
 
             var tokens = await _tradePairAppService.GetTokenListAsync(new GetTokenListInput
             {
@@ -131,7 +141,7 @@ namespace AwakenServer.Trade
                 Token0Id = TokenBtcId,
                 Token1Id = TokenUsdtId
             };
-            var createdPair = await _tradePairAppService.CreateAsync(pairDto);
+            var createdPair = await _tradePairTestHelper.CreateAsync(pairDto);
 
             var pair = await _tradePairAppService.GetByAddressAsync(pairDto.ChainName, "0x");
             pair.ShouldBeNull();

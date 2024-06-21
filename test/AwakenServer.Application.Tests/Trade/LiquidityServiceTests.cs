@@ -136,7 +136,7 @@ public class LiquidityServiceTests : TradeTestBase
             LpTokenAmount = 50000,
         });
         
-        var records = await _liquidityAppService.GetUserLiquidityAsync(new GetUserLiquidityInput()
+        var records = await _liquidityAppService.GetUserLiquidityFromGraphQLAsync(new GetUserLiquidityInput()
         {
             ChainId = ChainName,
             Address = "BBB",
@@ -147,26 +147,7 @@ public class LiquidityServiceTests : TradeTestBase
         records.Items.Count.ShouldBe(1);
         records.Items.First().LpTokenAmount.ShouldBe("0.0005");
         
-        records = await _liquidityAppService.GetUserLiquidityFromGraphQLAsync(new GetUserLiquidityInput()
-        {
-            ChainId = ChainName,
-            Address = "BBB",
-            Sorting = "assetusd",
-            MaxResultCount = 10
-        });
-        records.TotalCount.ShouldBe(1);
-        records.Items.Count.ShouldBe(1);
-        records.Items.First().LpTokenAmount.ShouldBe("0.0005");
-        
-        var record = await _liquidityAppService.GetUserAssetAsync(new GetUserAssertInput()
-        {
-            ChainId = ChainName,
-            Address = "BBB"
-        });
-        record.AssetUSD.ShouldBe(0);
-        
-        
-        record = await _liquidityAppService.GetUserAssetFromGraphQLAsync(new GetUserAssertInput()
+        var record = await _liquidityAppService.GetUserAssetFromGraphQLAsync(new GetUserAssertInput()
         {
             ChainId = ChainName,
             Address = "BBB"
