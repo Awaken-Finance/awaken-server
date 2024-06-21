@@ -112,7 +112,6 @@ namespace AwakenServer
             CreateMap<Trade.LiquidityRecord, NewLiquidityRecordEvent>();
             CreateMap<NewLiquidityRecordEvent, LiquidityRecordDto>();
             CreateMap<LiquidityRecordEto, Trade.Index.LiquidityRecord>();
-            CreateMap<LiquidityRecordDto, UserLiquidityGrainDto>();
             CreateMap<LiquidityRecordDto, LiquidityRecordGrainDto>().ForMember(
                 destination => destination.Timestamp,
                 opt => opt.MapFrom(source => DateTimeHelper.FromUnixTimeMilliseconds(source.Timestamp)));
@@ -129,7 +128,6 @@ namespace AwakenServer
             CreateMap<UserLiquidityEto, UserLiquidity>();
             CreateMap<LiquidityRecordDto, LiquidityRecordIndexDto>().Ignore(x => x.ChainId);
             CreateMap<UserLiquidityDto, UserLiquidityIndexDto>();
-            CreateMap<UserLiquidityDto, UserLiquidityGrainDto>();
             CreateMap<GetUserAssertInput, GetUserLiquidityInput>();
             CreateMap<Trade.Index.UserLiquidity, UserLiquidityIndexDto>();
             

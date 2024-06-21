@@ -50,10 +50,10 @@ public class ChainTestModule : AbpModule
 
     public override void OnApplicationInitialization(ApplicationInitializationContext context)
     {
-        var chainService = context.ServiceProvider.GetRequiredService<IChainAppService>();
+        var chainTestHelper = context.ServiceProvider.GetRequiredService<ChainTestHelper>();
         var environmentProvider = context.ServiceProvider.GetRequiredService<TestEnvironmentProvider>();
         
-        var chainEth = AsyncHelper.RunSync(async ()=> await chainService.CreateAsync(new ChainCreateDto
+        var chainEth = AsyncHelper.RunSync(async ()=> await chainTestHelper.CreateAsync(new ChainCreateDto
         {
             Id = "Ethereum",
             Name = "Ethereum",
@@ -62,7 +62,7 @@ public class ChainTestModule : AbpModule
         environmentProvider.EthChainId = chainEth.Id;
         environmentProvider.EthChainName = chainEth.Name;
         
-        var chainElf = AsyncHelper.RunSync(async ()=> await chainService.CreateAsync(new ChainCreateDto
+        var chainElf = AsyncHelper.RunSync(async ()=> await chainTestHelper.CreateAsync(new ChainCreateDto
         {
             Id = "AElfMock",
             Name = "AElfMock",

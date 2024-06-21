@@ -18,6 +18,8 @@ public class AwakenServerApplicationTestModule : AbpModule
 {
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
+        context.Services.AddSingleton<ChainTestHelper>();
+        context.Services.AddSingleton<TradePairTestHelper>();
         context.Services.AddSingleton(sp => sp.GetService<ClusterFixture>().Cluster.Client);
         context.Services.AddSingleton<IAElfClientProvider, MockAelfClientProvider>();
         context.Services.AddMassTransitTestHarness(cfg => { });

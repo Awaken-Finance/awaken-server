@@ -40,7 +40,7 @@ namespace AwakenServer.Controllers.Trade
         [Route("user-asset")]
         public virtual Task<UserAssetDto> GetUserAssetAsync(GetUserAssertInput input)
         {
-            return _liquidityAppService.GetUserAssetAsync(input);
+            return _liquidityAppService.GetUserAssetFromGraphQLAsync(input);
         }
     }
 }
