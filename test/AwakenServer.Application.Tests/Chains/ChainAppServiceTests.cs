@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Tokens;
 using Shouldly;
 using Volo.Abp.Application.Dtos;
@@ -6,6 +7,7 @@ using Xunit;
 
 namespace AwakenServer.Chains;
 
+[Collection(ClusterCollection.Name)]
 public class ChainAppServiceTests : ChainTestBase
 {
     private readonly IChainAppService _chainAppService;

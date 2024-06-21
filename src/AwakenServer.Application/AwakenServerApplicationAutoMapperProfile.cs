@@ -104,6 +104,7 @@ namespace AwakenServer
             CreateMap<TradePairDto, Trade.TradePair>();
             CreateMap<TradePairGrainDto, TradePairDto>().ReverseMap();
             CreateMap<TradePairGrainDto, TradePairEto>();
+            CreateMap<TradePairGrainDto, TradePairWithTokenDto>();
             CreateMap<GetTradePairByIdsInput, GetTradePairsInput>();
 
             CreateMap<LiquidityRecordCreateDto, Trade.LiquidityRecord>().Ignore(x => x.Id).ForMember(
@@ -142,6 +143,7 @@ namespace AwakenServer
             CreateMap<KLineGrainDto, KLineEto>();
             CreateMap<NewTradeRecordEvent, TradeRecordDto>();
             CreateMap<Trade.Dtos.SwapRecord, Trade.SwapRecord>();
+            CreateMap<Trade.Dtos.SwapRecord, SwapRecordDto>();
             
             CreateMap<TradePairMarketDataSnapshot, AwakenServer.Trade.TradePairMarketDataSnapshot>();
             CreateMap<AwakenServer.Trade.TradePairMarketDataSnapshot, TradePairMarketDataSnapshotGrainDto>();
@@ -152,6 +154,9 @@ namespace AwakenServer
             CreateMap<PathNode, PathNodeDto>();
             CreateMap<TradePairGrainDto, TradePairDto>();
             CreateMap<GetTokenPathsInput, GetTokenPathGrainDto>();
+
+            CreateMap<CurrentUserLiquidityEto, CurrentUserLiquidityIndex>();
+            CreateMap<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>();
             
             //Favorite
             CreateMapForFavorite();

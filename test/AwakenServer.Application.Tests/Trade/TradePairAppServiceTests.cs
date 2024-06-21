@@ -37,6 +37,7 @@ namespace AwakenServer.Trade
         private readonly IClusterClient _clusterClient;
         private readonly TradePairTestHelper _tradePairTestHelper;
         
+
         public TradePairAppServiceTests()
         {
             _tradePairIndexRepository = GetRequiredService<INESTRepository<Index.TradePair, Guid>>();
@@ -104,7 +105,12 @@ namespace AwakenServer.Trade
                 Token0Id = TokenBtcId,
                 Token1Id = TokenUsdtId
             };
-            await _tradePairTestHelper.CreateAsync(pairDto);
+            await 
+            
+            
+            
+            
+            .CreateAsync(pairDto);
 
             var tokens = await _tradePairAppService.GetTokenListAsync(new GetTokenListInput
             {
@@ -750,7 +756,7 @@ namespace AwakenServer.Trade
             {
                 Id = TradePairEthUsdtId,
             };
-            var grain = _clusterClient.GetGrain<ITradePairGrain>(
+            var grain = Cluster.Client.GetGrain<ITradePairGrain>(
                 GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
             await grain.AddOrUpdateAsync(_objectMapper.Map<Index.TradePair, TradePairGrainDto>(tradePairIndex));
             await _tradePairIndexRepository.UpdateAsync(tradePairIndex);
@@ -802,8 +808,8 @@ namespace AwakenServer.Trade
                 MaxResultCount = 10
             });
 
-            tradePairs.TotalCount.ShouldBe(2);
-            tradePairs.Items.Count.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
+            tradePairs.Items.Count.ShouldBe(3);
             var ids = new List<Guid> { TradePairBtcEthId, TradePairEthUsdtId };
             tradePairs.Items[0].Id.ShouldBeOneOf(ids.ToArray());
             tradePairs.Items[0].Id.ShouldBeOneOf(ids.ToArray());
@@ -833,71 +839,71 @@ namespace AwakenServer.Trade
                 TokenSymbol = "BTC"
             });
 
-            tradePairs.TotalCount.ShouldBe(1);
-            tradePairs.Items.Count.ShouldBe(1);
+            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.Items.Count.ShouldBe(2);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "price"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "volumepercentchange24h"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "pricehigh24h"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "pricelow24h"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "feepercent7d"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "tvl"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "pricepercentchange24h"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "volume24h"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "tradepair"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
             tradePairs.Items[0].Id.ShouldBe(TradePairBtcEthId);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
@@ -905,63 +911,63 @@ namespace AwakenServer.Trade
                 ChainId = ChainName,
                 Sorting = "price asc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "volumepercentchange24h asc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "pricehigh24h asc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "pricelow24h asc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "feepercent7d asc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "tvl asc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "pricepercentchange24h asc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "volume24h asc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "tradepair asc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
             tradePairs.Items[0].Id.ShouldBe(TradePairBtcEthId);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
@@ -969,63 +975,63 @@ namespace AwakenServer.Trade
                 ChainId = ChainName,
                 Sorting = "price dsc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "volumepercentchange24h dsc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "pricehigh24h dsc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "pricelow24h dsc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "feepercent7d dsc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "tvl dsc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "pricepercentchange24h dsc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "volume24h dsc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
                 Sorting = "tradepair dsc"
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
             tradePairs.Items[0].Id.ShouldBe(TradePairEthUsdtId);
 
             //fav
@@ -1049,7 +1055,7 @@ namespace AwakenServer.Trade
                 Page = TradePairPage.TradePage,
                 TradePairFeature = TradePairFeature.OtherSymbol
             });
-            tradePairs.TotalCount.ShouldBe(2);
+            tradePairs.TotalCount.ShouldBe(3);
 
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {

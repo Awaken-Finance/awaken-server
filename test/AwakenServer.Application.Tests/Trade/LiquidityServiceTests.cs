@@ -22,7 +22,6 @@ public class LiquidityServiceTests : TradeTestBase
     private readonly ILocalEventBus _eventBus;
     private readonly MockGraphQLProvider _graphQlProvider;
     private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
-    private readonly IClusterClient _clusterClient;
     private readonly ITradePairAppService _tradePairAppService;
 
     public LiquidityServiceTests()
@@ -31,7 +30,6 @@ public class LiquidityServiceTests : TradeTestBase
         _eventBus = GetRequiredService<ILocalEventBus>();
         _graphQlProvider = GetRequiredService<MockGraphQLProvider>();
         _tradePairMarketDataProvider = GetRequiredService<ITradePairMarketDataProvider>();
-        _clusterClient = GetRequiredService<IClusterClient>();
         _tradePairAppService = GetRequiredService<ITradePairAppService>();
     }
     
@@ -66,7 +64,7 @@ public class LiquidityServiceTests : TradeTestBase
         // var market =
         //     await _tradePairMarketDataProvider.GetTradePairMarketDataIndexAsync(ChainId, TradePairEthUsdtId,
         //         snapshotTime);
-        // var grain = _clusterClient.GetGrain<ILiquiditySyncGrain>(
+        // var grain = Cluster.Client.GetGrain<ILiquiditySyncGrain>(
         //     GrainIdHelper.GenerateGrainId(inputMint.ChainId, inputMint.BlockHeight));
         // var existed = await grain.ExistTransactionHashAsync(inputMint.TransactionHash);
         // existed.ShouldBe(true);
@@ -258,7 +256,7 @@ public class LiquidityServiceTests : TradeTestBase
         _graphQlProvider.AddRecord(recordDto1);
         await _liquidityAppService.CreateAsync(0, recordDto1);
 
-        var pairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
+        var pairGrain = Cluster.Client.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairEthUsdtId));
         var pairData = (await pairGrain.GetAsync()).Data;
         pairData.TotalSupply.ShouldBe("0.0005");
 

@@ -211,6 +211,20 @@ namespace AwakenServer.Trade
                 }));
             environmentProvider.TradePairBtcEthId = tradePairBtcEth.Id;
             environmentProvider.TradePairBtcEthAddress = tradePairBtcEth.Address;
+            
+            
+            var tradePairBtcUsdt = AsyncHelper.RunSync(async () => await tradePairService.CreateAsync(
+                new TradePairCreateDto
+                {
+                    ChainId = chainEth.Name,
+                    Address = "0xPool006a6FaC8c710e53c4B2c2F96477119dA363",
+                    Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3303"),
+                    Token0Id = tokenBTC.Id,
+                    Token1Id = tokenUSDT.Id,
+                    FeeRate = 0.03,
+                }));
+            environmentProvider.tradePairBtcUsdtId = tradePairBtcUsdt.Id;
+            environmentProvider.tradePairBtcUsdtAddress = tradePairBtcUsdt.Address;
         }
     }
 }

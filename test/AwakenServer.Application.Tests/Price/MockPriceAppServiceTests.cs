@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AwakenServer.Grains.Tests;
 using AwakenServer.Price.Dtos;
 using AwakenServer.Trade;
 using Shouldly;
@@ -9,6 +10,7 @@ using TradeTokenPriceProvider = AwakenServer.Trade.ITokenPriceProvider;
 
 namespace AwakenServer.Price
 {
+    [Collection(ClusterCollection.Name)]
     public sealed class MockPriceAppServiceTests : MockPriceTestBase
     {
         private readonly IPriceAppService _priceAppService;

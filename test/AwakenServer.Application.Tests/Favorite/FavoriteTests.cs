@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using AwakenServer.Grains.Tests;
 using Shouldly;
 using Volo.Abp;
 using Volo.Abp.Validation;
@@ -8,6 +9,7 @@ using Xunit;
 
 namespace AwakenServer.Favorite;
 
+[Collection(ClusterCollection.Name)]
 public class FavoriteTests : AwakenServerApplicationTestBase
 {
     private Guid TradePairId = Guid.NewGuid();

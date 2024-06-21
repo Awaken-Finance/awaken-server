@@ -32,7 +32,6 @@ public class TradePairMarketDataProviderTests : TradeTestBase
     private readonly IFavoriteAppService _favoriteAppService;
     private readonly IObjectMapper _objectMapper;
     private readonly MockGraphQLProvider _mockGraphQLProvider;
-    private readonly IClusterClient _clusterClient;
 
     public TradePairMarketDataProviderTests()
     {
@@ -48,7 +47,6 @@ public class TradePairMarketDataProviderTests : TradeTestBase
         _tradePairInfoIndex = GetService<INESTRepository<TradePairInfoIndex, Guid>>();
         _favoriteAppService = GetRequiredService<IFavoriteAppService>();
         _mockGraphQLProvider = new MockGraphQLProvider(_objectMapper, _tradePairInfoIndex, _tokenAppService);
-        _clusterClient = GetRequiredService<IClusterClient>();
     }
     
     [Fact]
