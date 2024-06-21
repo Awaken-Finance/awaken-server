@@ -188,6 +188,10 @@ namespace AwakenServer.Trade
                     skip: input.SkipCount);
                 item2 = list.Item2;
             }
+            foreach (var tradeRecord in item2.Where(t => t.Side == TradeSide.Swap))
+            {
+                tradeRecord.Price = 1 / tradeRecord.Price;
+            }
 
             var totalCount = await _tradeRecordIndexRepository.CountAsync(Filter);
 
