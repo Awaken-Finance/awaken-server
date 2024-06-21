@@ -48,7 +48,10 @@ public class LiquidityEventSyncWorker : AwakenServerWorkerBase
         {
             foreach (var queryDto in queryList)
             {
-                await _liquidityService.CreateAsync(currentConfirmedHeight, queryDto);
+                if (!await _liquidityService.CreateAsync(currentConfirmedHeight, queryDto))
+                {
+                    continue;
+                }
                 blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
             }
         }

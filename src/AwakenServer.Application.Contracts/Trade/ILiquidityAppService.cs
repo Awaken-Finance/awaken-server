@@ -16,7 +16,7 @@ namespace AwakenServer.Trade
         
         Task<UserAssetDto> GetUserAssetFromGraphQLAsync(GetUserAssertInput input);
         
-        Task CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input);
+        Task<bool> CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input);
 
         Task RevertLiquidityAsync(string chainId);
 
