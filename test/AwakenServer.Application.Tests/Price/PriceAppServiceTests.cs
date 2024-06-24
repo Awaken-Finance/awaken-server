@@ -4,7 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using AwakenServer.Grains.Tests;
 using AwakenServer.Price.Dtos;
+using AwakenServer.Tokens;
 using AwakenServer.Trade;
+using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Shouldly;
@@ -17,10 +19,16 @@ namespace AwakenServer.Price
     public sealed class PriceAppServiceTests : PriceAppServiceTestBase
     {
         private readonly IPriceAppService _priceAppService;
+        private readonly TradePairTestHelper _tradePairTestHelper;
+        private readonly ITokenAppService _tokenAppService;
+        private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
 
         public PriceAppServiceTests()
         {
             _priceAppService = GetRequiredService<IPriceAppService>();
+            _tradePairTestHelper = GetRequiredService<TradePairTestHelper>();
+            _tokenAppService = GetRequiredService<ITokenAppService>();
+            _tradePairMarketDataProvider = GetRequiredService<ITradePairMarketDataProvider>();
         }
 
         [Fact]
@@ -69,7 +77,66 @@ namespace AwakenServer.Price
         [Fact]
         public async Task PriceRelationTest()
         {
-            //todo
+            await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3F2504E0-4F89-41D3-9A0C-0305E82C3301"), async grain =>
+            {
+                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
+                {
+                    ChainId = ChainName,
+                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA361",
+                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
+                    ReserveA = NumberFormatter.WithDecimals(10, 8),
+                    ReserveB = NumberFormatter.WithDecimals(90, 6),
+                    BlockHeight = 101,
+                    SymbolA = "CPU",
+                    SymbolB = "USDT",
+                    Token0PriceInUsd = 0,
+                    Token1PriceInUsd = 1
+                });
+            });
+            
+            await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3F2504E0-4F89-41D3-9A0C-0305E82C3302"), async grain =>
+            {
+                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
+                {
+                    ChainId = ChainName,
+                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA362",
+                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
+                    ReserveA = NumberFormatter.WithDecimals(10, 8),
+                    ReserveB = NumberFormatter.WithDecimals(90, 6),
+                    BlockHeight = 101,
+                    SymbolA = "CPU",
+                    SymbolB = "USDC",
+                    Token0PriceInUsd = 0,
+                    Token1PriceInUsd = 1
+                });
+            });
+            
+            await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3303"), async grain =>
+            {
+                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
+                {
+                    ChainId = ChainName,
+                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA363",
+                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
+                    ReserveA = NumberFormatter.WithDecimals(100, 8),
+                    ReserveB = NumberFormatter.WithDecimals(10, 8),
+                    BlockHeight = 101,
+                    SymbolA = "CPU",
+                    SymbolB = "READ",
+                    Token0PriceInUsd = 0,
+                    Token1PriceInUsd = 0
+                });
+            });
+            
+            await _priceAppService.RebuildPricingMapAsync(ChainId);
+            
+            var result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "CPU" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(9.9m);
+            
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "READ" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(99m);
         }
 
         

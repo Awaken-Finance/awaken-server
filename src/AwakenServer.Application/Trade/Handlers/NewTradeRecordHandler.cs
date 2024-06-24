@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
+using AwakenServer.Price;
 using AwakenServer.Trade.Dtos;
 using Orleans;
 using Volo.Abp.DependencyInjection;
@@ -15,15 +16,17 @@ namespace AwakenServer.Trade.Handlers
         private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
         private readonly ITradeRecordAppService _tradeRecordAppService;
         private readonly IObjectMapper _objectMapper;
-
+        private readonly IPriceAppService _priceAppService;
 
         public NewTradeRecordHandler(ITradePairMarketDataProvider tradePairMarketDataProvider,
             ITradeRecordAppService tradeRecordAppService, IClusterClient clusterClient,
-            IObjectMapper objectMapper)
+            IObjectMapper objectMapper,
+            IPriceAppService priceAppService)
         {
             _tradePairMarketDataProvider = tradePairMarketDataProvider;
             _tradeRecordAppService = tradeRecordAppService;
             _objectMapper = objectMapper;
+            _priceAppService = priceAppService;
         }
 
         public async Task HandleEventAsync(NewTradeRecordEvent eventData)
@@ -35,6 +38,7 @@ namespace AwakenServer.Trade.Handlers
             {
                 return await grain.UpdateTradeRecordAsync(dto, tradeAddressCount24h);
             });
+            await _priceAppService.UpdatePricingMapAsync(eventData.ChainId, eventData.TradePairId, eventData.Token0Amount, eventData.Token1Amount);
         }
     }
 }

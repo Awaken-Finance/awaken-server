@@ -15,6 +15,8 @@ public class MockTokenPriceProvider : ITokenPriceProvider
                 return 1.2m;
             case "usdt-usd":
                 return 1.1m;
+            case "usdc-usd":
+                return 1m;
             case "sgr-usdt":
                 return 2m;
             case "testcache-usdt":

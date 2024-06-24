@@ -20,6 +20,7 @@ namespace AwakenServer.Trade
     public interface ITokenPriceProvider
     {
         Task<double> GetTokenUSDPriceAsync(string chainId, string symbol);
+        Task<Tuple<double,double>> GetUSDPriceAsync(string chainId, Guid tradePairId, string symbol0, string symbol1);
         Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price);
     }
 
@@ -67,6 +68,12 @@ namespace AwakenServer.Trade
             }
 
             return (double)price.Items[0].PriceInUsd;
+        }
+
+        public async Task<Tuple<double, double>> GetUSDPriceAsync(string chainId, Guid tradePairId, string symbol0, string symbol1)
+        {
+            var price = await _priceAppService.GetPairTokenPriceAsync(chainId, tradePairId, symbol0, symbol1);
+            return new Tuple<double, double>((double)price.Item1.PriceInUsd, (double)price.Item2.PriceInUsd);
         }
 
         public async Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price)
