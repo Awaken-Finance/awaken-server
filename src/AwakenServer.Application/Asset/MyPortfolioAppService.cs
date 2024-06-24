@@ -329,11 +329,14 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var lpTokenPercentage = String.IsNullOrEmpty(pair.TotalSupply) || pair.TotalSupply == "0"
                 ? 0.0
                 : Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(pair.TotalSupply);
-            var token0Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
-            var token1Percenage = pair.ValueLocked1 / (pair.ValueLocked0 + pair.ValueLocked1);
+            var token0Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token0.Symbol);
+            var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token1.Symbol);
+            var token0ValueInUsd = lpTokenPercentage * pair.ValueLocked0 * token0Price;
+            var token1ValueInUsd = lpTokenPercentage * pair.ValueLocked1 * token1Price;
             var valueInUsd = lpTokenPercentage * pair.TVL;
-            var fee = Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals)) +
-                      Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
+            var token0Fee = Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
+            var token1Fee = Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
+            var fee = token0Fee + token1Fee;
             
             sumValueInUsd += valueInUsd;
             sumFeeInUsd += fee;
@@ -386,16 +389,16 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 });
             }
 
-            var currentToken0Position = double.Parse(tokenPositionDictionary[pair.Token0.Symbol].ValueInUsd) + token0Percenage * valueInUsd;
+            var currentToken0Position = double.Parse(tokenPositionDictionary[pair.Token0.Symbol].ValueInUsd) + token0ValueInUsd;
             tokenPositionDictionary[pair.Token0.Symbol].ValueInUsd = currentToken0Position.ToString();
             
-            var currentToken1Position = double.Parse(tokenPositionDictionary[pair.Token1.Symbol].ValueInUsd) + token1Percenage * valueInUsd;
+            var currentToken1Position = double.Parse(tokenPositionDictionary[pair.Token1.Symbol].ValueInUsd) + token1ValueInUsd;
             tokenPositionDictionary[pair.Token1.Symbol].ValueInUsd = currentToken1Position.ToString();
             
-            var currentToken0Fee = double.Parse(tokenFeeDictionary[pair.Token0.Symbol].ValueInUsd) + token0Percenage * fee;
+            var currentToken0Fee = double.Parse(tokenFeeDictionary[pair.Token0.Symbol].ValueInUsd) + token0Fee;
             tokenFeeDictionary[pair.Token0.Symbol].ValueInUsd = currentToken0Fee.ToString();
             
-            var currentToken1Fee = double.Parse(tokenFeeDictionary[pair.Token1.Symbol].ValueInUsd) + token1Percenage * fee;
+            var currentToken1Fee = double.Parse(tokenFeeDictionary[pair.Token1.Symbol].ValueInUsd) + token1Fee;
             tokenFeeDictionary[pair.Token1.Symbol].ValueInUsd = currentToken1Fee.ToString();
         }
         
@@ -663,8 +666,13 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var lpTokenPercentage = String.IsNullOrEmpty(pair.TotalSupply) || pair.TotalSupply == "0"
                 ? 0.0
                 : Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(pair.TotalSupply);
-            var token0Percenage = pair.ValueLocked0 / (pair.ValueLocked0 + pair.ValueLocked1);
-            var token1Percenage = pair.ValueLocked1 / (pair.ValueLocked0 + pair.ValueLocked1);
+            
+            var token0Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token0.Symbol);
+            var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token1.Symbol);
+            var token0ValueInUsd = lpTokenPercentage * pair.ValueLocked0 * token0Price;
+            var token1ValueInUsd = lpTokenPercentage * pair.ValueLocked1 * token1Price;
+            var token0Percenage = token0ValueInUsd / (token0ValueInUsd + token1ValueInUsd);
+            var token1Percenage = token1ValueInUsd / (token0ValueInUsd + token1ValueInUsd);
             var token0PercentStr = Math.Round(token0Percenage * 100,2).ToString();
             var token1PercentStr = Math.Round(100 - double.Parse(token0PercentStr),2).ToString();
             var valueInUsd = lpTokenPercentage * pair.TVL;
@@ -672,8 +680,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
             var token1UnReceivedFee =
                 Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
-            var token0Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token0.Symbol);
-            var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token1.Symbol);
+            
             var cumulativeAdditionInUsd = Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals)) * token0Price +
                                           Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals)) * token1Price;
             var averageHoldingPeriod = GetAverageHoldingPeriod(userLiquidityIndex);
@@ -717,9 +724,9 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 {
                     ValueInUsd = valueInUsd.ToString(),
                     Token0Value = (lpTokenPercentage * pair.ValueLocked0).ToString(),
-                    Token0ValueInUsd = (token0Percenage * valueInUsd).ToString(),
+                    Token0ValueInUsd = (token0ValueInUsd).ToString(),
                     Token1Value = (lpTokenPercentage * pair.ValueLocked1).ToString(),
-                    Token1ValueInUsd = (token1Percenage * valueInUsd).ToString(),
+                    Token1ValueInUsd = (token1ValueInUsd).ToString(),
                 },
                 Fee = new LiquidityPoolValueInfo()
                 {
