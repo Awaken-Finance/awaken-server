@@ -325,10 +325,13 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         {
             var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
             var pair = (await tradePairGrain.GetAsync()).Data;
-
-            var lpTokenPercentage = String.IsNullOrEmpty(pair.TotalSupply) || pair.TotalSupply == "0"
+            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
+            var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
+            
+            var lpTokenPercentage = currentTradePair.TotalSupply == 0
                 ? 0.0
-                : Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(pair.TotalSupply);
+                : userLiquidityIndex.LpTokenAmount / (double)currentTradePair.TotalSupply;
+            
             var token0Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token0.Symbol);
             var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token1.Symbol);
             var token0ValueInUsd = lpTokenPercentage * pair.ValueLocked0 * token0Price;
@@ -660,12 +663,14 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         {
             var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
             var pair = (await tradePairGrain.GetAsync()).Data;
-
+            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
+            var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
+            
             _logger.LogInformation($"process user position input address: {input.Address}, user liquidity index: {JsonConvert.SerializeObject(userLiquidityIndex)}");
 
-            var lpTokenPercentage = String.IsNullOrEmpty(pair.TotalSupply) || pair.TotalSupply == "0"
+            var lpTokenPercentage = currentTradePair.TotalSupply == 0
                 ? 0.0
-                : Double.Parse(userLiquidityIndex.LpTokenAmount.ToDecimalsString(8)) / Double.Parse(pair.TotalSupply);
+                : userLiquidityIndex.LpTokenAmount / (double)currentTradePair.TotalSupply;
             
             var token0Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token0.Symbol);
             var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token1.Symbol);
@@ -694,20 +699,22 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             
             var dynamicAPR = (averageHoldingPeriod != 0 && cumulativeAdditionInUsd != 0)
                 ? (valueInUsd - cumulativeAdditionInUsd) / cumulativeAdditionInUsd * (360d /
-                  averageHoldingPeriod)
+                  averageHoldingPeriod) * 100
                 : 0;
             
-            _logger.LogInformation($"process user position input user address: {input.Address}, " +
+            _logger.LogInformation($"process user position input address: {input.Address}, " +
                                    $"pair.Address: {pair.Address}, " +
                                    $"token0Price: {token0Price}, " +
                                    $"token1Price: {token1Price}, " +
                                    $"pair.TotalSupply: {pair.TotalSupply}, " +
+                                   $"currentTradePair.TotalSupply: {currentTradePair.TotalSupply}, " +
                                    $"pair.ValueLocked0: {pair.ValueLocked0}, " +
                                    $"pair.ValueLocked1: {pair.ValueLocked1}, " +
                                    $"pair.TVL: {pair.TVL}, " +
                                    $"averageHoldingPeriod: {averageHoldingPeriod}," +
                                    $"lpTokenPercentage: {lpTokenPercentage}, " +
                                    $"valueInUsd: {valueInUsd}, " +
+                                   $"dynamicAPR: {dynamicAPR}, " +
                                    $"estimatedAPR7d: {estimatedAPR.Item1}, " +
                                    $"estimatedAPR30d: {estimatedAPR.Item2}, " +
                                    $"estimatedAPRAll: {estimatedAPR.Item3}");
