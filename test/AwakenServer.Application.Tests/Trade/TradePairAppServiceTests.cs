@@ -210,14 +210,14 @@ namespace AwakenServer.Trade
             
             marketDataSnapshot.Price.ShouldBe(100);
             marketDataSnapshot.PriceUSD.ShouldBe(100);
-            marketDataSnapshot.TVL.ShouldBe(10000);
+            marketDataSnapshot.TVL.ShouldBe(10100);
             marketDataSnapshot.ValueLocked0.ShouldBe(100);
             marketDataSnapshot.ValueLocked1.ShouldBe(10000);
 
             var pair = await _tradePairIndexRepository.GetAsync(TradePairEthUsdtId);
             pair.Price.ShouldBe(100);
             pair.PriceUSD.ShouldBe(100);
-            pair.TVL.ShouldBe(10000);
+            pair.TVL.ShouldBe(10100);
             pair.ValueLocked0.ShouldBe(100);
             pair.ValueLocked1.ShouldBe(10000);
             pair.PricePercentChange24h.ShouldBe(0);
@@ -246,14 +246,14 @@ namespace AwakenServer.Trade
                     .Value(snapshotTime)));
             marketDataSnapshot.Price.ShouldBe(110);
             marketDataSnapshot.PriceUSD.ShouldBe(110);
-            marketDataSnapshot.TVL.ShouldBe(22000);
+            marketDataSnapshot.TVL.ShouldBe(22200);
             marketDataSnapshot.ValueLocked0.ShouldBe(200);
             marketDataSnapshot.ValueLocked1.ShouldBe(22000);
 
             pair = await _tradePairIndexRepository.GetAsync(TradePairEthUsdtId);
             pair.Price.ShouldBe(110);
             pair.PriceUSD.ShouldBe(110);
-            pair.TVL.ShouldBe(22000);
+            pair.TVL.ShouldBe(22200);
             pair.ValueLocked0.ShouldBe(200);
             pair.ValueLocked1.ShouldBe(22000);
 
@@ -280,14 +280,14 @@ namespace AwakenServer.Trade
                     .Value(snapshotTime)));
             marketDataSnapshot.Price.ShouldBe(120);
             marketDataSnapshot.PriceUSD.ShouldBe(120);
-            marketDataSnapshot.TVL.ShouldBe(12000);
+            marketDataSnapshot.TVL.ShouldBe(12100);
             marketDataSnapshot.ValueLocked0.ShouldBe(100);
             marketDataSnapshot.ValueLocked1.ShouldBe(12000);
 
             pair = await _tradePairIndexRepository.GetAsync(TradePairEthUsdtId);
             pair.Price.ShouldBe(110);
             pair.PriceUSD.ShouldBe(110);
-            pair.TVL.ShouldBe(22000);
+            pair.TVL.ShouldBe(22200);
             pair.ValueLocked0.ShouldBe(200);
             pair.ValueLocked1.ShouldBe(22000);
 
@@ -314,7 +314,7 @@ namespace AwakenServer.Trade
                     .Value(snapshotTime)));
             marketDataSnapshot.Price.ShouldBe(60);
             marketDataSnapshot.PriceUSD.ShouldBe(60);
-            marketDataSnapshot.TVL.ShouldBe(12000);
+            marketDataSnapshot.TVL.ShouldBe(12200);
             marketDataSnapshot.ValueLocked0.ShouldBe(200);
             marketDataSnapshot.ValueLocked1.ShouldBe(12000);
             marketDataSnapshot.PriceHigh.ShouldBe(120);
@@ -323,7 +323,7 @@ namespace AwakenServer.Trade
             pair = await _tradePairIndexRepository.GetAsync(TradePairEthUsdtId);
             pair.Price.ShouldBe(110);
             pair.PriceUSD.ShouldBe(110);
-            pair.TVL.ShouldBe(22000);
+            pair.TVL.ShouldBe(22200);
             pair.ValueLocked0.ShouldBe(200);
             pair.ValueLocked1.ShouldBe(22000);
         }
@@ -563,8 +563,8 @@ namespace AwakenServer.Trade
             tradePair.TradeCount24h.ShouldBe(6);
             tradePair.TradeValue24h.ShouldBe(48000);
             tradePair.TradeAddressCount24h.ShouldBe(0);
-            tradePair.TVL.ShouldBe(200000d);
-            tradePair.TVLPercentChange24h.ShouldBe(300d);
+            tradePair.TVL.ShouldBe(300000d);
+            tradePair.TVLPercentChange24h.ShouldBe(500d);
             tradePair.PriceUSD.ShouldBe(140);
             //tradePair.FeePercent7d.ShouldBe( 6400 *2 * 0.5 * 365 * 100 / (400000 * 7));
         }

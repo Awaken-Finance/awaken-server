@@ -22,6 +22,7 @@ namespace AwakenServer.Price
         private readonly TradePairTestHelper _tradePairTestHelper;
         private readonly ITokenAppService _tokenAppService;
         private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
+        private readonly ITradeRecordAppService _tradeRecordAppService;
 
         public PriceAppServiceTests()
         {
@@ -29,6 +30,7 @@ namespace AwakenServer.Price
             _tradePairTestHelper = GetRequiredService<TradePairTestHelper>();
             _tokenAppService = GetRequiredService<ITokenAppService>();
             _tradePairMarketDataProvider = GetRequiredService<ITradePairMarketDataProvider>();
+            _tradeRecordAppService = GetRequiredService<ITradeRecordAppService>();
         }
 
         [Fact]
@@ -134,9 +136,45 @@ namespace AwakenServer.Price
             result.Items.Count.ShouldBe(1);
             result.Items[0].PriceInUsd.ShouldBe(9.9m);
             
+            result = await _priceAppService.GetTokenHistoryPriceDataAsync(new List<GetTokenHistoryPriceInput>
+            {
+                new GetTokenHistoryPriceInput()
+                {
+                    Symbol = "CPU",
+                    DateTime = DateTime.Today
+                }
+            });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(9.9m);
+            
             result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "READ" });
             result.Items.Count.ShouldBe(1);
             result.Items[0].PriceInUsd.ShouldBe(99m);
+            
+            // swap and update affected price
+            var swapRecordDto = new SwapRecordDto
+            {
+                ChainId = ChainName,
+                PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA361",
+                Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                AmountOut = NumberFormatter.WithDecimals(8, 6),
+                AmountIn = NumberFormatter.WithDecimals(1, 8),
+                SymbolOut = "USDT",
+                SymbolIn = "CPU",
+                Channel = "test",
+                BlockHeight = 99
+            };
+            await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "CPU" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(8.8m);
+            
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "READ" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(88m);
         }
 
         

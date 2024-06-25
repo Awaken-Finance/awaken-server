@@ -55,7 +55,7 @@ namespace AwakenServer.Controllers.Price
         [Route("token/price")]
         public virtual async Task<string> GetTokenPriceAsync(GetTokenPriceInput input)
         {
-            return await _priceAppService.GetTokenPriceAsync(input);
+            return await _priceAppService.GetApiTokenPriceAsync(input);
         }
     }
 }

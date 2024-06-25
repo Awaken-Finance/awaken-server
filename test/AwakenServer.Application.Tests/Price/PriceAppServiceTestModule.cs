@@ -50,6 +50,19 @@ namespace AwakenServer.Price
                 };
             });
             
+            context.Services.Configure<KLinePeriodOptions>(o =>
+            {
+                o.Periods = new List<int>
+                {
+                    60,
+                    900,
+                    1800,
+                    3600,
+                    14400,
+                    86400,
+                    604800
+                };
+            });
         }
         
         

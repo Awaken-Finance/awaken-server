@@ -26,26 +26,26 @@ namespace AwakenServer.Price
         public async Task GetTokenPriceTest()
         {
             //Get token price from price provider
-            var btcPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
+            var btcPrice = await _priceAppService.GetApiTokenPriceAsync(new GetTokenPriceInput
             {
                 Symbol = Symbol.BTC,
                 ChainId = ChainId
             });
             decimal.Parse(btcPrice).ShouldBe(69000);
-            var sashimiPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
+            var sashimiPrice = await _priceAppService.GetApiTokenPriceAsync(new GetTokenPriceInput
             {
                 Symbol = Symbol.SASHIMI,
                 ChainId = ChainId
             });
             decimal.Parse(sashimiPrice).ShouldBe(1);
-            var istarPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
+            var istarPrice = await _priceAppService.GetApiTokenPriceAsync(new GetTokenPriceInput
             {
                 Symbol = Symbol.ISTAR,
                 ChainId = ChainId
             });
             decimal.Parse(istarPrice).ShouldBe(1);
             
-            var ethPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
+            var ethPrice = await _priceAppService.GetApiTokenPriceAsync(new GetTokenPriceInput
             {
                 Symbol = "ETH",
                 ChainId = ChainId
@@ -55,7 +55,7 @@ namespace AwakenServer.Price
             //Get token price from trade
             await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenBtcId, TokenUSDTId, 59366);
             
-            var newBtcPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
+            var newBtcPrice = await _priceAppService.GetApiTokenPriceAsync(new GetTokenPriceInput
             {
                 TokenId = TokenBtcId,
                 Symbol = Symbol.BTC,
@@ -63,7 +63,7 @@ namespace AwakenServer.Price
             });
             newBtcPrice.ShouldBe("69000");
             
-            newBtcPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
+            newBtcPrice = await _priceAppService.GetApiTokenPriceAsync(new GetTokenPriceInput
             {
                 TokenAddress = TokenBtc.Address,
                 ChainId = ChainId
@@ -71,21 +71,21 @@ namespace AwakenServer.Price
             newBtcPrice.ShouldBe("0");
             
             
-            var noPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
+            var noPrice = await _priceAppService.GetApiTokenPriceAsync(new GetTokenPriceInput
             {
                 TokenAddress = "0xNull",
                 ChainId = ChainId
             });
             noPrice.ShouldBe("0");
             
-            ethPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
+            ethPrice = await _priceAppService.GetApiTokenPriceAsync(new GetTokenPriceInput
             {
                 TokenAddress = TokenEth.Address,
                 ChainId = ChainId
             });
             ethPrice.ShouldBe("0");
             
-            sashimiPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
+            sashimiPrice = await _priceAppService.GetApiTokenPriceAsync(new GetTokenPriceInput
             {
                 TokenAddress = TokenSashimi.Address,
                 ChainId = ChainId

@@ -12,7 +12,7 @@ namespace AwakenServer.Applications.GameOfTrust
 {
     public class MockPriceAppService : IPriceAppService
     {
-        public Task<string> GetTokenPriceAsync(GetTokenPriceInput input)
+        public Task<string> GetApiTokenPriceAsync(GetTokenPriceInput input)
         {
             switch (input.Symbol)
             {
@@ -61,7 +61,7 @@ namespace AwakenServer.Applications.GameOfTrust
             return;
         }
 
-        public async Task UpdatePricingMapAsync(string chainId, Guid tradePairId, string token0Amount,
+        public async Task UpdateAffectedPriceMapAsync(string chainId, Guid tradePairId, string token0Amount,
             string token1Amount)
         {
             return;
@@ -71,7 +71,15 @@ namespace AwakenServer.Applications.GameOfTrust
             string symbol0,
             string symbol1)
         {
-            throw new Exception();
+            return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
+            {
+                Symbol = symbol0,
+                PriceInUsd = 1
+            }, new TokenPriceDataDto()
+            {
+                Symbol = symbol1,
+                PriceInUsd = 1
+            });
         }
     }
 }
