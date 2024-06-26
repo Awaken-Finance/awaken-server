@@ -105,12 +105,7 @@ namespace AwakenServer.Trade
                 Token0Id = TokenBtcId,
                 Token1Id = TokenUsdtId
             };
-            await 
-            
-            
-            
-            
-            .CreateAsync(pairDto);
+            await _tradePairTestHelper.CreateAsync(pairDto);
 
             var tokens = await _tradePairAppService.GetTokenListAsync(new GetTokenListInput
             {
