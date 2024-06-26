@@ -213,7 +213,7 @@ namespace AwakenServer.Trade
             environmentProvider.TradePairBtcEthAddress = tradePairBtcEth.Address;
             
             
-            var tradePairBtcUsdt = AsyncHelper.RunSync(async () => await tradePairService.CreateAsync(
+            var tradePairBtcUsdt = AsyncHelper.RunSync(async () => await tradePairTestHelper.CreateAsync(
                 new TradePairCreateDto
                 {
                     ChainId = chainEth.Name,

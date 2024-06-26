@@ -312,14 +312,14 @@ namespace AwakenServer.Trade
         }
 
         
-        public async Task UpdateTradePairFieldAsync(LiquidityRecordDto input)
+        public async Task<bool> UpdateTradePairFieldAsync(LiquidityRecordDto input)
         {
             var tradePair = await _tradePairAppService.GetTradePairAsync(input.ChainId, input.Pair);
             if (tradePair == null)
             {
                 _logger.LogInformation("tradePair not existed,chainId:{chainId}, address:{address}", input.ChainId,
                     input.Pair);
-                return;
+                return false;
             }
             
             var liquidityEvent = new NewLiquidityRecordEvent
@@ -332,6 +332,7 @@ namespace AwakenServer.Trade
                 IsRevert = input.IsRevert
             };
             await _localEventBus.PublishAsync(liquidityEvent);
+            return true;
         }
 
         public async Task DoRevertAsync(string chainId, List<string> needDeletedTradeRecords)
@@ -374,20 +375,25 @@ namespace AwakenServer.Trade
             }
         }
         
-        public async Task CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input)
+        public async Task<bool> CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input)
         {
             var grain = _clusterClient.GetGrain<ILiquidityRecordGrain>(
                 GrainIdHelper.GenerateGrainId(input.ChainId, input.TransactionHash));
             if (await grain.ExistAsync())
             {
-                return;
+                return true;
             }
 
             await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.LiquidityEvent, input.ChainId, input.BlockHeight, input.TransactionHash);
             
-            await UpdateTradePairFieldAsync(input);
-            
-            await grain.AddAsync(_objectMapper.Map<LiquidityRecordDto, LiquidityRecordGrainDto>(input));
+            var succeed = await UpdateTradePairFieldAsync(input);
+
+            if (succeed)
+            {
+                await grain.AddAsync(_objectMapper.Map<LiquidityRecordDto, LiquidityRecordGrainDto>(input));
+            }
+
+            return succeed;
         }
     }
 }
