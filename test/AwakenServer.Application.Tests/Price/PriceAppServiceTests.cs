@@ -76,8 +76,8 @@ namespace AwakenServer.Price
             
         }
         
-        [Fact]
-        public async Task PriceRelationTest()
+        
+        public async Task BuildAndSwapTest(int index)
         {
 
             await _priceAppService.RebuildPricingMapAsync(ChainId);
@@ -115,14 +115,15 @@ namespace AwakenServer.Price
             tradePairResult = await _priceAppService.GetPairTokenPriceAsync(ChainName, Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3303"), "CPU", "READ");
             tradePairResult.Item1.PriceInUsd.ShouldBe(9.9m);
             tradePairResult.Item2.PriceInUsd.ShouldBe(99m);
-            
+
+            var txnHash = $"6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d3{index}";
             // swap and update affected price
             var swapRecordDto = new SwapRecordDto
             {
                 ChainId = ChainName,
                 PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA361",
                 Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
-                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                TransactionHash = txnHash,
                 Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
                 AmountOut = NumberFormatter.WithDecimals(8, 6),
                 AmountIn = NumberFormatter.WithDecimals(1, 8),
@@ -142,6 +143,31 @@ namespace AwakenServer.Price
             result.Items[4].PriceInUsd.ShouldBe(2.75m);
             result.Items[5].PriceInUsd.ShouldBe(4.58333333333333m);
             
+            swapRecordDto = new SwapRecordDto
+            {
+                ChainId = ChainName,
+                PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA361",
+                Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                AmountOut = NumberFormatter.WithDecimals(8, 6),
+                AmountIn = NumberFormatter.WithDecimals(1, 8),
+                SymbolOut = "USDT",
+                SymbolIn = "CPU",
+                Channel = "test",
+                BlockHeight = 99
+            };
+            await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+        }
+
+        [Fact]
+        public async Task PricingRoute()
+        {
+            int epoch = 5;
+            for (int i = 0; i < epoch; i++)
+            {
+                await BuildAndSwapTest(i);
+            }
         }
 
         
