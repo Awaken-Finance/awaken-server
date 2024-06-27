@@ -79,62 +79,17 @@ namespace AwakenServer.Price
         [Fact]
         public async Task PriceRelationTest()
         {
-            await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3F2504E0-4F89-41D3-9A0C-0305E82C3301"), async grain =>
-            {
-                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
-                {
-                    ChainId = ChainName,
-                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA361",
-                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
-                    ReserveA = NumberFormatter.WithDecimals(10, 8),
-                    ReserveB = NumberFormatter.WithDecimals(90, 6),
-                    BlockHeight = 101,
-                    SymbolA = "CPU",
-                    SymbolB = "USDT",
-                    Token0PriceInUsd = 0,
-                    Token1PriceInUsd = 1
-                });
-            });
-            
-            await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3F2504E0-4F89-41D3-9A0C-0305E82C3302"), async grain =>
-            {
-                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
-                {
-                    ChainId = ChainName,
-                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA362",
-                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
-                    ReserveA = NumberFormatter.WithDecimals(10, 8),
-                    ReserveB = NumberFormatter.WithDecimals(90, 6),
-                    BlockHeight = 101,
-                    SymbolA = "CPU",
-                    SymbolB = "USDC",
-                    Token0PriceInUsd = 0,
-                    Token1PriceInUsd = 1
-                });
-            });
-            
-            await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3303"), async grain =>
-            {
-                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
-                {
-                    ChainId = ChainName,
-                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA363",
-                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
-                    ReserveA = NumberFormatter.WithDecimals(100, 8),
-                    ReserveB = NumberFormatter.WithDecimals(10, 8),
-                    BlockHeight = 101,
-                    SymbolA = "CPU",
-                    SymbolB = "READ",
-                    Token0PriceInUsd = 0,
-                    Token1PriceInUsd = 0
-                });
-            });
-            
+
             await _priceAppService.RebuildPricingMapAsync(ChainId);
             
-            var result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "CPU" });
-            result.Items.Count.ShouldBe(1);
+            var result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "CPU", "USDT", "ETH", "SHIWN-1", "SHIWN-88", "READ" });
+            result.Items.Count.ShouldBe(6);
             result.Items[0].PriceInUsd.ShouldBe(9.9m);
+            result.Items[1].PriceInUsd.ShouldBe(1.1m);
+            result.Items[2].PriceInUsd.ShouldBe(1.2m);
+            result.Items[3].PriceInUsd.ShouldBe(3.09375m);
+            result.Items[4].PriceInUsd.ShouldBe(5.15625m);
+            result.Items[5].PriceInUsd.ShouldBe(99m);
             
             result = await _priceAppService.GetTokenHistoryPriceDataAsync(new List<GetTokenHistoryPriceInput>
             {
@@ -142,14 +97,24 @@ namespace AwakenServer.Price
                 {
                     Symbol = "CPU",
                     DateTime = DateTime.Today
+                },
+                new GetTokenHistoryPriceInput()
+                {
+                    Symbol = "SHIWN-88",
+                    DateTime = DateTime.Today
                 }
             });
-            result.Items.Count.ShouldBe(1);
+            result.Items.Count.ShouldBe(2);
             result.Items[0].PriceInUsd.ShouldBe(9.9m);
+            result.Items[1].PriceInUsd.ShouldBe(5.15625m);
             
-            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "READ" });
-            result.Items.Count.ShouldBe(1);
-            result.Items[0].PriceInUsd.ShouldBe(99m);
+            var tradePairResult = await _priceAppService.GetPairTokenPriceAsync(ChainName, Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3301"), "CPU", "USDT");
+            tradePairResult.Item1.PriceInUsd.ShouldBe(9.9m);
+            tradePairResult.Item2.PriceInUsd.ShouldBe(1.1m);
+
+            tradePairResult = await _priceAppService.GetPairTokenPriceAsync(ChainName, Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3303"), "CPU", "READ");
+            tradePairResult.Item1.PriceInUsd.ShouldBe(9.9m);
+            tradePairResult.Item2.PriceInUsd.ShouldBe(99m);
             
             // swap and update affected price
             var swapRecordDto = new SwapRecordDto
@@ -168,13 +133,15 @@ namespace AwakenServer.Price
             };
             await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
             
-            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "CPU" });
-            result.Items.Count.ShouldBe(1);
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "CPU", "USDT", "ETH", "READ", "SHIWN-1", "SHIWN-88" });
+            result.Items.Count.ShouldBe(6);
             result.Items[0].PriceInUsd.ShouldBe(8.8m);
+            result.Items[1].PriceInUsd.ShouldBe(1.1m);
+            result.Items[2].PriceInUsd.ShouldBe(1.2m);
+            result.Items[3].PriceInUsd.ShouldBe(88m);
+            result.Items[4].PriceInUsd.ShouldBe(2.75m);
+            result.Items[5].PriceInUsd.ShouldBe(4.58333333333333m);
             
-            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "READ" });
-            result.Items.Count.ShouldBe(1);
-            result.Items[0].PriceInUsd.ShouldBe(88m);
         }
 
         

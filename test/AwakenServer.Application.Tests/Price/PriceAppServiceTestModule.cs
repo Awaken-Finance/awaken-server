@@ -72,7 +72,8 @@ namespace AwakenServer.Price
             var tokenService = context.ServiceProvider.GetRequiredService<ITokenAppService>();
             var tradePairTestHelper = context.ServiceProvider.GetRequiredService<TradePairTestHelper>();
             var environmentProvider = context.ServiceProvider.GetRequiredService<TestEnvironmentProvider>();
-
+            var tradePairMarketDataProvider = context.ServiceProvider.GetRequiredService<ITradePairMarketDataProvider>();
+            
             var chain = AsyncHelper.RunSync(async () => await chainTestHelper.CreateAsync(new ChainCreateDto
             {
                 Id = "tDVV",
@@ -108,9 +109,25 @@ namespace AwakenServer.Price
             
             var tokenUSDC = AsyncHelper.RunSync(async () => await tokenService.CreateAsync(new TokenCreateDto
             {
-                Address = "0xToken06a6FaC8c710e53c4B2c2F96477119dA361",
+                Address = "0xToken06a6FaC8c710e53c4B2c2F96477119dA363",
                 Decimals = 6,
                 Symbol = "USDC",
+                ChainId = chain.Id
+            }));
+            
+            var tokenWN1 = AsyncHelper.RunSync(async () => await tokenService.CreateAsync(new TokenCreateDto
+            {
+                Address = "0xToken06a6FaC8c710e53c4B2c2F96477119dA364",
+                Decimals = 8,
+                Symbol = "SHIWN-1",
+                ChainId = chain.Id
+            }));
+            
+            var tokenWN88 = AsyncHelper.RunSync(async () => await tokenService.CreateAsync(new TokenCreateDto
+            {
+                Address = "0xToken06a6FaC8c710e53c4B2c2F96477119dA365",
+                Decimals = 8,
+                Symbol = "SHIWN-88",
                 ChainId = chain.Id
             }));
 
@@ -119,7 +136,7 @@ namespace AwakenServer.Price
                 {
                     ChainId = chain.Name,
                     Address = "0xPool006a6FaC8c710e53c4B2c2F96477119dA361",
-                    Id = Guid.Parse("3F2504E0-4F89-41D3-9A0C-0305E82C3301"),
+                    Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3301"),
                     Token0Id = tokenCPU.Id,
                     Token1Id = tokenUSDT.Id,
                     FeeRate = 0.5
@@ -130,7 +147,7 @@ namespace AwakenServer.Price
                 {
                     ChainId = chain.Name,
                     Address = "0xPool006a6FaC8c710e53c4B2c2F96477119dA362",
-                    Id = Guid.Parse("3F2504E0-4F89-41D3-9A0C-0305E82C3302"),
+                    Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3302"),
                     Token0Id = tokenCPU.Id,
                     Token1Id = tokenUSDC.Id,
                     FeeRate = 0.5
@@ -146,6 +163,114 @@ namespace AwakenServer.Price
                     Token1Id = tokenREAD.Id,
                     FeeRate = 0.03,
                 }));
+            
+
+            var tradePairCpuWn1 = AsyncHelper.RunSync(async () => await tradePairTestHelper.CreateAsync(
+                new TradePairCreateDto
+                {
+                    ChainId = chain.Name,
+                    Address = "0xPool006a6FaC8c710e53c4B2c2F96477119dA3634",
+                    Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3304"),
+                    Token0Id = tokenCPU.Id,
+                    Token1Id = tokenWN1.Id,
+                    FeeRate = 0.03,
+                }));
+            
+            var tradePairCpuWn88 = AsyncHelper.RunSync(async () => await tradePairTestHelper.CreateAsync(
+                new TradePairCreateDto
+                {
+                    ChainId = chain.Name,
+                    Address = "0xPool006a6FaC8c710e53c4B2c2F96477119dA3635",
+                    Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3305"),
+                    Token0Id = tokenWN1.Id,
+                    Token1Id = tokenWN88.Id,
+                    FeeRate = 0.03,
+                }));
+
+            AsyncHelper.RunSync(async () => await tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3301"), async grain =>
+            {
+                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
+                {
+                    ChainId = chain.Name,
+                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA361",
+                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
+                    ReserveA = NumberFormatter.WithDecimals(10, 8),
+                    ReserveB = NumberFormatter.WithDecimals(90, 6),
+                    BlockHeight = 101,
+                    SymbolA = "CPU",
+                    SymbolB = "USDT",
+                    Token0PriceInUsd = 0,
+                    Token1PriceInUsd = 1
+                });
+            }));
+            
+            AsyncHelper.RunSync(async () => await tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3302"), async grain =>
+            {
+                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
+                {
+                    ChainId = chain.Name,
+                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA362",
+                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
+                    ReserveA = NumberFormatter.WithDecimals(10, 8),
+                    ReserveB = NumberFormatter.WithDecimals(90, 6),
+                    BlockHeight = 101,
+                    SymbolA = "CPU",
+                    SymbolB = "USDC",
+                    Token0PriceInUsd = 0,
+                    Token1PriceInUsd = 1
+                });
+            }));
+            
+            AsyncHelper.RunSync(async () => await tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3303"), async grain =>
+            {
+                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
+                {
+                    ChainId = chain.Name,
+                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA363",
+                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
+                    ReserveA = NumberFormatter.WithDecimals(100, 8),
+                    ReserveB = NumberFormatter.WithDecimals(10, 8),
+                    BlockHeight = 101,
+                    SymbolA = "CPU",
+                    SymbolB = "READ",
+                    Token0PriceInUsd = 0,
+                    Token1PriceInUsd = 0
+                });
+            }));
+
+            AsyncHelper.RunSync(async () => await tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3304"), async grain =>
+            {
+                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
+                {
+                    ChainId = chain.Name,
+                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA364",
+                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
+                    ReserveA = NumberFormatter.WithDecimals(5, 8),
+                    ReserveB = NumberFormatter.WithDecimals(16, 8),
+                    BlockHeight = 101,
+                    SymbolA = "CPU",
+                    SymbolB = "SHIWN-1",
+                    Token0PriceInUsd = 0,
+                    Token1PriceInUsd = 0
+                });
+            }));
+            
+            AsyncHelper.RunSync(async () => await tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3305"), async grain =>
+            {
+                return await grain.UpdatePriceAsync(new SyncRecordGrainDto()
+                {
+                    ChainId = chain.Name,
+                    PairAddress = "0xPool006a6FaC8c710e53c4B2c2F96477119dA365",
+                    Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now.AddDays(-3)),
+                    ReserveA = NumberFormatter.WithDecimals(10, 8),
+                    ReserveB = NumberFormatter.WithDecimals(6, 8),
+                    BlockHeight = 101,
+                    SymbolA = "SHIWN-1",
+                    SymbolB = "SHIWN-88",
+                    Token0PriceInUsd = 0,
+                    Token1PriceInUsd = 0
+                });
+            }));
         }
     }
 }

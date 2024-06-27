@@ -138,45 +138,6 @@ namespace AwakenServer.Price
         }
         
         
-        public async Task<TokenPriceDataDto> GetApiTokenPriceAsync(string symbol)
-        {
-            var key = $"{PriceOptions.PriceCachePrefix}:{symbol}";
-            var price = await _priceCache.GetOrAddAsync(key, async () => new PriceDto());
-                    
-            if (IsNeedFetchPrice(price))
-            {
-                try
-                {
-                    price.PriceInUsd = await GetPriceAsync(symbol);
-                    price.PriceUpdateTime = DateTime.UtcNow;
-                    await _priceCache.SetAsync(key, price);
-                }
-                catch (Exception e)
-                {
-                    // TODO: Remove this code in the next version (v2.2)
-                    // This code is temporarily added to fix historical data issues.
-                    if (price.PriceUpdateTime == DateTime.MinValue)
-                    {
-                        price.PriceUpdateTime = DateTime.UtcNow.AddHours(-1);
-                        await _priceCache.SetAsync(key, price);
-                    }
-                    if (price.PriceInUsd == PriceOptions.DefaultPriceValue)
-                    {
-                        price.PriceInUsd = 0;
-                        await _priceCache.SetAsync(key, price);
-                    }
-                    Logger.LogError(e, $"Get token price symbol: {symbol} failed. Return old data price: {price.PriceInUsd}");
-                }
-            }
-                    
-            Logger.LogInformation($"Get token price symbol: {symbol}, return price: {price.PriceInUsd}");
-            return new TokenPriceDataDto
-            {
-                Symbol = symbol,
-                PriceInUsd = price.PriceInUsd
-            };
-        }
-
         public async Task<Tuple<TokenPriceDataDto, TokenPriceDataDto>> GetPairTokenPriceAsync(string chainId, Guid tradePairId, string symbol0,
             string symbol1)
         {
@@ -220,19 +181,60 @@ namespace AwakenServer.Price
             }
         }
 
+        public async Task<TokenPriceDataDto> GetApiTokenPriceAsync(string symbol)
+        {
+            var key = $"{PriceOptions.PriceCachePrefix}:{symbol}";
+            var price = await _priceCache.GetOrAddAsync(key, async () => new PriceDto());
+                    
+            if (IsNeedFetchPrice(price))
+            {
+                try
+                {
+                    price.PriceInUsd = await GetPriceAsync(symbol);
+                    price.PriceUpdateTime = DateTime.UtcNow;
+                    await _priceCache.SetAsync(key, price);
+                }
+                catch (Exception e)
+                {
+                    // TODO: Remove this code in the next version (v2.2)
+                    // This code is temporarily added to fix historical data issues.
+                    if (price.PriceUpdateTime == DateTime.MinValue)
+                    {
+                        price.PriceUpdateTime = DateTime.UtcNow.AddHours(-1);
+                        await _priceCache.SetAsync(key, price);
+                    }
+                    if (price.PriceInUsd == PriceOptions.DefaultPriceValue)
+                    {
+                        price.PriceInUsd = 0;
+                        await _priceCache.SetAsync(key, price);
+                    }
+                    Logger.LogError(e, $"Get token price symbol: {symbol} failed. Return old data price: {price.PriceInUsd}");
+                }
+            }
+                    
+            Logger.LogInformation($"Get token price symbol: {symbol}, return price: {price.PriceInUsd}");
+            return new TokenPriceDataDto
+            {
+                Symbol = symbol,
+                PriceInUsd = price.PriceInUsd
+            };
+        }
+        
         private async Task<TokenPriceDataDto> GetInternalTokenPriceAsync(string symbol)
         {
             var key = $"{PriceOptions.InternalPriceCachePrefix}:{symbol}";
             var internalPriceDto = await _internalPriceCache.GetAsync(key);
             if (internalPriceDto != null)
             {
+                Logger.LogInformation($"Get internal token price symbol: {symbol}, return price: {internalPriceDto.PriceInUsd}");
                 return new TokenPriceDataDto()
                 {
                     Symbol = symbol,
                     PriceInUsd = internalPriceDto.PriceInUsd
                 };
             }
-          
+            
+            Logger.LogInformation($"Get internal token price symbol: {symbol}, return price: 0");
             return new TokenPriceDataDto()
             {
                 Symbol = symbol,
@@ -240,43 +242,7 @@ namespace AwakenServer.Price
             };
         }
         
-        public async Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols)
-        {
-            var result = new List<TokenPriceDataDto>();
-            if (symbols.Count == 0)
-            {
-                return new ListResultDto<TokenPriceDataDto>();
-            }
-
-            try
-            {
-                var symbolList = symbols.Distinct(StringComparer.InvariantCultureIgnoreCase).ToList();
-                for (var i = 0; i < symbolList.Count; i++)
-                {
-                    var tokenApiName = GetTokenApiName(symbolList[i]);
-                    if (!string.IsNullOrEmpty(tokenApiName))
-                    {
-                        var price = await GetApiTokenPriceAsync(symbolList[i]);
-                        result.Add(price);
-                    }
-                    else
-                    {
-                        result.Add(await GetInternalTokenPriceAsync(symbolList[i]));
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Get token price failed.");
-                throw;
-            }
-
-            return new ListResultDto<TokenPriceDataDto>
-            {
-                Items = result
-            };
-        }
-
+        
         public async Task<TokenPriceDataDto> GetApiHistoryTokenPriceAsync(GetTokenHistoryPriceInput input)
         {
             var time = input.DateTime.ToString("dd-MM-yyyy");
@@ -319,6 +285,7 @@ namespace AwakenServer.Price
             var internalPriceDto = await _internalPriceCache.GetAsync(historyKey);
             if (internalPriceDto != null)
             {
+                Logger.LogInformation($"Get internal history token price symbol: {input.Symbol}, return price: {internalPriceDto.PriceInUsd}");
                 return new TokenPriceDataDto()
                 {
                     Symbol = input.Symbol,
@@ -326,6 +293,7 @@ namespace AwakenServer.Price
                 };
             }
           
+            Logger.LogInformation($"Get internal history token price symbol: {input.Symbol}, return price: 0");
             return new TokenPriceDataDto()
             {
                 Symbol = input.Symbol,
@@ -333,6 +301,43 @@ namespace AwakenServer.Price
             };
         }
         
+        public async Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols)
+        {
+            var result = new List<TokenPriceDataDto>();
+            if (symbols.Count == 0)
+            {
+                return new ListResultDto<TokenPriceDataDto>();
+            }
+
+            try
+            {
+                var symbolList = symbols.Distinct(StringComparer.InvariantCultureIgnoreCase).ToList();
+                for (var i = 0; i < symbolList.Count; i++)
+                {
+                    var tokenApiName = GetTokenApiName(symbolList[i]);
+                    if (!string.IsNullOrEmpty(tokenApiName))
+                    {
+                        var price = await GetApiTokenPriceAsync(symbolList[i]);
+                        result.Add(price);
+                    }
+                    else
+                    {
+                        result.Add(await GetInternalTokenPriceAsync(symbolList[i]));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Get token price failed.");
+                throw;
+            }
+
+            return new ListResultDto<TokenPriceDataDto>
+            {
+                Items = result
+            };
+        }
+
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenHistoryPriceDataAsync(
             List<GetTokenHistoryPriceInput> inputs)
         {
@@ -386,7 +391,7 @@ namespace AwakenServer.Price
             return graph.Relations.ContainsKey(from) && graph.Relations[from].ContainsKey(to);
         }
 
-        private TradePair GetHighestPriorityTradePairAddress(string from, string to, TradePairsGraph graph)
+        private TradePair GetHighestPriorityTradePair(string from, string to, TradePairsGraph graph)
         {
             if (!graph.Relations.ContainsKey(from) || !graph.Relations[from].ContainsKey(to))
             {
@@ -496,7 +501,7 @@ namespace AwakenServer.Price
 
                     foreach (var toToken in toTokens)
                     {
-                        var tradePair = GetHighestPriorityTradePairAddress(node.TokenSymbol, toToken, graph);
+                        var tradePair = GetHighestPriorityTradePair(node.TokenSymbol, toToken, graph);
                         var price = (node.TokenSymbol == tradePair.Token0.Symbol
                             ? tradePair.ValueLocked0 / tradePair.ValueLocked1
                             : tradePair.ValueLocked1 / tradePair.ValueLocked0) * node.PriceInUsd;

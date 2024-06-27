@@ -672,7 +672,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 ? 0.0
                 : userLiquidityIndex.LpTokenAmount / (double)currentTradePair.TotalSupply;
             
-
+            var (token0Price, token1Price) = await _tokenPriceProvider.GetUSDPriceAsync(pair.ChainId, pair.Id, pair.Token0.Symbol, pair.Token1.Symbol);
+            
             var token0ValueInUsd = lpTokenPercentage * pair.ValueLocked0 * token0Price;
             var token1ValueInUsd = lpTokenPercentage * pair.ValueLocked1 * token1Price;
             var token0Percenage = token0ValueInUsd / (token0ValueInUsd + token1ValueInUsd);
@@ -684,9 +685,6 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
             var token1UnReceivedFee =
                 Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
-
-
-            var (token0Price, token1Price) = await _tokenPriceProvider.GetUSDPriceAsync(pair.ChainId, pair.Id, pair.Token0.Symbol, pair.Token1.Symbol);
 
             
             var cumulativeAdditionInUsd = Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals)) * token0Price +
