@@ -18,6 +18,8 @@ namespace AwakenServer.Price
         Task UpdateAffectedPriceMapAsync(string chainId, Guid tradePairId, string token0Amount, string token1Amount);
         Task<Tuple<TokenPriceDataDto, TokenPriceDataDto>> GetPairTokenPriceAsync(string chainId, Guid tradePairId,
             string symbol0,
-            string symbol1);
+            string symbol1, 
+            string token0Amount = null, 
+            string token1Amount = null);
     }
 }

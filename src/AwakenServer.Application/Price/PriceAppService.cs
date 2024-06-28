@@ -18,6 +18,7 @@ using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
+using Volo.Abp.DistributedLocking;
 using Index = System.Index;
 using IndexTradePair = AwakenServer.Trade.Index.TradePair;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
@@ -34,14 +35,16 @@ namespace AwakenServer.Price
         private readonly INESTRepository<IndexTradePair, Guid> _tradePairIndexRepository;
         private readonly IDistributedCache<TokenPricingMap> _tokenPricingMapCache;
         private readonly ILogger<PriceAppService> _logger;
-
+        private readonly IAbpDistributedLock _distributedLock;
+        
         public PriceAppService(IDistributedCache<PriceDto> priceCache,
             IDistributedCache<PriceDto> internalPriceCache,
             ITokenPriceProvider tokenPriceProvider,
             IOptionsSnapshot<TokenPriceOptions> options,
             INESTRepository<IndexTradePair, Guid> tradePairIndexRepository,
             ILogger<PriceAppService> logger,
-            IDistributedCache<TokenPricingMap> tokenPricingMap)
+            IDistributedCache<TokenPricingMap> tokenPricingMap,
+            IAbpDistributedLock distributedLock)
         {
             _priceCache = priceCache;
             _tokenPriceProvider = tokenPriceProvider;
@@ -50,6 +53,7 @@ namespace AwakenServer.Price
             _logger = logger;
             _tokenPricingMapCache = tokenPricingMap;
             _internalPriceCache = internalPriceCache;
+            _distributedLock = distributedLock;
         }
 
         public async Task<string> GetApiTokenPriceAsync(GetTokenPriceInput input)
@@ -140,7 +144,9 @@ namespace AwakenServer.Price
         
         
         public async Task<Tuple<TokenPriceDataDto, TokenPriceDataDto>> GetPairTokenPriceAsync(string chainId, Guid tradePairId, string symbol0,
-            string symbol1)
+            string symbol1, 
+            string token0Amount = null, 
+            string token1Amount = null)
         {
             var token0PricePair = GetTokenApiName(symbol0);
             var token1PricePair = GetTokenApiName(symbol1);
@@ -154,6 +160,22 @@ namespace AwakenServer.Price
             {
                 var dependsTokenPriceDto = await GetApiTokenPriceAsync(symbol1);
                 var tradePair = await _tradePairIndexRepository.GetAsync(tradePairId);
+                if (tradePair.ValueLocked0 == 0)
+                {
+                    if (string.IsNullOrEmpty(token0Amount) || string.IsNullOrEmpty(token1Amount) || token0Amount == "0" || token1Amount == "0")
+                    {
+                        return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
+                        {
+                            Symbol = symbol0,
+                            PriceInUsd = 0
+                        }, dependsTokenPriceDto);
+                    }
+                    return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
+                    {
+                        Symbol = symbol0,
+                        PriceInUsd = decimal.Parse(token1Amount) / decimal.Parse(token0Amount) * dependsTokenPriceDto.PriceInUsd
+                    }, dependsTokenPriceDto);
+                }
                 var price = (decimal)tradePair.ValueLocked1 / (decimal)tradePair.ValueLocked0 * dependsTokenPriceDto.PriceInUsd;
                 return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
                 {
@@ -173,6 +195,23 @@ namespace AwakenServer.Price
                     dependsTokenPriceDto = await GetInternalTokenPriceAsync(symbol0);
                 }
                 var tradePair = await _tradePairIndexRepository.GetAsync(tradePairId);
+                if (tradePair.ValueLocked1 == 0)
+                {
+                    if (string.IsNullOrEmpty(token0Amount) || string.IsNullOrEmpty(token1Amount) ||
+                        token0Amount == "0" || token1Amount == "0")
+                    {
+                        return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(dependsTokenPriceDto, new TokenPriceDataDto()
+                        {
+                            Symbol = symbol1,
+                            PriceInUsd = 0
+                        });
+                    }
+                    return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(dependsTokenPriceDto, new TokenPriceDataDto()
+                    {
+                        Symbol = symbol1,
+                        PriceInUsd = decimal.Parse(token0Amount) / decimal.Parse(token1Amount) * dependsTokenPriceDto.PriceInUsd
+                    });
+                }
                 var price = (decimal)tradePair.ValueLocked0 / (decimal)tradePair.ValueLocked1 * dependsTokenPriceDto.PriceInUsd;
                 return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(dependsTokenPriceDto, new TokenPriceDataDto()
                 {
@@ -293,7 +332,8 @@ namespace AwakenServer.Price
                     PriceInUsd = internalPriceDto.PriceInUsd
                 };
             }
-          
+            
+            
             Logger.LogInformation($"Get internal history token price symbol: {input.Symbol}, return price: 0");
             return new TokenPriceDataDto()
             {
@@ -373,7 +413,7 @@ namespace AwakenServer.Price
         
         public void PrintPricingNodeTree(PricingNode node, int indent = 0)
         {
-            _logger.LogInformation($"{new string(' ', indent * 2)}Depth: {node.Depth}, FromTokenSymbol: {node.FromTokenSymbol}, TokenSymbol: {node.TokenSymbol}, PriceInUsd: {node.PriceInUsd}, FromTradePairAddress: {node.FromTradePairAddress}");
+            _logger.LogInformation($"{new string(' ', indent * 2)}Price Spread. Tree Depth: {node.Depth}, FromTokenSymbol: {node.FromTokenSymbol}, TokenSymbol: {node.TokenSymbol}, PriceInUsd: {node.PriceInUsd}, FromTradePairAddress: {node.FromTradePairAddress}");
 
             foreach (var child in node.ToTokens)
             {
@@ -473,7 +513,7 @@ namespace AwakenServer.Price
             var graph = await BuildRelationsAsync(tradePairs);
             var priceTokens = await GetPriceTokensAsync(graph);
             
-            _logger.LogInformation($"Build pricing map. " +
+            _logger.LogInformation($"Price Spread. Build pricing map. " +
                                    $"Init: with price tokens: {JsonConvert.SerializeObject(priceTokens.Item1)}, " +
                                    $"no price tokens: {JsonConvert.SerializeObject(priceTokens.Item2)}");
             
@@ -584,7 +624,7 @@ namespace AwakenServer.Price
                 var historyKey = $"{PriceOptions.InternalPriceHistoryCachePrefix}:{tokenToPrice.Key}:{time}";
                 await _internalPriceCache.SetAsync(historyKey, priceDto);
                 
-                _logger.LogInformation($"Update addected from swap token price. " +
+                _logger.LogInformation($"Price Spread. Update addected from swap token price. " +
                                        $"key: {key}, historyKey: {historyKey}, price: {priceDto.PriceInUsd}, update time: {priceDto.PriceUpdateTime}");
             }
         }
@@ -597,7 +637,7 @@ namespace AwakenServer.Price
                 : tradePair.ValueLocked1 / tradePair.ValueLocked0) * tokenPricingMap.TokenToPrice[root.FromTokenSymbol];
             tokenPricingMap.TokenToPrice[root.TokenSymbol] = root.PriceInUsd;
             needUpdateTokenPrice[root.TokenSymbol] = root.PriceInUsd;
-            _logger.LogInformation($"Update pricing map from trade pair. node: {root.TokenSymbol}, price: {root.PriceInUsd}");
+            _logger.LogInformation($"Price Spread. Update pricing map from trade pair. node: {root.TokenSymbol}, price: {root.PriceInUsd}");
             foreach (var node in root.ToTokens)
             {
                 await UpdaeNodePriceAsync(tokenPricingMap, node, needUpdateTokenPrice);
@@ -613,7 +653,7 @@ namespace AwakenServer.Price
                     : token1Amount / token0Amount) * tokenPricingMap.TokenToPrice[root.FromTokenSymbol];
                 tokenPricingMap.TokenToPrice[root.TokenSymbol] = root.PriceInUsd;
                 needUpdateTokenPrice[root.TokenSymbol] = root.PriceInUsd;
-                _logger.LogInformation($"Update pricing map from trade pair. Trade pair: {tradePair.Address}, spread from source: {root.TokenSymbol}, price: {root.PriceInUsd}");
+                _logger.LogInformation($"Price Spread. Update pricing map from trade pair. Trade pair: {tradePair.Address}, spread from source: {root.TokenSymbol}, price: {root.PriceInUsd}");
                 foreach (var node in root.ToTokens)
                 {
                     await UpdaeNodePriceAsync(tokenPricingMap, node, needUpdateTokenPrice);
@@ -647,35 +687,53 @@ namespace AwakenServer.Price
             if (tokenPricingMap.PriceSpreadTrees.Count > 0)
             {
                 var pricingMapKey = $"{PriceOptions.PricingMapCachePrefix}:{chainId}";
-                await _tokenPricingMapCache.SetAsync(pricingMapKey, tokenPricingMap);
-                _logger.LogInformation($"Rebuild pricing tree. Cache key: {pricingMapKey}, tree: {JsonConvert.SerializeObject(tokenPricingMap.PriceSpreadTrees)}");
-                await UpdateInternalPriceCacheAsync(tokenPricingMap.TokenToPrice);
+                await using var handle = await _distributedLock.TryAcquireAsync(pricingMapKey, TimeSpan.FromSeconds(PriceOptions.CacheLockTimeoutSeconds));
+                if (handle != null)
+                {
+                    await _tokenPricingMapCache.SetAsync(pricingMapKey, tokenPricingMap);
+                    await UpdateInternalPriceCacheAsync(tokenPricingMap.TokenToPrice);
+                    _logger.LogInformation($"Price Spread. Rebuild pricing tree. Cache key: {pricingMapKey}, price count: {tokenPricingMap.TokenToPrice.Count}");
+                }
+                else
+                {
+                    _logger.LogInformation($"Price Spread. Rebuild pricing tree failed, can not get cache lock {pricingMapKey}");
+                }
             }
         }
         
         public async Task UpdateAffectedPriceMapAsync(string chainId, Guid tradePairId, string token0Amount, string token1Amount)
         {
             var pricingMapKey = $"{PriceOptions.PricingMapCachePrefix}:{chainId}";
-            var tokenPricingMap = await _tokenPricingMapCache.GetAsync(pricingMapKey);
-            if (tokenPricingMap != null && tokenPricingMap.PriceSpreadTrees != null)
+            await using var handle = await _distributedLock.TryAcquireAsync(pricingMapKey, TimeSpan.FromSeconds(PriceOptions.CacheLockTimeoutSeconds));
+            if (handle != null)
             {
-                var pair = await _tradePairIndexRepository.GetAsync(tradePairId);
-                if (pair == null)
+                var tokenPricingMap = await _tokenPricingMapCache.GetAsync(pricingMapKey);
+                if (tokenPricingMap != null && tokenPricingMap.PriceSpreadTrees != null)
                 {
-                    _logger.LogInformation($"Pricing map get pair: {tradePairId} failed");
-                    return;
-                }
+                    var pair = await _tradePairIndexRepository.GetAsync(tradePairId);
+                    if (pair == null)
+                    {
+                        _logger.LogInformation($"Price Spread. Get pair: {tradePairId} failed");
+                        return;
+                    }
 
-                Dictionary<string, double> needUpdateTokenPrice = new Dictionary<string, double>();
-                foreach (var root in tokenPricingMap.PriceSpreadTrees)
-                {
-                    await UpdateAffectedTokenPricesAsync(tokenPricingMap, root, pair, double.Parse(token0Amount), double.Parse(token1Amount), needUpdateTokenPrice);
+                    Dictionary<string, double> needUpdateTokenPrice = new Dictionary<string, double>();
+                    foreach (var root in tokenPricingMap.PriceSpreadTrees)
+                    {
+                        await UpdateAffectedTokenPricesAsync(tokenPricingMap, root, pair, double.Parse(token0Amount), double.Parse(token1Amount), needUpdateTokenPrice);
+                    }
+                    await _tokenPricingMapCache.SetAsync(pricingMapKey, tokenPricingMap);
+                    await UpdateInternalPriceCacheAsync(needUpdateTokenPrice);
+                    _logger.LogInformation($"Price Spread. Update tree and cache price. Cache key: {pricingMapKey}, need update price count: {needUpdateTokenPrice.Count}");
                 }
-                await UpdateInternalPriceCacheAsync(needUpdateTokenPrice);
+                else
+                {
+                    _logger.LogInformation($"Price Spread. Update tree and cache price failed, can not get key: {pricingMapKey} from cache");
+                }
             }
             else
             {
-                _logger.LogInformation($"Pricing map get cache key: {pricingMapKey} failed");
+                 _logger.LogInformation($"Price Spread. Update tree and cache price failed, can not get cache lock: {pricingMapKey}");
             }
         }
         

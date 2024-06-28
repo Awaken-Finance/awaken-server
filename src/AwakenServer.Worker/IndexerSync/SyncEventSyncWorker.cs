@@ -54,7 +54,7 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "sync event fail.");
+            _logger.LogError(e, "sync event fail. Exception: {e}");
         }
 
         return blockHeight;

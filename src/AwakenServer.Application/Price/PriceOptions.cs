@@ -13,6 +13,7 @@ public class PriceOptions
     public const int PriceSuperLongExpirationTime = 1576800000;
     public const decimal DefaultPriceValue = -1;
     public const string UsdtPricePair = "usdt-usd";
+    public const int CacheLockTimeoutSeconds = 3;
 }
 
 public class TokenPriceOptions

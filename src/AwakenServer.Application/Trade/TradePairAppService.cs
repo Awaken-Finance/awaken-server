@@ -370,9 +370,19 @@ namespace AwakenServer.Trade
                 return;
             }
 
+            var isReversed = pair.Token0.Symbol == dto.SymbolB;
+            var token0Amount = isReversed
+                ? dto.ReserveB.ToDecimalsString(pair.Token0.Decimals)
+                : dto.ReserveA.ToDecimalsString(pair.Token0.Decimals);
+            var token1Amount = isReversed
+                ? dto.ReserveA.ToDecimalsString(pair.Token1.Decimals)
+                : dto.ReserveB.ToDecimalsString(pair.Token1.Decimals);
+            
             dto.PairId = pair.Id;
             var syncRecordGrainDto = _objectMapper.Map<SyncRecordDto, SyncRecordGrainDto>(dto);
-            (syncRecordGrainDto.Token0PriceInUsd, syncRecordGrainDto.Token1PriceInUsd) = await _tokenPriceProvider.GetUSDPriceAsync(pair.ChainId, pair.Id, pair.Token0.Symbol, pair.Token1.Symbol);
+            (syncRecordGrainDto.Token0PriceInUsd, syncRecordGrainDto.Token1PriceInUsd) = await _tokenPriceProvider.GetUSDPriceAsync(pair.ChainId, pair.Id, pair.Token0.Symbol, pair.Token1.Symbol, token0Amount, token1Amount);
+            
+            _logger.LogInformation($"Sync event, get token price usd, trade pair id: {pair.Id}, token0: {pair.Token0.Symbol}, token1:{pair.Token1.Symbol}, price0:{syncRecordGrainDto.Token0PriceInUsd}, price1:{syncRecordGrainDto.Token1PriceInUsd}");
             
             await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(pair.Id, async grain =>
             {

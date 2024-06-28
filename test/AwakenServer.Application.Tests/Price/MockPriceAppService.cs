@@ -69,7 +69,9 @@ namespace AwakenServer.Applications.GameOfTrust
         
         public async Task<Tuple<TokenPriceDataDto, TokenPriceDataDto>> GetPairTokenPriceAsync(string chainId, Guid tradePairId,
             string symbol0,
-            string symbol1)
+            string symbol1, 
+            string token0Amount = null, 
+            string token1Amount = null)
         {
             return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
             {
