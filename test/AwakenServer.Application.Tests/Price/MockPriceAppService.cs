@@ -12,7 +12,7 @@ namespace AwakenServer.Applications.GameOfTrust
 {
     public class MockPriceAppService : IPriceAppService
     {
-        public Task<string> GetApiTokenPriceAsync(GetTokenPriceInput input)
+        public Task<string> GetTokenPriceAsync(GetTokenPriceInput input)
         {
             switch (input.Symbol)
             {

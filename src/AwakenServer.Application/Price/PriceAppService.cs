@@ -56,7 +56,7 @@ namespace AwakenServer.Price
             _distributedLock = distributedLock;
         }
 
-        public async Task<string> GetApiTokenPriceAsync(GetTokenPriceInput input)
+        public async Task<string> GetTokenPriceAsync(GetTokenPriceInput input)
         {
             if (string.IsNullOrWhiteSpace(input.Symbol)) return "0";
             var result = await GetTokenPriceListAsync(new List<string>{ input.Symbol });
