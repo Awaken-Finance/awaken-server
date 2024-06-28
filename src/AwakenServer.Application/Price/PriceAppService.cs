@@ -150,75 +150,112 @@ namespace AwakenServer.Price
         {
             var token0PricePair = GetTokenApiName(symbol0);
             var token1PricePair = GetTokenApiName(symbol1);
+            double valueLocked0 = 0;
+            double valueLocked1 = 0;
+            var tradePair = await _tradePairIndexRepository.GetAsync(tradePairId);
+            if (tradePair != null)
+            {
+                valueLocked0 = tradePair.ValueLocked0;
+                valueLocked1 = tradePair.ValueLocked1;
+            }
+            if (valueLocked0 == 0 || valueLocked1 == 0)
+            {
+                valueLocked0 = string.IsNullOrEmpty(token0Amount) || token0Amount == "0"
+                    ? 0
+                    : double.Parse(token0Amount);
+                valueLocked1 = string.IsNullOrEmpty(token1Amount) || token1Amount == "0"
+                    ? 0
+                    : double.Parse(token1Amount);
+            }
             if (!string.IsNullOrEmpty(token0PricePair) && !string.IsNullOrEmpty(token1PricePair))
             {
                 var token0PriceDto = await GetApiTokenPriceAsync(symbol0);
                 var token1PriceDto = await GetApiTokenPriceAsync(symbol1);
                 return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(token0PriceDto, token1PriceDto);
             }
-            else if (!string.IsNullOrEmpty(token1PricePair))
+            else if(!string.IsNullOrEmpty(token0PricePair))
             {
-                var dependsTokenPriceDto = await GetApiTokenPriceAsync(symbol1);
-                var tradePair = await _tradePairIndexRepository.GetAsync(tradePairId);
-                if (tradePair.ValueLocked0 == 0)
+                var dependsTokenPriceDto = await GetApiTokenPriceAsync(symbol0);
+                if (valueLocked1 == 0)
                 {
-                    if (string.IsNullOrEmpty(token0Amount) || string.IsNullOrEmpty(token1Amount) || token0Amount == "0" || token1Amount == "0")
-                    {
-                        return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
-                        {
-                            Symbol = symbol0,
-                            PriceInUsd = 0
-                        }, dependsTokenPriceDto);
-                    }
-                    return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
-                    {
-                        Symbol = symbol0,
-                        PriceInUsd = decimal.Parse(token1Amount) / decimal.Parse(token0Amount) * dependsTokenPriceDto.PriceInUsd
-                    }, dependsTokenPriceDto);
-                }
-                var price = (decimal)tradePair.ValueLocked1 / (decimal)tradePair.ValueLocked0 * dependsTokenPriceDto.PriceInUsd;
-                return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
-                {
-                    Symbol = symbol0,
-                    PriceInUsd = price
-                }, dependsTokenPriceDto);
-            }
-            else
-            {
-                TokenPriceDataDto dependsTokenPriceDto;
-                if (!string.IsNullOrEmpty(token0PricePair))
-                {
-                    dependsTokenPriceDto = await GetApiTokenPriceAsync(symbol0);
-                }
-                else
-                {
-                    dependsTokenPriceDto = await GetInternalTokenPriceAsync(symbol0);
-                }
-                var tradePair = await _tradePairIndexRepository.GetAsync(tradePairId);
-                if (tradePair.ValueLocked1 == 0)
-                {
-                    if (string.IsNullOrEmpty(token0Amount) || string.IsNullOrEmpty(token1Amount) ||
-                        token0Amount == "0" || token1Amount == "0")
-                    {
-                        return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(dependsTokenPriceDto, new TokenPriceDataDto()
-                        {
-                            Symbol = symbol1,
-                            PriceInUsd = 0
-                        });
-                    }
                     return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(dependsTokenPriceDto, new TokenPriceDataDto()
                     {
                         Symbol = symbol1,
-                        PriceInUsd = decimal.Parse(token0Amount) / decimal.Parse(token1Amount) * dependsTokenPriceDto.PriceInUsd
+                        PriceInUsd = 0
                     });
                 }
-                var price = (decimal)tradePair.ValueLocked0 / (decimal)tradePair.ValueLocked1 * dependsTokenPriceDto.PriceInUsd;
+                var price = (decimal)valueLocked0 / (decimal)valueLocked1 * dependsTokenPriceDto.PriceInUsd;
                 return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(dependsTokenPriceDto, new TokenPriceDataDto()
                 {
                     Symbol = symbol1,
                     PriceInUsd = price
                 });
             }
+            else if (!string.IsNullOrEmpty(token1PricePair))
+            {
+                var dependsTokenPriceDto = await GetApiTokenPriceAsync(symbol1);
+                if (valueLocked0 == 0)
+                {
+                    return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
+                    {
+                        Symbol = symbol0,
+                        PriceInUsd = 0
+                    }, dependsTokenPriceDto);
+                }
+                var price = (decimal)valueLocked1 / (decimal)valueLocked0 * dependsTokenPriceDto.PriceInUsd;
+                return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
+                {
+                    Symbol = symbol0,
+                    PriceInUsd = price
+                }, dependsTokenPriceDto);
+            }
+            
+            TokenPriceDataDto token0InternalPrice = await GetInternalTokenPriceAsync(symbol0);
+            TokenPriceDataDto token1InternalPrice = await GetInternalTokenPriceAsync(symbol1);
+            if (token0InternalPrice.PriceInUsd != 0)
+            {
+                if (valueLocked1 == 0)
+                {
+                    return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(token0InternalPrice, new TokenPriceDataDto()
+                    {
+                        Symbol = symbol1,
+                        PriceInUsd = 0
+                    });
+                }
+                var price = (decimal)valueLocked0 / (decimal)valueLocked1 * token0InternalPrice.PriceInUsd;
+                return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(token0InternalPrice, new TokenPriceDataDto()
+                {
+                    Symbol = symbol1,
+                    PriceInUsd = price
+                });
+            }
+            else if (token1InternalPrice.PriceInUsd != 0)
+            {
+                if (valueLocked0 == 0)
+                {
+                    return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
+                    {
+                        Symbol = symbol0,
+                        PriceInUsd = 0
+                    }, token1InternalPrice);
+                }
+                var price = (decimal)valueLocked1 / (decimal)valueLocked0 * token1InternalPrice.PriceInUsd;
+                return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
+                {
+                    Symbol = symbol0,
+                    PriceInUsd = price
+                }, token1InternalPrice);
+            }
+          
+            return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
+            {
+                Symbol = symbol0,
+                PriceInUsd = 0
+            }, new TokenPriceDataDto()
+            {
+                Symbol = symbol1,
+                PriceInUsd = 0
+            });
         }
 
         public async Task<TokenPriceDataDto> GetApiTokenPriceAsync(string symbol)
