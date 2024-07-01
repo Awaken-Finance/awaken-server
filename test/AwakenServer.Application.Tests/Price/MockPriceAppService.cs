@@ -45,7 +45,7 @@ namespace AwakenServer.Applications.GameOfTrust
                     {
                         Symbol = "EOS",
                         PriceInUsd = 1
-                    },
+                    }
                 }.Where(o => symbols.Contains(o.Symbol)).ToList()
             };
         }
@@ -65,23 +65,6 @@ namespace AwakenServer.Applications.GameOfTrust
             string token1Amount)
         {
             return;
-        }
-        
-        public async Task<Tuple<TokenPriceDataDto, TokenPriceDataDto>> GetPairTokenPriceAsync(string chainId, Guid tradePairId,
-            string symbol0,
-            string symbol1, 
-            string token0Amount = null, 
-            string token1Amount = null)
-        {
-            return new Tuple<TokenPriceDataDto, TokenPriceDataDto>(new TokenPriceDataDto()
-            {
-                Symbol = symbol0,
-                PriceInUsd = 1
-            }, new TokenPriceDataDto()
-            {
-                Symbol = symbol1,
-                PriceInUsd = 1
-            });
         }
     }
 }

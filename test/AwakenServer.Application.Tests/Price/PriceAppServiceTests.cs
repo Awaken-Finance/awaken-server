@@ -107,14 +107,6 @@ namespace AwakenServer.Price
             result.Items.Count.ShouldBe(2);
             result.Items[0].PriceInUsd.ShouldBe(9.9m);
             result.Items[1].PriceInUsd.ShouldBe(5.15625m);
-            
-            var tradePairResult = await _priceAppService.GetPairTokenPriceAsync(ChainName, Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3301"), "CPU", "USDT");
-            tradePairResult.Item1.PriceInUsd.ShouldBe(9.9m);
-            tradePairResult.Item2.PriceInUsd.ShouldBe(1.1m);
-
-            tradePairResult = await _priceAppService.GetPairTokenPriceAsync(ChainName, Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3303"), "CPU", "READ");
-            tradePairResult.Item1.PriceInUsd.ShouldBe(9.9m);
-            tradePairResult.Item2.PriceInUsd.ShouldBe(99m);
 
             var txnHash = $"6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d3{index}";
             // swap and update affected price

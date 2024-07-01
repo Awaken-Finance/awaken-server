@@ -72,16 +72,7 @@ namespace AwakenServer.Trade
 
         public async Task<Tuple<double, double>> GetUSDPriceAsync(string chainId, Guid tradePairId, string symbol0, string symbol1, string token0Amount = null, string token1Amount = null)
         {
-            try
-            {
-                var price = await _priceAppService.GetPairTokenPriceAsync(chainId, tradePairId, symbol0, symbol1, token0Amount, token1Amount);
-                return new Tuple<double, double>((double)price.Item1.PriceInUsd, (double)price.Item2.PriceInUsd);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Get pair token price failed. Pair: {tradePairId}, token0: {symbol0}, token1:{symbol1}. Exception: {e}.");
-                return new Tuple<double, double>(await GetTokenUSDPriceAsync(chainId, symbol0), await GetTokenUSDPriceAsync(chainId, symbol1));
-            }
+            return new Tuple<double, double>(await GetTokenUSDPriceAsync(chainId, symbol0), await GetTokenUSDPriceAsync(chainId, symbol1));
         }
 
         public async Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price)
