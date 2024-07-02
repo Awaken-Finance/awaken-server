@@ -10,6 +10,7 @@
     <ItemGroup>
         <ProjectReference Include="..\..\src\AwakenServer.Application\AwakenServer.Application.csproj" />
         <ProjectReference Include="..\..\src\AwakenServer.CoinGeckoApi\AwakenServer.CoinGeckoApi.csproj" />
+        <ProjectReference Include="..\..\src\AwakenServer.AetherLinkApi\AwakenServer.AetherLinkApi.csproj" />
         <ProjectReference Include="..\..\src\AwakenServer.EntityHandler.Core\AwakenServer.EntityHandler.Core.csproj" />
         <ProjectReference Include="..\AwakenServer.Domain.Tests\AwakenServer.Domain.Tests.csproj" />
         <ProjectReference Include="..\AwakenServer.Grains.Tests\AwakenServer.Grains.Tests.csproj" />

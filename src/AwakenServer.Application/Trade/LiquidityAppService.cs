@@ -187,34 +187,6 @@ namespace AwakenServer.Trade
 
             return result;
         }
-
-        public async Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityAsync(GetUserLiquidityInput input)
-        {
-            var grain = _clusterClient.GetGrain<IUserLiquidityGrain>(
-                GrainIdHelper.GenerateGrainId(input.ChainId, input.Address));
-            var result = await grain.GetAsync();
-            if (!result.Success)
-            {
-                return await GetUserLiquidityFromGraphQLAsync(input);
-            }
-
-            var dataList = result.Data.Select(dto => new UserLiquidityIndexDto
-            {
-                TradePair = dto.TradePair,
-                Address = dto.Address,
-                AssetUSD = dto.AssetUSD,
-                LpTokenAmount = dto.LpTokenAmount.ToDecimalsString(8),
-                Token0Amount = dto.Token0Amount,
-                Token1Amount = dto.Token1Amount
-            }).ToList();
-            
-            dataList = SortingUserLiquidity(input.Sorting, dataList);
-            return new PagedResultDto<UserLiquidityIndexDto>
-            {
-                Items = dataList,
-                TotalCount = dataList.Count
-            };
-        }
         
         public async Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityFromGraphQLAsync(GetUserLiquidityInput input)
         {
@@ -302,23 +274,6 @@ namespace AwakenServer.Trade
         }
 
         
-        public async Task<UserAssetDto> GetUserAssetAsync(GetUserAssertInput input)
-        {
-            var grain = _clusterClient.GetGrain<IUserLiquidityGrain>(
-                GrainIdHelper.GenerateGrainId(input.ChainId, input.Address));
-            var result = await grain.GetAssetAsync();
-            if (!result.Success)
-            {
-                return await GetUserAssetFromGraphQLAsync(input);
-            }
-
-            return new UserAssetDto
-            {
-                AssetUSD = result.Data.AssetUSD,
-                AssetBTC = result.Data.AssetBTC
-            };
-        }
-
         public async Task<UserAssetDto> GetUserAssetFromGraphQLAsync(GetUserAssertInput input)
         {
             var getUserLiquidityInput = new GetUserLiquidityInput();
@@ -357,22 +312,15 @@ namespace AwakenServer.Trade
         }
 
         
-        public async Task UpdateTradePairFieldAsync(LiquidityRecordDto input)
+        public async Task<bool> UpdateTradePairFieldAsync(LiquidityRecordDto input)
         {
             var tradePair = await _tradePairAppService.GetTradePairAsync(input.ChainId, input.Pair);
             if (tradePair == null)
             {
                 _logger.LogInformation("tradePair not existed,chainId:{chainId}, address:{address}", input.ChainId,
                     input.Pair);
-                return;
+                return false;
             }
-            
-            var dto = ObjectMapper.Map<LiquidityRecordDto, UserLiquidityGrainDto>(input);
-            dto.TradePair = tradePair;
-            
-            var userLiquidityGrain = _clusterClient.GetGrain<IUserLiquidityGrain>(
-                GrainIdHelper.GenerateGrainId(input.ChainId, input.Address));
-            await userLiquidityGrain.AddOrUpdateAsync(dto);
             
             var liquidityEvent = new NewLiquidityRecordEvent
             {
@@ -384,6 +332,7 @@ namespace AwakenServer.Trade
                 IsRevert = input.IsRevert
             };
             await _localEventBus.PublishAsync(liquidityEvent);
+            return true;
         }
 
         public async Task DoRevertAsync(string chainId, List<string> needDeletedTradeRecords)
@@ -426,20 +375,25 @@ namespace AwakenServer.Trade
             }
         }
         
-        public async Task CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input)
+        public async Task<bool> CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input)
         {
             var grain = _clusterClient.GetGrain<ILiquidityRecordGrain>(
                 GrainIdHelper.GenerateGrainId(input.ChainId, input.TransactionHash));
             if (await grain.ExistAsync())
             {
-                return;
+                return true;
             }
 
             await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.LiquidityEvent, input.ChainId, input.BlockHeight, input.TransactionHash);
             
-            await UpdateTradePairFieldAsync(input);
-            
-            await grain.AddAsync(_objectMapper.Map<LiquidityRecordDto, LiquidityRecordGrainDto>(input));
+            var succeed = await UpdateTradePairFieldAsync(input);
+
+            if (succeed)
+            {
+                await grain.AddAsync(_objectMapper.Map<LiquidityRecordDto, LiquidityRecordGrainDto>(input));
+            }
+
+            return succeed;
         }
     }
 }

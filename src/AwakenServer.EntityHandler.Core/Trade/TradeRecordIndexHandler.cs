@@ -164,16 +164,6 @@ namespace AwakenServer.EntityHandler.Trade
                     return index.Price * double.Parse(index.Token0Amount) *
                            double.Parse(list.Items[0].PriceInUsd.ToString());
                 }
-
-                if (index.TradePair.Token0.Symbol == "USDT")
-                {
-                    return double.Parse(index.Token0Amount);
-                }
-
-                if (index.TradePair.Token1.Symbol == "USDT")
-                {
-                    return double.Parse(index.Token1Amount);
-                }
             }
             catch (Exception ex)
             {

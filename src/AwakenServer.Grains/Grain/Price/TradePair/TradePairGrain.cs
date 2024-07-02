@@ -260,23 +260,9 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 
         var timestamp = DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp);
         var price = double.Parse(token1Amount) / double.Parse(token0Amount);
-
-        var token0PriceResult = await _clusterClient.GetGrain<ITokenPriceGrain>(State.Token0.Symbol)
-            .GetCurrentPriceAsync(State.Token0.Symbol);
-        if (!token0PriceResult.Success)
-        {
-            _logger.LogError($"get token price from token price grain failed. token symbol: {State.Token0.Symbol}");
-        }
-
-        var token1PriceResult = await _clusterClient.GetGrain<ITokenPriceGrain>(State.Token1.Symbol)
-            .GetCurrentPriceAsync(State.Token1.Symbol);
-        if (!token1PriceResult.Success)
-        {
-            _logger.LogError($"get token price from token price grain failed. token symbol: {State.Token1.Symbol}");
-        }
-
-        var priceUSD0 = (double)token0PriceResult.Data.PriceInUsd;
-        var priceUSD1 = (double)token1PriceResult.Data.PriceInUsd;
+        
+        var priceUSD0 = dto.Token0PriceInUsd;
+        var priceUSD1 = dto.Token1PriceInUsd;
 
         var tvl = priceUSD0 * double.Parse(token0Amount) +
                   priceUSD1 * double.Parse(token1Amount);
@@ -362,7 +348,9 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 
     public async Task<GrainResultDto<TradePairGrainDto>> UpdateAsync(DateTime timestamp,
         int userTradeAddressCount,
-        string totalSupply)
+        string totalSupply, 
+        double token0PriceInUsd, 
+        double token1PriceInUsd)
     {
         _logger.LogDebug($"Scheduled trade pair update begin, id: {State.Id}, " +
                          $"timestamp: {timestamp}, " +
@@ -428,22 +416,8 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                                $"lastDayTvl: {lastDayTvl}, " +
                                $"lastDayPriceUSD: {lastDayPriceUSD}");
 
-        var token0PriceResult = await _clusterClient.GetGrain<ITokenPriceGrain>(State.Token0.Symbol)
-            .GetCurrentPriceAsync(State.Token0.Symbol);
-        if (!token0PriceResult.Success)
-        {
-            _logger.LogError($"get token price from token price grain failed. token symbol: {State.Token0.Symbol}");
-        }
-
-        var token1PriceResult = await _clusterClient.GetGrain<ITokenPriceGrain>(State.Token1.Symbol)
-            .GetCurrentPriceAsync(State.Token1.Symbol);
-        if (!token1PriceResult.Success)
-        {
-            _logger.LogError($"get token price from token price grain failed. token symbol: {State.Token1.Symbol}");
-        }
-
-        var priceUSD0 = (double)token0PriceResult.Data.PriceInUsd;
-        var priceUSD1 = (double)token1PriceResult.Data.PriceInUsd;
+        var priceUSD0 = token0PriceInUsd;
+        var priceUSD1 = token1PriceInUsd;
 
         State.PriceUSD = priceUSD1 != 0 ? State.Price * (double)priceUSD1 : (double)priceUSD0;
         State.PricePercentChange24h = lastDayPriceUSD == 0

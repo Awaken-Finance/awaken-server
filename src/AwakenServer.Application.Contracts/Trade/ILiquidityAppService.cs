@@ -12,15 +12,11 @@ namespace AwakenServer.Trade
         
         Task<PagedResultDto<LiquidityRecordIndexDto>> GetRecordsAsync(GetLiquidityRecordsInput input);
         
-        Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityAsync(GetUserLiquidityInput input);
-
         Task<PagedResultDto<UserLiquidityIndexDto>> GetUserLiquidityFromGraphQLAsync(GetUserLiquidityInput input);
-        
-        Task<UserAssetDto> GetUserAssetAsync(GetUserAssertInput input);
         
         Task<UserAssetDto> GetUserAssetFromGraphQLAsync(GetUserAssertInput input);
         
-        Task CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input);
+        Task<bool> CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input);
 
         Task RevertLiquidityAsync(string chainId);
 

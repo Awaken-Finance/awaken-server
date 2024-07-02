@@ -12,6 +12,9 @@ namespace AwakenServer
         public string TradePairEthUsdtAddress { get; set; }
         public Guid TradePairBtcEthId { get; set; }
         public string TradePairBtcEthAddress { get; set; }
+        public Guid tradePairBtcUsdtId { get; set; }
+        public string tradePairBtcUsdtAddress { get; set; }
+        
         public Guid TradePariElfUsdtId { get; set; }
         public Guid TokenUsdtId { get; set; }
         public string TokenUsdtSymbol { get; set; }
