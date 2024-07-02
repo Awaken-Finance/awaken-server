@@ -47,9 +47,9 @@ public class PositionTradePairDto
     public bool IsTokenReversed { get; set; }
     public TokenDto Token0 { get; set; }
     public TokenDto Token1 { get; set; }
-    public double Price { get; set; }
-    public double Volume24h { get; set; }
-    public double TVL { get; set; }
+    public string Price { get; set; }
+    public string Volume24h { get; set; }
+    public string TVL { get; set; }
 }
 
 public class LiquidityPoolValueInfo

@@ -37,7 +37,10 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
         CreateMap<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>().ReverseMap();
         CreateMap<TradePairGrainDto, TradePairState>().ReverseMap();
         CreateMap<TradePairGrainDto, TradePairDto>().ReverseMap();
-        CreateMap<TradePairGrainDto, PositionTradePairDto>();
+        CreateMap<TradePairGrainDto, PositionTradePairDto>()
+            .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price.ToString()))
+            .ForMember(dest => dest.TVL, opt => opt.MapFrom(src => src.TVL.ToString()))
+            .ForMember(dest => dest.Volume24h, opt => opt.MapFrom(src => src.Volume24h.ToString()));
         CreateMap<TradeRecordGrainDto, TradeRecordState>().ReverseMap();
         CreateMap<TradeRecordGrainDto, TradeRecordIndexDto>().ReverseMap();
         CreateMap<UserTradeSummaryState, UserTradeSummaryGrainDto>().ReverseMap();

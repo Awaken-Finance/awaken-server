@@ -2,7 +2,9 @@ using System;
 using System.Threading.Tasks;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
+using AwakenServer.Price;
 using AwakenServer.Trade.Dtos;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
@@ -15,15 +17,19 @@ namespace AwakenServer.Trade.Handlers
         private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
         private readonly ITradeRecordAppService _tradeRecordAppService;
         private readonly IObjectMapper _objectMapper;
-
-
+        private readonly IPriceAppService _priceAppService;
+        private readonly ILogger<NewTradeRecordHandler> _logger;        
         public NewTradeRecordHandler(ITradePairMarketDataProvider tradePairMarketDataProvider,
             ITradeRecordAppService tradeRecordAppService, IClusterClient clusterClient,
-            IObjectMapper objectMapper)
+            IObjectMapper objectMapper,
+            IPriceAppService priceAppService,
+            ILogger<NewTradeRecordHandler> logger)
         {
             _tradePairMarketDataProvider = tradePairMarketDataProvider;
             _tradeRecordAppService = tradeRecordAppService;
             _objectMapper = objectMapper;
+            _priceAppService = priceAppService;
+            _logger = logger;
         }
 
         public async Task HandleEventAsync(NewTradeRecordEvent eventData)
@@ -35,6 +41,15 @@ namespace AwakenServer.Trade.Handlers
             {
                 return await grain.UpdateTradeRecordAsync(dto, tradeAddressCount24h);
             });
+            try
+            {
+                await _priceAppService.UpdateAffectedPriceMapAsync(eventData.ChainId, eventData.TradePairId,
+                    eventData.Token0Amount, eventData.Token1Amount);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Update affected price map from swap failed. {e}");
+            }
         }
     }
 }

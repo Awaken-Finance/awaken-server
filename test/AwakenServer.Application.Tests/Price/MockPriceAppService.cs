@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -44,7 +45,7 @@ namespace AwakenServer.Applications.GameOfTrust
                     {
                         Symbol = "EOS",
                         PriceInUsd = 1
-                    },
+                    }
                 }.Where(o => symbols.Contains(o.Symbol)).ToList()
             };
         }
@@ -53,6 +54,17 @@ namespace AwakenServer.Applications.GameOfTrust
             List<GetTokenHistoryPriceInput> inputs)
         {
             return new ListResultDto<TokenPriceDataDto>();
+        }
+        
+        public async Task RebuildPricingMapAsync(string chainId)
+        {
+            return;
+        }
+
+        public async Task UpdateAffectedPriceMapAsync(string chainId, Guid tradePairId, string token0Amount,
+            string token1Amount)
+        {
+            return;
         }
     }
 }

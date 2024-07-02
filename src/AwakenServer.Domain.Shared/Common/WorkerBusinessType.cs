@@ -9,4 +9,5 @@ public enum WorkerBusinessType
     TradePairUpdate,
     TransactionRevert,
     PortfolioEvent,
+    InternalTokenPriceUpdate,
 }
