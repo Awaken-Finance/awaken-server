@@ -630,27 +630,44 @@ namespace AwakenServer.Price
             if (handle != null)
             {
                 var tokenPricingMap = await _tokenPricingMapCache.GetAsync(pricingMapKey);
-                if (tokenPricingMap != null && tokenPricingMap.PriceSpreadTrees != null)
+                bool newTree = false;
+                if (tokenPricingMap == null || tokenPricingMap.PriceSpreadTrees == null)
                 {
-                    var pair = await _tradePairIndexRepository.GetAsync(tradePairId);
-                    if (pair == null)
-                    {
-                        _logger.LogInformation($"Price Spread. Get pair: {tradePairId} failed");
-                        return;
-                    }
-
-                    Dictionary<string, double> needUpdateTokenPrice = new Dictionary<string, double>();
+                    newTree = true;
+                    var tradePairList = await GetTradePairAsync(chainId);
+                    tokenPricingMap = await BuildPriceSpreadTrees(tradePairList);
                     foreach (var root in tokenPricingMap.PriceSpreadTrees)
                     {
-                        await UpdateAffectedTokenPricesAsync(tokenPricingMap, root, pair, double.Parse(token0Amount), double.Parse(token1Amount), needUpdateTokenPrice);
+                        if (root.Depth > 0)
+                        {
+                            continue;
+                        }
+                        PrintPricingNodeTree(root, 0);
                     }
-                    await _tokenPricingMapCache.SetAsync(pricingMapKey, tokenPricingMap);
-                    await UpdateInternalPriceCacheAsync(needUpdateTokenPrice);
-                    _logger.LogInformation($"Price Spread. Update tree and cache price. Cache key: {pricingMapKey}, need update price count: {needUpdateTokenPrice.Count}");
+                }
+                
+                var pair = await _tradePairIndexRepository.GetAsync(tradePairId);
+                if (pair == null)
+                {
+                    _logger.LogInformation($"Price Spread. Get pair: {tradePairId} failed");
+                    return;
+                }
+
+                Dictionary<string, double> needUpdateTokenPrice = new Dictionary<string, double>();
+                foreach (var root in tokenPricingMap.PriceSpreadTrees)
+                {
+                    await UpdateAffectedTokenPricesAsync(tokenPricingMap, root, pair, double.Parse(token0Amount), double.Parse(token1Amount), needUpdateTokenPrice);
+                }
+                await _tokenPricingMapCache.SetAsync(pricingMapKey, tokenPricingMap);
+                if (newTree)
+                {
+                    await UpdateInternalPriceCacheAsync(tokenPricingMap.TokenToPrice);
+                    _logger.LogInformation($"Price Spread. Build new tree and cache price. Cache key: {pricingMapKey}, update price count: {tokenPricingMap.TokenToPrice.Count}");
                 }
                 else
                 {
-                    _logger.LogInformation($"Price Spread. Update tree and cache price failed, can not get key: {pricingMapKey} from cache");
+                    await UpdateInternalPriceCacheAsync(needUpdateTokenPrice);
+                    _logger.LogInformation($"Price Spread. Update tree and cache price. Cache key: {pricingMapKey}, need update price count: {needUpdateTokenPrice.Count}");
                 }
             }
             else
