@@ -8,6 +8,7 @@ public class CurrentUserLiquidity : MultiChainEntity<Guid>
 {
     [Keyword] public Guid TradePairId { get; set; }
     [Keyword] public string Address { get; set; }
+    [Keyword] public string Version { get; set; }
     public long LpTokenAmount { get; set; }
     public DateTime LastUpdateTime { get; set; }
     public long Token0CumulativeAddition { get; set; }

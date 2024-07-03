@@ -10,6 +10,7 @@ using AwakenServer.Provider;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
+using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
 using TradePairMarketDataSnapshot = AwakenServer.Trade.TradePairMarketDataSnapshot;
@@ -27,7 +28,8 @@ public class MyPortfolioAppServiceTests : TradeTestBase
     private readonly INESTRepository<TradePairMarketDataSnapshot, Guid> _tradePairSnapshotIndexRepository;
     private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
     private readonly IMyPortfolioAppService _myPortfolioAppService;
-    
+    private readonly IOptionsSnapshot<PortfolioOptions> _portfolioOptions;
+
     protected readonly string UserAddress = "0x123456789";
     public MyPortfolioAppServiceTests()
     {
@@ -39,6 +41,12 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         _tradePairSnapshotIndexRepository = GetRequiredService<INESTRepository<TradePairMarketDataSnapshot, Guid>>();
         _tradePairMarketDataProvider = GetRequiredService<ITradePairMarketDataProvider>();
         _myPortfolioAppService = GetRequiredService<IMyPortfolioAppService>();
+        _portfolioOptions = GetRequiredService<IOptionsSnapshot<PortfolioOptions>>();
+    }
+    
+    private string AddVersionToKey(string baseKey, string version)
+    {
+        return $"{baseKey}:{version}";
     }
     
     private async Task PrepareTradePairData()
@@ -151,7 +159,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         };
         await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1);
     }
-    
+
     private async Task SyncAddLiquidityRecordTest()
     {
         var inputMint = new LiquidityRecordDto()
@@ -176,7 +184,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         syncResult.ShouldBeTrue();
 
         var currentTradePairGrain =
-            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId));
+            Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
         var currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.LastUpdateTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(1000));
@@ -227,7 +235,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint1);
         
         var currentTradePairGrain =
-            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId));
+            Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
         var currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.LastUpdateTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(2000));
@@ -329,7 +337,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1);
         
         var currentTradePairGrain =
-            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId));
+            Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
         var currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.TotalSupply.ShouldBe(50000);
@@ -376,7 +384,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn);
         
         var currentTradePairGrain =
-            Cluster.Client.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId));
+            Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
         var currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.LastUpdateTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(5000));

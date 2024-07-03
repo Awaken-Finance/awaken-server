@@ -1,4 +1,5 @@
-﻿using AwakenServer.Chains;
+﻿using AwakenServer.Asset;
+using AwakenServer.Chains;
 using AwakenServer.EntityHandler;
 using AwakenServer.Grains.Tests;
 using AwakenServer.Provider;
@@ -25,5 +26,9 @@ public class AwakenServerApplicationTestModule : AbpModule
         context.Services.AddSingleton(sp => sp.GetService<ClusterFixture>().Cluster.Client);
         context.Services.AddSingleton<IAElfClientProvider, MockAelfClientProvider>();
         context.Services.AddMassTransitTestHarness(cfg => { });
+        context.Services.Configure<PortfolioOptions>(o =>
+        {
+            o.DataVersion = "v1";
+        });
     }
 }

@@ -25,6 +25,7 @@ public class CurrentUserLiquidityIndexHandler : TradeIndexHandlerBase,
         var userLiquidityIndex = ObjectMapper.Map<CurrentUserLiquidityEto, CurrentUserLiquidityIndex>(eventData);
         var existedIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(eventData.TradePairId)) &&
+            q.Term(i => i.Field(f => f.Version).Value(eventData.Version)) &&
             q.Term(i => i.Field(f => f.Address).Value(eventData.Address)));
         userLiquidityIndex.Id = existedIndex switch
         {

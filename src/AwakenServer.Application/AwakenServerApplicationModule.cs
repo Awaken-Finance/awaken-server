@@ -1,4 +1,5 @@
 ﻿using AElf.Client.Service;
+using AwakenServer.Asset;
 using AwakenServer.Chains;
 using AwakenServer.CMS;
 using AwakenServer.ContractEventHandler.Application;
@@ -52,6 +53,7 @@ namespace AwakenServer
             Configure<AssetWhenNoTransactionOptions>(configuration.GetSection("AssetWhenNoTransaction"));
             Configure<ContractsTokenOptions>(configuration.GetSection("ContractsTokenOptions"));
             Configure<TokenPriceOptions>(configuration.GetSection("TokenPriceOptions"));
+            Configure<PortfolioOptions>(configuration.GetSection("PortfolioOptions"));
 
             context.Services.AddTransient<IBlockchainClientProvider, AElfClientProvider>();
             context.Services.AddTransient<IAElfClientProvider, AElfClientProvider>();

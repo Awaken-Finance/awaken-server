@@ -15,6 +15,7 @@ using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Nest;
 using Newtonsoft.Json;
 using Orleans;
@@ -43,6 +44,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
     private readonly IDistributedEventBus _distributedEventBus;
     private readonly IDistributedCache<string> _syncedTransactionIdCache;
     private readonly ILogger<MyPortfolioAppService> _logger;
+    private readonly IOptionsSnapshot<PortfolioOptions> _portfolioOptions;
 
     public MyPortfolioAppService(IClusterClient clusterClient, 
         INESTRepository<TradePair, Guid> tradePairIndexRepository, 
@@ -53,7 +55,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         ITokenPriceProvider tokenPriceProvider,
         IDistributedCache<string> syncedTransactionIdCache,
         IDistributedEventBus distributedEventBus,
-        ILogger<MyPortfolioAppService> logger)
+        ILogger<MyPortfolioAppService> logger,
+        IOptionsSnapshot<PortfolioOptions> portfolioOptions)
     {
         _clusterClient = clusterClient;
         _tradePairIndexRepository = tradePairIndexRepository;
@@ -66,11 +69,17 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         _syncedTransactionIdCache = syncedTransactionIdCache;
         _distributedEventBus = distributedEventBus;
         _logger = logger;
+        _portfolioOptions = portfolioOptions;
     }
-
-    public async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto, string version = "")
+    
+    private string AddVersionToKey(string baseKey, string version)
     {
-        var key = $"{SyncedTransactionCachePrefix}:{version}:{liquidityRecordDto.TransactionHash}";
+        return $"{baseKey}:{version}";
+    }
+    
+    public async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto)
+    {
+        var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{liquidityRecordDto.TransactionHash}", _portfolioOptions.Value.DataVersion);
         var existed = await _syncedTransactionIdCache.GetAsync(key);
         if (!existed.IsNullOrWhiteSpace())
         {
@@ -83,15 +92,16 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 liquidityRecordDto.Address);
             return false;
         }
-        var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
-        await currentTradePairGrain.AddTotalSupplyAsync(liquidityRecordDto.Type == LiquidityType.Mint ? 
+        var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(tradePair.Id), _portfolioOptions.Value.DataVersion));
+        await currentTradePairGrain.AddTotalSupplyAsync(tradePair.Id, liquidityRecordDto.Type == LiquidityType.Mint ? 
             liquidityRecordDto.LpTokenAmount : -liquidityRecordDto.LpTokenAmount, liquidityRecordDto.Timestamp);
         
-        var currentUserLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(GrainIdHelper.GenerateGrainId(liquidityRecordDto.Address, tradePair.Id));
+        var currentUserLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(liquidityRecordDto.Address, tradePair.Id), _portfolioOptions.Value.DataVersion));
         var currentUserLiquidityGrainResult = liquidityRecordDto.Type == LiquidityType.Mint
             ? await currentUserLiquidityGrain.AddLiquidityAsync(tradePair, liquidityRecordDto)
             : await currentUserLiquidityGrain.RemoveLiquidityAsync(tradePair, liquidityRecordDto);
         // publish eto
+        currentUserLiquidityGrainResult.Data.Version = _portfolioOptions.Value.DataVersion;
         await _distributedEventBus.PublishAsync(
             ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
         var userLiquiditySnapshotGrainDto = new UserLiquiditySnapshotGrainDto()
@@ -99,12 +109,14 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             Address = liquidityRecordDto.Address,
             TradePairId = tradePair.Id,
             LpTokenAmount = currentUserLiquidityGrainResult.Data.LpTokenAmount,
-            SnapShotTime = currentUserLiquidityGrainResult.Data.LastUpdateTime.Date
+            SnapShotTime = currentUserLiquidityGrainResult.Data.LastUpdateTime.Date,
+            Version = _portfolioOptions.Value.DataVersion
         };
         var userLiquiditySnapshotGrain = _clusterClient.GetGrain<IUserLiquiditySnapshotGrain>(
-            GrainIdHelper.GenerateGrainId(liquidityRecordDto.Address, tradePair.Id, userLiquiditySnapshotGrainDto.SnapShotTime));
+            AddVersionToKey(GrainIdHelper.GenerateGrainId(liquidityRecordDto.Address, tradePair.Id, userLiquiditySnapshotGrainDto.SnapShotTime), _portfolioOptions.Value.DataVersion));
         var userLiquiditySnapshotResult = await userLiquiditySnapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
         // publish eto
+        userLiquiditySnapshotResult.Data.Version = _portfolioOptions.Value.DataVersion;
         await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshot, UserLiquiditySnapshotEto>(userLiquiditySnapshotResult.Data));
         await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
         {
@@ -113,9 +125,9 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return true;
     }
     
-    public async Task<bool> SyncSwapRecordAsync(SwapRecordDto swapRecordDto, string version = "")
+    public async Task<bool> SyncSwapRecordAsync(SwapRecordDto swapRecordDto)
     {
-        var key = $"{SyncedTransactionCachePrefix}:{swapRecordDto.TransactionHash}";
+        var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{swapRecordDto.TransactionHash}", _portfolioOptions.Value.DataVersion);
         var existed = await _syncedTransactionIdCache.GetAsync(key);
         if (!existed.IsNullOrWhiteSpace())
         {
@@ -143,11 +155,11 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 swapRecordDto.PairAddress);
             return false;
         }
-        var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
+        var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(tradePair.Id), _portfolioOptions.Value.DataVersion));
         var isToken0 = swapRecordDto.SymbolIn == tradePair.Token0.Symbol;
         var total0Fee = isToken0 ? swapRecordDto.TotalFee : 0;
         var total1Fee = isToken0 ? 0 : swapRecordDto.TotalFee;
-        var currentTradePairResult = await currentTradePairGrain.AddTotalFeeAsync(total0Fee, total1Fee);
+        var currentTradePairResult = await currentTradePairGrain.AddTotalFeeAsync(tradePair.Id, total0Fee, total1Fee);
 
         var userLiquidityList = await GetCurrentUserLiquidityIndexListAsync(tradePair.Id);
         foreach (var userLiquidity in userLiquidityList)
@@ -159,9 +171,10 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             {
                 continue;
             }
-            var currentLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(GrainIdHelper.GenerateGrainId(userLiquidity.Address, tradePair.Id));
+            var currentLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidity.Address, tradePair.Id), _portfolioOptions.Value.DataVersion));
             var currentLiquidityGrainResult = await currentLiquidityGrain.AddTotalFee(userToken0Fee, userToken1Fee, swapRecordDto);
             // publish CurrentUserLiquidityEto
+            currentLiquidityGrainResult.Data.Version = _portfolioOptions.Value.DataVersion;
             await _distributedEventBus.PublishAsync(
                 ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentLiquidityGrainResult.Data));
             
@@ -175,9 +188,10 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 Token1TotalFee = userToken1Fee
             };
             var snapshotGrain = _clusterClient.GetGrain<IUserLiquiditySnapshotGrain>(
-                GrainIdHelper.GenerateGrainId(userLiquidity.Address, tradePair.Id, currentLiquidityGrainResult.Data.LastUpdateTime.Date));
+                AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidity.Address, tradePair.Id, currentLiquidityGrainResult.Data.LastUpdateTime.Date), _portfolioOptions.Value.DataVersion));
             var snapshotResult = await snapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
             // publish UserLiquiditySnapshotEto
+            snapshotResult.Data.Version = _portfolioOptions.Value.DataVersion;
             await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshot, UserLiquiditySnapshotEto>(snapshotResult.Data));
         }
         return true;
@@ -199,6 +213,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
         mustQuery.Add(q => q.Range(i => i.Field(f => f.LpTokenAmount).GreaterThan(0)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
         QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
         var result = await _currentUserLiquidityIndexRepository.GetListAsync(Filter, skip: 0, limit: 10000);
         return result.Item2;
@@ -314,6 +329,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var feeDistributions = new List<TradePairPortfolioDto>();
         var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(input.Address)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
         QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
         var list = await _currentUserLiquidityIndexRepository.GetListAsync(Filter);
         
@@ -326,7 +342,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         {
             var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
             var pair = (await tradePairGrain.GetAsync()).Data;
-            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
+            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId), _portfolioOptions.Value.DataVersion));
             var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
             
             var lpTokenPercentage = currentTradePair.TotalSupply == 0
@@ -453,6 +469,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(userAddress)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
         var timestampMin = DateTime.UtcNow.AddDays(-periodInDays).Date;
         var timestampMax = DateTime.UtcNow.AddDays(-1).Date;
         mustQuery.Add(q => q.DateRange(i =>
@@ -506,6 +523,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainId)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(userAddress)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
         mustQuery.Add(q => q.DateRange(i =>
             i.Field(f => f.SnapShotTime)
                 .LessThan(timestampMax)));
@@ -664,7 +682,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         {
             var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
             var pair = (await tradePairGrain.GetAsync()).Data;
-            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
+            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId), _portfolioOptions.Value.DataVersion));
             var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
             
             _logger.LogInformation($"process user position input address: {input.Address}, user liquidity index: {JsonConvert.SerializeObject(userLiquidityIndex)}");
@@ -786,6 +804,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         
         var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(input.Address)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
         QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
         var list = await _currentUserLiquidityIndexRepository.GetSortListAsync(Filter,
             sortFunc: s => s.Descending(t => t.TradePairId),

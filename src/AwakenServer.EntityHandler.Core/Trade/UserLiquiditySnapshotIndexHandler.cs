@@ -26,6 +26,7 @@ public class UserLiquiditySnapshotIndexHandler : TradeIndexHandlerBase,
         var existedIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(eventData.TradePairId)) &&
             q.Term(i => i.Field(f => f.Address).Value(eventData.Address)) &&
+            q.Term(i => i.Field(f => f.Version).Value(eventData.Version)) &&
             q.Term(i => i.Field(f => f.SnapShotTime).Value(eventData.SnapShotTime)));
         snapshotIndex.Id = existedIndex switch
         {
