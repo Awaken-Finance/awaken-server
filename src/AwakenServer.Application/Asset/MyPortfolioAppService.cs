@@ -3,8 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices.JavaScript;
-using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains;
@@ -15,20 +13,19 @@ using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
-using MongoDB.Driver.Linq;
 using Nest;
+using Newtonsoft.Json;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
-using Volo.Abp.ObjectMapping;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
 using Volo.Abp.EventBus.Distributed;
+using Volo.Abp.ObjectMapping;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using TradePairMarketDataSnapshot = AwakenServer.Trade.Index.TradePairMarketDataSnapshot;
-
 
 namespace AwakenServer.Asset;
 
@@ -71,9 +68,9 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         _logger = logger;
     }
 
-    public async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto)
+    public async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto, string version = "")
     {
-        var key = $"{SyncedTransactionCachePrefix}:{liquidityRecordDto.TransactionHash}";
+        var key = $"{SyncedTransactionCachePrefix}:{version}:{liquidityRecordDto.TransactionHash}";
         var existed = await _syncedTransactionIdCache.GetAsync(key);
         if (!existed.IsNullOrWhiteSpace())
         {
@@ -109,11 +106,14 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var userLiquiditySnapshotResult = await userLiquiditySnapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
         // publish eto
         await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshot, UserLiquiditySnapshotEto>(userLiquiditySnapshotResult.Data));
-        await _syncedTransactionIdCache.SetAsync(key, "1");
+        await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
+        {
+            AbsoluteExpiration = DateTimeOffset.UtcNow.AddDays(7)
+        });
         return true;
     }
     
-    public async Task<bool> SyncSwapRecordAsync(SwapRecordDto swapRecordDto)
+    public async Task<bool> SyncSwapRecordAsync(SwapRecordDto swapRecordDto, string version = "")
     {
         var key = $"{SyncedTransactionCachePrefix}:{swapRecordDto.TransactionHash}";
         var existed = await _syncedTransactionIdCache.GetAsync(key);
@@ -152,8 +152,9 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var userLiquidityList = await GetCurrentUserLiquidityIndexListAsync(tradePair.Id);
         foreach (var userLiquidity in userLiquidityList)
         {
-            var userToken0Fee = total0Fee * userLiquidity.LpTokenAmount / currentTradePairResult.Data.TotalSupply;
-            var userToken1Fee = total1Fee * userLiquidity.LpTokenAmount / currentTradePairResult.Data.TotalSupply;
+            var percent = (double)userLiquidity.LpTokenAmount / currentTradePairResult.Data.TotalSupply;
+            var userToken0Fee = (long)(total0Fee * percent);
+            var userToken1Fee = (long)(total1Fee * percent);
             if (userToken0Fee == 0 && userToken1Fee == 0)
             {
                 continue;
