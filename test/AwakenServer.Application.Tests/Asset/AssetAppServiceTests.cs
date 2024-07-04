@@ -1,10 +1,12 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains.Tests;
 using AwakenServer.Price;
 using AwakenServer.Provider;
 using AwakenServer.Trade;
+using AwakenServer.Trade.Index;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -13,6 +15,7 @@ using Xunit;
 namespace AwakenServer.Asset;
 
 [Collection(ClusterCollection.Name)]
+
 public class AssetAppServiceTests : TradeTestBase
 {
     private readonly MockGraphQLProvider _graphQlProvider;
@@ -20,6 +23,8 @@ public class AssetAppServiceTests : TradeTestBase
     private readonly AssetShowOptions _assetShowOptions;
     private readonly IPriceAppService _priceAppService;
     private readonly AssetWhenNoTransactionOptions _assetWhenNoTransactionOptions;
+    private readonly INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiquidityIndexRepository;
+
 
     public AssetAppServiceTests()
     {
@@ -28,6 +33,7 @@ public class AssetAppServiceTests : TradeTestBase
         _assetShowOptions = GetRequiredService<IOptionsSnapshot<AssetShowOptions>>().Value;
         _priceAppService = GetRequiredService<IPriceAppService>();
         _assetWhenNoTransactionOptions = GetRequiredService<IOptionsSnapshot<AssetWhenNoTransactionOptions>>().Value;
+        _currentUserLiquidityIndexRepository = GetRequiredService<INESTRepository<CurrentUserLiquidityIndex, Guid>>();
     }
 
 

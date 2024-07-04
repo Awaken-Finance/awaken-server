@@ -482,4 +482,26 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         result.TokenPositionDistributions[0].ValuePercent.ShouldBe("90.00");
         result.TokenFeeDistributions[0].ValuePercent.ShouldBe("66.67");
     }
+    
+    [Fact]
+    public async Task GetUserCombinedAssetsTest()
+    {
+        await PrepareTradePairData();
+        await PrepareUserData();
+        
+        _graphQlProvider.AddUserToken(new UserTokenDto
+        {
+            ChainId = "tDVV",
+            Address = "0x123456789",
+            Symbol = "USDT",
+            Balance = NumberFormatter.WithDecimals(1, 6)
+        });
+        
+        var result = await _assetAppService.GetUserCombinedAssetsAsync(new GetUserCombinedAssetsDto()
+        {
+            Address = "0x123456789",
+            ChainId = "tDVV"
+        });
+        result.ValueInUsd.ShouldBe("1.05");
+    }
 }

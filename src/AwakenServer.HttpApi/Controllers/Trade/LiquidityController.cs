@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using AwakenServer.Asset;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using Microsoft.AspNetCore.Mvc;
@@ -16,10 +17,14 @@ namespace AwakenServer.Controllers.Trade
     public class LiquidityController : AbpController
     {
         private readonly ILiquidityAppService _liquidityAppService;
+        private readonly IMyPortfolioAppService _myPortfolioAppService;
 
-        public LiquidityController(ILiquidityAppService liquidityAppService)
+        public LiquidityController(ILiquidityAppService liquidityAppService,
+            IMyPortfolioAppService myPortfolioAppService)
         {
             _liquidityAppService = liquidityAppService;
+            _myPortfolioAppService = myPortfolioAppService;
+
         }
 
         [HttpGet]
@@ -41,6 +46,13 @@ namespace AwakenServer.Controllers.Trade
         public virtual Task<UserAssetDto> GetUserAssetAsync(GetUserAssertInput input)
         {
             return _liquidityAppService.GetUserAssetFromGraphQLAsync(input);
+        }
+        
+        [HttpGet]
+        [Route("user-positions")]
+        public virtual async Task<PagedResultDto<TradePairPositionDto>> UserPositionsAsync(GetUserPositionsDto input)
+        {
+            return await _myPortfolioAppService.GetUserPositionsAsync(input);
         }
     }
 }

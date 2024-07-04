@@ -45,10 +45,10 @@ public class AssetController : AbpController
     }
     
     [HttpGet]
-    [Route("liquidity/user-positions")]
-    public virtual async Task<PagedResultDto<TradePairPositionDto>> UserPositionsAsync(GetUserPositionsDto input)
+    [Route("asset/user-combined-assets")]
+    public virtual async Task<UserCombinedAssetsDto> UserCombinedAssetsAsync(GetUserCombinedAssetsDto input)
     {
-        return await _myPortfolioAppService.GetUserPositionsAsync(input);
+        return await _assetAppService.GetUserCombinedAssetsAsync(input);
     }
     
     [HttpGet]
