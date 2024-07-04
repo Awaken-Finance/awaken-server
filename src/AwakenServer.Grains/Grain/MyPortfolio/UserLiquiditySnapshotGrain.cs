@@ -17,6 +17,7 @@ public class UserLiquiditySnapshotGrain : Grain<UserLiquiditySnapshotState>, IUs
         if (State.TradePairId == Guid.Empty)
         {
             _objectMapper.Map(dto, State);
+            State.Id = Guid.NewGuid();
         }
         else
         {
