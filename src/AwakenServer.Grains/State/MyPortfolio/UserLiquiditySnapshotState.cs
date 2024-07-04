@@ -2,6 +2,7 @@ namespace AwakenServer.Grains.State.MyPortfolio;
 
 public class UserLiquiditySnapshotState
 {
+    public Guid Id { get; set; }
     public Guid TradePairId { get; set; }
     public string Address { get; set; }
     public long LpTokenAmount { get; set; }

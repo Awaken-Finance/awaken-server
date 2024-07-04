@@ -23,15 +23,6 @@ public class UserLiquiditySnapshotIndexHandler : TradeIndexHandlerBase,
     public async Task HandleEventAsync(UserLiquiditySnapshotEto eventData)
     {
         var snapshotIndex = ObjectMapper.Map<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>(eventData);
-        var existedIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.TradePairId).Value(eventData.TradePairId)) &&
-            q.Term(i => i.Field(f => f.Address).Value(eventData.Address)) &&
-            q.Term(i => i.Field(f => f.SnapShotTime).Value(eventData.SnapShotTime)));
-        snapshotIndex.Id = existedIndex switch
-        {
-            null => Guid.NewGuid(),
-            _ => existedIndex.Id
-        };
         await _currentUserLiquidityIndexRepository.AddOrUpdateAsync(snapshotIndex);
     }
 }
