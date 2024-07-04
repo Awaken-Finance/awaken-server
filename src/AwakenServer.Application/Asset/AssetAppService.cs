@@ -301,6 +301,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             ChainId = input.ChainId,
             Address = input.Address
         });
+        
         var showCount = input.ShowCount >= 1 ? input.ShowCount - 1 : 0;
         var totalValueInUsd = 0.0;
         foreach (var userTokenInfo in tokenListDto.ShowList)
@@ -355,13 +356,6 @@ public class AssetAppService : ApplicationService, IAssetAppService
 
             _logger.LogInformation(
                 $"get idle tokens symbol: {tokenDto.Symbol}, price usd: {userTokenInfo.PriceInUsd}, total usd: {totalValueInUsd}, percent: {percent}");
-        }
-
-        double totalPercent = idleTokenList.Sum(r => double.Parse(r.Percent));
-        if (totalPercent != 100.0)
-        {
-            double difference = 100.0 - totalPercent;
-            idleTokenList[idleTokenList.Count - 1].Percent = (double.Parse(idleTokenList[idleTokenList.Count - 1].Percent) + difference).ToString("F2");
         }
         
         return new IdleTokensDto()

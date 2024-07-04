@@ -259,15 +259,6 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 result[result.Count - 1].ValuePercent = sumPercent.ToString("F2");
             }
         }
-
-        // Ensure the sum of all ValuePercent is exactly 100%
-        double finalTotalPercent = result.Sum(r => double.Parse(r.ValuePercent));
-        if (finalTotalPercent != 100.00)
-        {
-            double difference = 100.00 - finalTotalPercent;
-            result[result.Count - 1].ValuePercent = (double.Parse(result[result.Count - 1].ValuePercent) + difference).ToString("F2");
-        }
-
         
         return result;
     }
@@ -696,18 +687,32 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var token0ValueInUsd = lpTokenPercentage * pair.ValueLocked0 * token0Price;
             var token1ValueInUsd = lpTokenPercentage * pair.ValueLocked1 * token1Price;
             var token0Percenage = token0ValueInUsd / (token0ValueInUsd + token1ValueInUsd);
-            var token1Percenage = token1ValueInUsd / (token0ValueInUsd + token1ValueInUsd);
             var token0PercentStr = Math.Round(token0Percenage * 100,2).ToString();
             var token1PercentStr = Math.Round(100 - double.Parse(token0PercentStr),2).ToString();
+            
             var valueInUsd = lpTokenPercentage * pair.TVL;
             var token0UnReceivedFee =
                 Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
             var token1UnReceivedFee =
                 Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
 
+            var token0FeeAmountInUsd = token0UnReceivedFee * token0Price;
+            var token1FeeAmountInUsd = token1UnReceivedFee * token1Price;
+            var token0FeePercent = token0FeeAmountInUsd + token1FeeAmountInUsd == 0 ? 0 : token0FeeAmountInUsd / (token0FeeAmountInUsd + token1FeeAmountInUsd);
+            var token0FeePercentStr = Math.Round(token0FeePercent * 100,2).ToString();
+            var token1FeePercentStr = token0FeeAmountInUsd + token1FeeAmountInUsd == 0 ? "0" : Math.Round(100 - double.Parse(token0FeePercentStr),2).ToString();
+
+            var token0CumulativeAdditionAmountInUsd =
+                Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals)) *
+                token0Price;
+            var token1CumulativeAdditionAmountInUsd =
+                Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals)) *
+                token1Price;
+            var cumulativeAdditionInUsd = token0CumulativeAdditionAmountInUsd + token1CumulativeAdditionAmountInUsd;
+            var token0CumulativeAdditionPercent = token0CumulativeAdditionAmountInUsd + token1CumulativeAdditionAmountInUsd == 0 ? 0 : token0CumulativeAdditionAmountInUsd / (token0CumulativeAdditionAmountInUsd + token1CumulativeAdditionAmountInUsd);
+            var token0CumulativeAdditionPercentStr = Math.Round(token0CumulativeAdditionPercent * 100,2).ToString();
+            var token1CumulativeAdditionPercentStr = token0CumulativeAdditionAmountInUsd + token1CumulativeAdditionAmountInUsd == 0 ? "0" : Math.Round(100 - double.Parse(token0CumulativeAdditionPercentStr),2).ToString();
             
-            var cumulativeAdditionInUsd = Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals)) * token0Price +
-                                          Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals)) * token1Price;
             var averageHoldingPeriod = GetAverageHoldingPeriod(userLiquidityIndex);
             
             var estimatedAPR = await CalculateAllEstimatedAPRAsync(
@@ -739,37 +744,43 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                                    $"estimatedAPR30d: {estimatedAPR.Item2}, " +
                                    $"estimatedAPRAll: {estimatedAPR.Item3}");
 
+            var positionTradePairDto = _objectMapper.Map<TradePairGrainDto, PositionTradePairDto>(pair);
+            positionTradePairDto.Volume24hInUsd = (double.Parse(positionTradePairDto.Volume24h) * token0Price).ToString();
+            
             result.Add(new TradePairPositionDto()
             {
-                TradePairInfo = _objectMapper.Map<TradePairGrainDto, PositionTradePairDto>(pair),
-                Token0Amount = (lpTokenPercentage * pair.ValueLocked0).ToString(),
-                Token1Amount = (lpTokenPercentage * pair.ValueLocked1).ToString(),
-                Token0Percent = token0PercentStr,
-                Token1Percent = token1PercentStr,
+                TradePairInfo = positionTradePairDto,
                 LpTokenAmount = userLiquidityIndex.LpTokenAmount.ToDecimalsString(8),
+                LpTokenPercent = (lpTokenPercentage * 100).ToString(),
                 Position = new LiquidityPoolValueInfo()
                 {
                     ValueInUsd = valueInUsd.ToString(),
-                    Token0Value = (lpTokenPercentage * pair.ValueLocked0).ToString(),
-                    Token0ValueInUsd = (token0ValueInUsd).ToString(),
-                    Token1Value = (lpTokenPercentage * pair.ValueLocked1).ToString(),
-                    Token1ValueInUsd = (token1ValueInUsd).ToString(),
+                    Token0Amount = (lpTokenPercentage * pair.ValueLocked0).ToString(),
+                    Token0AmountInUsd = (token0ValueInUsd).ToString(),
+                    Token1Amount = (lpTokenPercentage * pair.ValueLocked1).ToString(),
+                    Token1AmountInUsd = (token1ValueInUsd).ToString(),
+                    Token0Percent = token0PercentStr,
+                    Token1Percent = token1PercentStr,
                 },
                 Fee = new LiquidityPoolValueInfo()
                 {
-                    ValueInUsd = (token0UnReceivedFee * token0Price + token1UnReceivedFee * token1Price).ToString(),
-                    Token0Value = token0UnReceivedFee.ToString(),
-                    Token0ValueInUsd = (token0UnReceivedFee * token0Price).ToString(),
-                    Token1Value = token1UnReceivedFee.ToString(),
-                    Token1ValueInUsd = (token1UnReceivedFee * token1Price).ToString(),
+                    ValueInUsd = (token0FeeAmountInUsd + token1FeeAmountInUsd).ToString(),
+                    Token0Amount = token0UnReceivedFee.ToString(),
+                    Token0AmountInUsd = (token0FeeAmountInUsd).ToString(),
+                    Token1Amount = token1UnReceivedFee.ToString(),
+                    Token1AmountInUsd = (token1FeeAmountInUsd).ToString(),
+                    Token0Percent = token0FeePercentStr,
+                    Token1Percent = token1FeePercentStr,
                 },
                 CumulativeAddition = new LiquidityPoolValueInfo()
                 {
                     ValueInUsd = cumulativeAdditionInUsd.ToString(),
-                    Token0Value = userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals),
-                    Token0ValueInUsd = (Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals)) * token0Price).ToString(),
-                    Token1Value = userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals),
-                    Token1ValueInUsd = (Double.Parse(userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals)) * token1Price).ToString(),
+                    Token0Amount = userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals),
+                    Token0AmountInUsd = (token0CumulativeAdditionAmountInUsd).ToString(),
+                    Token1Amount = userLiquidityIndex.Token1CumulativeAddition.ToDecimalsString(pair.Token1.Decimals),
+                    Token1AmountInUsd = (token1CumulativeAdditionAmountInUsd).ToString(),
+                    Token0Percent = token0CumulativeAdditionPercentStr,
+                    Token1Percent = token1CumulativeAdditionPercentStr,
                 },
                 EstimatedAPR = new List<EstimatedAPR>()
                 {
