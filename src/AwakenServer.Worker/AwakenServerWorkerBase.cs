@@ -53,6 +53,9 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         _workerOptions.QueryOnceLimit = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
             optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).QueryOnceLimit : 10000;
         
+        _workerOptions.IsSyncHistoryData = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
+            optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).IsSyncHistoryData : false;
+        
         _logger.LogInformation($"AwakenServerWorkerBase: BusinessType: {_businessType.ToString()}," +
                                $"Start with config: " +
                                $"TimePeriod: {timer.Period}, " +

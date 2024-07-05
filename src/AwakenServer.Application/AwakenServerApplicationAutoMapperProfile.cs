@@ -129,7 +129,7 @@ namespace AwakenServer
             CreateMap<UserLiquidityEto, UserLiquidity>();
             CreateMap<LiquidityRecordDto, LiquidityRecordIndexDto>().Ignore(x => x.ChainId);
             CreateMap<UserLiquidityDto, UserLiquidityIndexDto>();
-            CreateMap<GetUserAssertInput, GetUserLiquidityInput>();
+            CreateMap<GetUserAssetInput, GetUserLiquidityInput>();
             CreateMap<Trade.Index.UserLiquidity, UserLiquidityIndexDto>();
             
             CreateMap<TradeRecord, NewTradeRecordEvent>();

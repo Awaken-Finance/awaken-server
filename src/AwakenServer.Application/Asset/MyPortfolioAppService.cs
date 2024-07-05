@@ -76,8 +76,65 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
     {
         return $"{baseKey}:{version}";
     }
+
+    public async Task<int> UpdateUserAllAssetAsync(string address, TimeSpan maxTimeSinceLastUpdate)
+    {
+        var affectedCount = 0;
+        var userLiquidityIndexList = await GetCurrentUserLiquidityIndexListAsync(address);
+        foreach (var userLiquidityIndex in userLiquidityIndexList)
+        {
+            var currentUserLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(address, userLiquidityIndex.TradePairId), _portfolioOptions.Value.DataVersion));
+            var currentUserLiquidityGrainResult = await currentUserLiquidityGrain.GetAsync();
+            if (!currentUserLiquidityGrainResult.Success)
+            {
+                _logger.LogError($"update user all liquidity address: {address}, can't user liquidity grain: {userLiquidityIndex.TradePairId}");
+                continue;
+            }
+
+            var timeSinceLastUpdate = DateTime.UtcNow - currentUserLiquidityGrainResult.Data.LastUpdateTime;
+            if (timeSinceLastUpdate <= maxTimeSinceLastUpdate)
+            {
+                continue;
+            }
+            
+            var tradePairGrain =
+                _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
+            var pairResultDto = await tradePairGrain.GetAsync();
+            if (!pairResultDto.Success)
+            {
+                _logger.LogError($"update user all liquidity address: {address}, can't find pair: {userLiquidityIndex.TradePairId}");
+                continue;
+            }
+
+            var pair = pairResultDto.Data;
+            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(
+                AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId),
+                    _portfolioOptions.Value.DataVersion));
+            var currentTradePairResultDto = await currentTradePairGrain.GetAsync();
+            if (!currentTradePairResultDto.Success)
+            {
+                _logger.LogError($"update user all liquidity address: {address}, can't find current pair: {userLiquidityIndex.TradePairId}");
+                continue;
+            }
+
+            var currentTradePair = currentTradePairResultDto.Data;
+            var lpTokenPercentage = currentTradePair.TotalSupply == 0
+                ? 0.0
+                : userLiquidityIndex.LpTokenAmount / (double)currentTradePair.TotalSupply;
+            
+            currentUserLiquidityGrainResult.Data.Version = _portfolioOptions.Value.DataVersion;
+            currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * pair.TVL;
+            await _distributedEventBus.PublishAsync(
+                ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
+            _logger.LogInformation(
+                $"update user all liquidity address: {address}, pair id:{pair.Id}, pair address: {pair.Address}, index: {JsonConvert.SerializeObject(currentUserLiquidityGrainResult.Data)}");
+            ++affectedCount;
+        }
+
+        return affectedCount;
+    }
     
-    public async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto)
+    public async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto, bool alignUserAllAsset)
     {
         var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{liquidityRecordDto.TransactionHash}", _portfolioOptions.Value.DataVersion);
         var existed = await _syncedTransactionIdCache.GetAsync(key);
@@ -89,21 +146,38 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         if (tradePair == null)
         {
             _logger.LogInformation("can not find trade pair: {chainId}, {pairAddress}", liquidityRecordDto.ChainId,
-                liquidityRecordDto.Address);
+                liquidityRecordDto.Pair);
             return false;
         }
         var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(tradePair.Id), _portfolioOptions.Value.DataVersion));
-        await currentTradePairGrain.AddTotalSupplyAsync(tradePair.Id, liquidityRecordDto.Type == LiquidityType.Mint ? 
+        var currentTradePairGrainResultDto = await currentTradePairGrain.AddTotalSupplyAsync(tradePair.Id, liquidityRecordDto.Type == LiquidityType.Mint ? 
             liquidityRecordDto.LpTokenAmount : -liquidityRecordDto.LpTokenAmount, liquidityRecordDto.Timestamp);
         
         var currentUserLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(liquidityRecordDto.Address, tradePair.Id), _portfolioOptions.Value.DataVersion));
         var currentUserLiquidityGrainResult = liquidityRecordDto.Type == LiquidityType.Mint
             ? await currentUserLiquidityGrain.AddLiquidityAsync(tradePair, liquidityRecordDto)
             : await currentUserLiquidityGrain.RemoveLiquidityAsync(tradePair, liquidityRecordDto);
+
+        var lpTokenPercentage = currentTradePairGrainResultDto.Data.TotalSupply == 0
+            ? 0.0
+            : currentUserLiquidityGrainResult.Data.LpTokenAmount / (double)currentTradePairGrainResultDto.Data.TotalSupply;
+        
         // publish eto
         currentUserLiquidityGrainResult.Data.Version = _portfolioOptions.Value.DataVersion;
+        currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * tradePair.TVL;
         await _distributedEventBus.PublishAsync(
             ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
+        if (alignUserAllAsset)
+        {
+            try
+            {
+                await UpdateUserAllAssetAsync(liquidityRecordDto.Address, TimeSpan.FromMilliseconds(0));
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"update user all liquidity faild. address: {liquidityRecordDto.Address}, pair id: {tradePair.Id}, {e}");
+            }
+        }
         var userLiquiditySnapshotGrainDto = new UserLiquiditySnapshotGrainDto()
         {
             Address = liquidityRecordDto.Address,
@@ -218,6 +292,16 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var result = await _currentUserLiquidityIndexRepository.GetListAsync(Filter, skip: 0, limit: 10000);
         return result.Item2;
     }
+    
+    public async Task<List<CurrentUserLiquidityIndex>> GetCurrentUserLiquidityIndexListAsync(string address)
+    {
+        var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(address)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
+        QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
+        var result = await _currentUserLiquidityIndexRepository.GetListAsync(Filter, skip: 0, limit: 10000);
+        return result.Item2;
+    }
 
     private List<TradePairPortfolioDto> MergeAndProcess(List<TradePairPortfolioDto> rawList, int showCount, double total)
     {
@@ -318,18 +402,14 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
     {
         var positionDistributions = new List<TradePairPortfolioDto>();
         var feeDistributions = new List<TradePairPortfolioDto>();
-        var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
-        mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(input.Address)));
-        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
-        QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
-        var list = await _currentUserLiquidityIndexRepository.GetListAsync(Filter);
+        var list = await GetCurrentUserLiquidityIndexListAsync(input.Address);
         
         var sumValueInUsd = 0.0;
         var sumFeeInUsd = 0.0;
         var tokenPositionDictionary = new Dictionary<string, TokenPortfolioInfoDto>();
         var tokenFeeDictionary = new Dictionary<string, TokenPortfolioInfoDto>();
         
-        foreach (var userLiquidityIndex in list.Item2)
+        foreach (var userLiquidityIndex in list)
         {
             var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
             var pair = (await tradePairGrain.GetAsync()).Data;
@@ -818,7 +898,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
         QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
         var list = await _currentUserLiquidityIndexRepository.GetSortListAsync(Filter,
-            sortFunc: s => s.Descending(t => t.TradePairId),
+            sortFunc: s => s.Descending(t => t.AssetInUSD),
             limit: input.MaxResultCount == 0 ? TradePairConst.MaxPageSize :
             input.MaxResultCount > TradePairConst.MaxPageSize ? TradePairConst.MaxPageSize : input.MaxResultCount,
             skip: input.SkipCount);
@@ -835,6 +915,39 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             TotalCount = totalCount.Count,
             Items = userPositions
         };
+    }
+    
+    public async Task<List<string>> GetAllUserAddressesAsync()
+    {
+        var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
+        QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
+        int pageSize = 10000; 
+        int currentPage = 0;
+        bool hasMoreData = true;
+        HashSet<string> uniqueAddresses = new HashSet<string>();
+
+        while (hasMoreData)
+        {
+            var pagedData = await _currentUserLiquidityIndexRepository.GetSortListAsync(Filter, 
+                sortFunc: s => s.Descending(t => t.Address),
+                skip: currentPage * pageSize, limit: pageSize);
+            if (pagedData.Item2.Count > 0)
+            {
+                foreach (var item in pagedData.Item2)
+                {
+                    uniqueAddresses.Add(item.Address); 
+                }
+
+                currentPage++;
+            }
+            else
+            {
+                hasMoreData = false;
+            }
+        }
+
+        return uniqueAddresses.ToList();
     }
     
 }
