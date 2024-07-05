@@ -154,7 +154,10 @@ namespace AwakenServer.Price
                 {
                     price.PriceInUsd = await GetPriceAsync(symbol);
                     price.PriceUpdateTime = DateTime.UtcNow;
-                    await _priceCache.SetAsync(key, price);
+                    await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                    });
                 }
                 catch (Exception e)
                 {
@@ -163,12 +166,18 @@ namespace AwakenServer.Price
                     if (price.PriceUpdateTime == DateTime.MinValue)
                     {
                         price.PriceUpdateTime = DateTime.UtcNow.AddHours(-1);
-                        await _priceCache.SetAsync(key, price);
+                        await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                        {
+                            AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                        });
                     }
                     if (price.PriceInUsd == PriceOptions.DefaultPriceValue)
                     {
                         price.PriceInUsd = 0;
-                        await _priceCache.SetAsync(key, price);
+                        await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                        {
+                            AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                        });
                     }
                     Logger.LogError(e, $"Get token price symbol: {symbol} failed. Return old data price: {price.PriceInUsd}");
                 }
@@ -222,7 +231,10 @@ namespace AwakenServer.Price
                 {
                     price.PriceInUsd = await GetHistoryPriceAsync(input.Symbol, time);
                     price.PriceUpdateTime = DateTime.UtcNow;
-                    await _priceCache.SetAsync(key, price);
+                    await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                    });
                 }
                 catch (Exception e)
                 {
@@ -540,13 +552,19 @@ namespace AwakenServer.Price
                     PriceInUsd = (decimal)tokenToPrice.Value,
                     PriceUpdateTime = DateTime.UtcNow
                 };
-                await _internalPriceCache.SetAsync(key, priceDto);
+                await _internalPriceCache.SetAsync(key, priceDto, new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                });
                 
                 var time = DateTime.UtcNow.ToString("dd-MM-yyyy");
                 var historyKey = $"{PriceOptions.InternalPriceHistoryCachePrefix}:{tokenToPrice.Key}:{time}";
-                await _internalPriceCache.SetAsync(historyKey, priceDto);
+                await _internalPriceCache.SetAsync(historyKey, priceDto, new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                });
                 
-                _logger.LogInformation($"Price Spread. Update addected from swap token price. " +
+                _logger.LogInformation($"Price Spread. Update affected from swap token price. " +
                                        $"key: {key}, historyKey: {historyKey}, price: {priceDto.PriceInUsd}, update time: {priceDto.PriceUpdateTime}");
             }
         }

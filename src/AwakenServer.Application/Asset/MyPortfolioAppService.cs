@@ -766,9 +766,9 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             
             var token0ValueInUsd = lpTokenPercentage * pair.ValueLocked0 * token0Price;
             var token1ValueInUsd = lpTokenPercentage * pair.ValueLocked1 * token1Price;
-            var token0Percenage = token0ValueInUsd / (token0ValueInUsd + token1ValueInUsd);
+            var token0Percenage = token0ValueInUsd + token1ValueInUsd == 0 ? 0 : token0ValueInUsd / (token0ValueInUsd + token1ValueInUsd);
             var token0PercentStr = Math.Round(token0Percenage * 100,2).ToString();
-            var token1PercentStr = Math.Round(100 - double.Parse(token0PercentStr),2).ToString();
+            var token1PercentStr = token0ValueInUsd + token1ValueInUsd == 0 ? "0" : Math.Round(100 - double.Parse(token0PercentStr),2).ToString();
             
             var valueInUsd = lpTokenPercentage * pair.TVL;
             var token0UnReceivedFee =
