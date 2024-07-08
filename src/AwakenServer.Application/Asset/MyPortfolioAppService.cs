@@ -149,6 +149,14 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 liquidityRecordDto.Pair);
             return false;
         }
+        var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
+        var tradePairGrainResultDto = await tradePairGrain.GetAsync();
+        if (!tradePairGrainResultDto.Success)
+        {
+            _logger.LogInformation("can not find trade pair grain: {chainId}, {pairId}", liquidityRecordDto.ChainId,
+                tradePair.Id);
+            return false;
+        }
         var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(tradePair.Id), _portfolioOptions.Value.DataVersion));
         var currentTradePairGrainResultDto = await currentTradePairGrain.AddTotalSupplyAsync(tradePair.Id, liquidityRecordDto.Type == LiquidityType.Mint ? 
             liquidityRecordDto.LpTokenAmount : -liquidityRecordDto.LpTokenAmount, liquidityRecordDto.Timestamp);
@@ -164,7 +172,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         
         // publish eto
         currentUserLiquidityGrainResult.Data.Version = _portfolioOptions.Value.DataVersion;
-        currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * tradePair.TVL;
+        currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * tradePairGrainResultDto.Data.TVL;
         await _distributedEventBus.PublishAsync(
             ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
         _logger.LogInformation(
@@ -231,6 +239,14 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 swapRecordDto.PairAddress);
             return false;
         }
+        var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
+        var tradePairGrainResultDto = await tradePairGrain.GetAsync();
+        if (!tradePairGrainResultDto.Success)
+        {
+            _logger.LogInformation("can not find trade pair grain: {chainId}, {pairId}", swapRecordDto.ChainId,
+                tradePair.Id);
+            return false;
+        }
         var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(tradePair.Id), _portfolioOptions.Value.DataVersion));
         var isToken0 = swapRecordDto.SymbolIn == tradePair.Token0.Symbol;
         var total0Fee = isToken0 ? swapRecordDto.TotalFee : 0;
@@ -249,8 +265,12 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             }
             var currentLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidity.Address, tradePair.Id), _portfolioOptions.Value.DataVersion));
             var currentLiquidityGrainResult = await currentLiquidityGrain.AddTotalFee(userToken0Fee, userToken1Fee, swapRecordDto);
+            var lpTokenPercentage = currentTradePairResult.Data.TotalSupply == 0
+                ? 0.0
+                : currentLiquidityGrainResult.Data.LpTokenAmount / (double)currentTradePairResult.Data.TotalSupply;
             // publish CurrentUserLiquidityEto
             currentLiquidityGrainResult.Data.Version = _portfolioOptions.Value.DataVersion;
+            currentLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * tradePairGrainResultDto.Data.TVL;
             await _distributedEventBus.PublishAsync(
                 ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentLiquidityGrainResult.Data));
             
