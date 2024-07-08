@@ -120,7 +120,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var currentTradePair = currentTradePairResultDto.Data;
             var lpTokenPercentage = currentTradePair.TotalSupply == 0
                 ? 0.0
-                : userLiquidityIndex.LpTokenAmount / (double)currentTradePair.TotalSupply;
+                : currentUserLiquidityGrainResult.Data.LpTokenAmount / (double)currentTradePair.TotalSupply;
             
             currentUserLiquidityGrainResult.Data.Version = _portfolioOptions.Value.DataVersion;
             currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * pair.TVL;
@@ -167,6 +167,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * tradePair.TVL;
         await _distributedEventBus.PublishAsync(
             ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
+        _logger.LogInformation(
+            $"update user liquidity address: {liquidityRecordDto.Address}, pair id:{tradePair.Id}, pair address: {tradePair.Address}, {currentUserLiquidityGrainResult.Data.LpTokenAmount}, {currentTradePairGrainResultDto.Data.TotalSupply}, {lpTokenPercentage}, {tradePair.TVL},  index: {JsonConvert.SerializeObject(currentUserLiquidityGrainResult.Data)}");
         if (alignUserAllAsset)
         {
             try
@@ -424,7 +426,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(pair.ChainId, pair.Token1.Symbol);
             var token0ValueInUsd = lpTokenPercentage * pair.ValueLocked0 * token0Price;
             var token1ValueInUsd = lpTokenPercentage * pair.ValueLocked1 * token1Price;
-            var valueInUsd = lpTokenPercentage * pair.TVL;
+            var valueInUsd = lpTokenPercentage * (pair.ValueLocked0 * token0Price + pair.ValueLocked1 * token1Price);
             var token0Fee = Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
             var token1Fee = Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
             var fee = token0Fee + token1Fee;
@@ -770,7 +772,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var token0PercentStr = Math.Round(token0Percenage * 100,2).ToString();
             var token1PercentStr = token0ValueInUsd + token1ValueInUsd == 0 ? "0" : Math.Round(100 - double.Parse(token0PercentStr),2).ToString();
             
-            var valueInUsd = lpTokenPercentage * pair.TVL;
+            var valueInUsd = lpTokenPercentage * (pair.ValueLocked0 * token0Price + pair.ValueLocked1 * token1Price);
             var token0UnReceivedFee =
                 Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
             var token1UnReceivedFee =
