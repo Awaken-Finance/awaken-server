@@ -16,6 +16,6 @@ public interface IAssetAppService
     
     Task<IdleTokensDto> GetIdleTokensAsync(GetIdleTokensDto input);
     
-
+    Task<UserCombinedAssetsDto> GetUserCombinedAssetsAsync(GetUserCombinedAssetsDto input);
     
 }

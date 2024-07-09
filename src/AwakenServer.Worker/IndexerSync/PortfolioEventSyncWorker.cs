@@ -68,7 +68,7 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
                 }
                 if (liquidityRecord != null)
                 {
-                    await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord);
+                    await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord, !_workerOptions.IsSyncHistoryData);
                     blockHeight = Math.Max(blockHeight, liquidityRecord.BlockHeight);
                     await Task.Delay(3000);
                 }

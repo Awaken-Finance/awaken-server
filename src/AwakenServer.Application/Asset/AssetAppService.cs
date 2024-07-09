@@ -8,6 +8,7 @@ using AwakenServer.Chains;
 using AwakenServer.Commons;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Asset;
+using AwakenServer.Grains.Grain.MyPortfolio;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Price;
 using AwakenServer.Provider;
@@ -42,7 +43,8 @@ public class AssetAppService : ApplicationService, IAssetAppService
     private readonly IAElfClientProvider _aelfClientProvider;
     private readonly AssetWhenNoTransactionOptions _assetWhenNoTransactionOptions;
     private readonly IDistributedCache<UserAssetInfoDto> _userAssetInfoDtoCache;
-
+    private readonly IOptionsSnapshot<PortfolioOptions> _portfolioOptions;
+    private readonly INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiquidityIndexRepository;
 
     private const string userAssetInfoDtoPrefix = "AwakenServer:Asset:";
     private readonly IClusterClient _clusterClient;
@@ -55,7 +57,9 @@ public class AssetAppService : ApplicationService, IAssetAppService
         IAElfClientProvider aelfClientProvider,
         IOptionsSnapshot<AssetWhenNoTransactionOptions> showSymbolsWhenNoTransactionOptions,
         IDistributedCache<UserAssetInfoDto> userAssetInfoDtoCache, IClusterClient clusterClient,
-        ILogger<AssetAppService> logger)
+        ILogger<AssetAppService> logger,
+        IOptionsSnapshot<PortfolioOptions> portfolioOptions,
+        INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiquidityIndexRepository)
     {
         _graphQlProvider = graphQlProvider;
         _tokenAppService = tokenAppService;
@@ -66,8 +70,15 @@ public class AssetAppService : ApplicationService, IAssetAppService
         _assetWhenNoTransactionOptions = showSymbolsWhenNoTransactionOptions.Value;
         _userAssetInfoDtoCache = userAssetInfoDtoCache;
         _logger = logger;
+        _portfolioOptions = portfolioOptions;
+        _currentUserLiquidityIndexRepository = currentUserLiquidityIndexRepository;
     }
 
+    private string AddVersionToKey(string baseKey, string version)
+    {
+        return $"{baseKey}:{version}";
+    }
+    
     public async Task<UserAssetInfoDto> GetUserAssetInfoAsync(GetUserAssetInfoDto input)
     {
         var tokenList = await _graphQlProvider.GetUserTokensAsync(input.ChainId, input.Address);
@@ -290,6 +301,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             ChainId = input.ChainId,
             Address = input.Address
         });
+        
         var showCount = input.ShowCount >= 1 ? input.ShowCount - 1 : 0;
         var totalValueInUsd = 0.0;
         foreach (var userTokenInfo in tokenListDto.ShowList)
@@ -345,18 +357,51 @@ public class AssetAppService : ApplicationService, IAssetAppService
             _logger.LogInformation(
                 $"get idle tokens symbol: {tokenDto.Symbol}, price usd: {userTokenInfo.PriceInUsd}, total usd: {totalValueInUsd}, percent: {percent}");
         }
-
-        double totalPercent = idleTokenList.Sum(r => double.Parse(r.Percent));
-        if (totalPercent != 100.0)
-        {
-            double difference = 100.0 - totalPercent;
-            idleTokenList[idleTokenList.Count - 1].Percent = (double.Parse(idleTokenList[idleTokenList.Count - 1].Percent) + difference).ToString("F2");
-        }
         
         return new IdleTokensDto()
         {
             TotalValueInUsd = totalValueInUsd.ToString(),
             IdleTokens = idleTokenList
+        };
+    }
+
+
+    public async Task<UserCombinedAssetsDto> GetUserCombinedAssetsAsync(GetUserCombinedAssetsDto input)
+    {
+        var tokenListDto = await GetUserAssetInfoAsync(new GetUserAssetInfoDto()
+        {
+            ChainId = input.ChainId,
+            Address = input.Address
+        });
+        var idleTokensValueInUsd = 0.0;
+        foreach (var userTokenInfo in tokenListDto.ShowList)
+        {
+            idleTokensValueInUsd += Double.Parse(userTokenInfo.PriceInUsd);
+        }
+        
+        var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(input.Address)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_portfolioOptions.Value.DataVersion)));
+        QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
+        var list = await _currentUserLiquidityIndexRepository.GetListAsync(Filter);
+        
+        var positionsValueInUsd = 0.0;
+        foreach (var userLiquidityIndex in list.Item2)
+        {
+            var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId));
+            var pair = (await tradePairGrain.GetAsync()).Data;
+            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId), _portfolioOptions.Value.DataVersion));
+            var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
+            var lpTokenPercentage = currentTradePair.TotalSupply == 0
+                ? 0.0
+                : userLiquidityIndex.LpTokenAmount / (double)currentTradePair.TotalSupply;
+            var valueInUsd = lpTokenPercentage * pair.TVL;
+            positionsValueInUsd += valueInUsd;
+        }
+
+        return new UserCombinedAssetsDto()
+        {
+            ValueInUsd = (idleTokensValueInUsd + positionsValueInUsd).ToString()
         };
     }
 }

@@ -274,7 +274,7 @@ namespace AwakenServer.Trade
         }
 
         
-        public async Task<UserAssetDto> GetUserAssetFromGraphQLAsync(GetUserAssertInput input)
+        public async Task<UserAssetDto> GetUserAssetFromGraphQLAsync(GetUserAssetInput input)
         {
             var getUserLiquidityInput = new GetUserLiquidityInput();
             ObjectMapper.Map(input, getUserLiquidityInput);

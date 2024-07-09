@@ -147,7 +147,7 @@ public class LiquidityServiceTests : TradeTestBase
         records.Items.Count.ShouldBe(1);
         records.Items.First().LpTokenAmount.ShouldBe("0.0005");
         
-        var record = await _liquidityAppService.GetUserAssetFromGraphQLAsync(new GetUserAssertInput()
+        var record = await _liquidityAppService.GetUserAssetFromGraphQLAsync(new GetUserAssetInput()
         {
             ChainId = ChainName,
             Address = "BBB"
