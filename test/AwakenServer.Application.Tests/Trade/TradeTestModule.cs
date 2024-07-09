@@ -194,7 +194,7 @@ namespace AwakenServer.Trade
                     Id = Guid.Parse("3F2504E0-4F89-41D3-9A0C-0305E82C3301"),
                     Token0Id = tokenETH.Id,
                     Token1Id = tokenUSDT.Id,
-                    FeeRate = 0.5
+                    FeeRate = 0.0005
                 }));
             environmentProvider.TradePairEthUsdtId = tradePairEthUsdt.Id;
             environmentProvider.TradePairEthUsdtAddress = tradePairEthUsdt.Address;

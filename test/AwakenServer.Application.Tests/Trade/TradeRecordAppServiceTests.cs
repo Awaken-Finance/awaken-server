@@ -519,7 +519,7 @@ namespace AwakenServer.Trade
             record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput
             {
                 ChainId = ChainId,
-                FeeRate = 0.5,
+                FeeRate = 0.0005,
                 MaxResultCount = 10,
             });
             record.TotalCount.ShouldBe(1);

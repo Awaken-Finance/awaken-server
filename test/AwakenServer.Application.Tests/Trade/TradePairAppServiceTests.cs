@@ -761,7 +761,7 @@ namespace AwakenServer.Trade
         public async Task GetFromGrainTest()
         {
             var pair = await _tradePairAppService.GetFromGrainAsync(TradePairEthUsdtId);
-            pair.FeeRate.ShouldBe(0.5);
+            pair.FeeRate.ShouldBe(0.0005);
             pair.Address.ShouldBe("0xPool006a6FaC8c710e53c4B2c2F96477119dA361");
             pair.Token0Id.ShouldBe(TokenEthId);
             pair.Token1Id.ShouldBe(TokenUsdtId);
@@ -812,7 +812,7 @@ namespace AwakenServer.Trade
             tradePairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {
                 ChainId = ChainName,
-                FeeRate = 0.5,
+                FeeRate = 0.0005,
                 MaxResultCount = 10
             });
             tradePairs.TotalCount.ShouldBe(1);
