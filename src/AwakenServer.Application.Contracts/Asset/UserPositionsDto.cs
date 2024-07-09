@@ -20,11 +20,8 @@ public enum EstimatedAprType
 public class TradePairPositionDto
 {
     public PositionTradePairDto TradePairInfo { get; set; }
-    public string Token0Amount { get; set; }
-    public string Token1Amount { get; set; }
-    public string Token0Percent { get; set; }
-    public string Token1Percent { get; set; }
     public string LpTokenAmount { get; set; }
+    public string LpTokenPercent { get; set; }
     public LiquidityPoolValueInfo Position { get; set; }
     public LiquidityPoolValueInfo Fee { get; set; }
     public LiquidityPoolValueInfo CumulativeAddition { get; set; }
@@ -42,6 +39,7 @@ public class EstimatedAPR
 public class PositionTradePairDto
 {
     public string ChainId { get; set; }
+    public string Id { get; set; }
     public string Address { get; set; }
     public double FeeRate { get; set; }
     public bool IsTokenReversed { get; set; }
@@ -49,15 +47,18 @@ public class PositionTradePairDto
     public TokenDto Token1 { get; set; }
     public string Price { get; set; }
     public string Volume24h { get; set; }
+    public string Volume24hInUsd { get; set; }
     public string TVL { get; set; }
 }
 
 public class LiquidityPoolValueInfo
 {
     public string ValueInUsd { get; set; }
-    public string Token0Value { get; set; }
-    public string Token0ValueInUsd { get; set; }
-    public string Token1Value { get; set; }
-    public string Token1ValueInUsd { get; set; }
+    public string Token0Amount { get; set; }
+    public string Token0AmountInUsd { get; set; }
+    public string Token0Percent { get; set; }
+    public string Token1Amount { get; set; }
+    public string Token1AmountInUsd { get; set; }
+    public string Token1Percent { get; set; }
 }
 

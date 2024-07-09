@@ -23,6 +23,7 @@ namespace AwakenServer.Worker
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<TransactionRevertWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<PortfolioEventSyncWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<InternalTokenPriceBuildWorker>());
+            backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<UserLiquidityUpdateWorker>());
         }
     }
 }

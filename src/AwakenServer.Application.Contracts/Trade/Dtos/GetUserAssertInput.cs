@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AwakenServer.Trade.Dtos
 {
-    public class GetUserAssertInput
+    public class GetUserAssetInput
     {
         [Required]
         public string ChainId { get; set; }

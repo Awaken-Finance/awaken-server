@@ -18,4 +18,5 @@ public class CurrentUserLiquidity : MultiChainEntity<Guid>
     public long Token1UnReceivedFee { get; set; }
     public long Token0ReceivedFee { get; set; }
     public long Token1ReceivedFee { get; set; }
+    public double AssetInUSD { get; set; }
 }
