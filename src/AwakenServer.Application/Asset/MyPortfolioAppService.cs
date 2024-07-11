@@ -449,6 +449,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var valueInUsd = lpTokenPercentage * (pair.ValueLocked0 * token0Price + pair.ValueLocked1 * token1Price);
             var token0Fee = token0Price * Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
             var token1Fee = token1Price * Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
+
             var fee = token0Fee + token1Fee;
             
             sumValueInUsd += valueInUsd;
