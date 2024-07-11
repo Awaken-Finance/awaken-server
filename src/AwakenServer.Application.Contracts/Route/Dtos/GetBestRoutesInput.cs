@@ -16,8 +16,9 @@ public class GetBestRoutesInput : IValidatableObject
     [Required] public RouteType RouteType { get; set; }
     public long AmountIn { get; set; }
     public long AmountOut { get; set; }
-
     public int ResultCount { get; set; } = 1;
+    public int MaxSplits { get; set; } = 3;
+    public bool CrossRate { get; set; } = true;
     
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

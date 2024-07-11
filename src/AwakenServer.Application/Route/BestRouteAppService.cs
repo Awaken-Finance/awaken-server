@@ -39,7 +39,6 @@ namespace AwakenServer.Route
         private readonly ILogger<TradePairAppService> _logger;
         private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
         public int MaxDepth { get; set; } = 3;
-        public int MaxSplits { get; set; } = 3;
         public int MinSplits { get; set; } = 1;
         public int DistributionPercent { get; set; } = 5;
         public int FeeRateMax = 10000;
@@ -143,20 +142,14 @@ namespace AwakenServer.Route
             {
                 return new Tuple<bool, long>(false, -1);
             }
+            
+            var feeRate = poolFeeRate * FeeRateMax;
+            var feeRateRest = FeeRateMax - feeRate;
+            var numerator = (double)reserveIn * amountOut * FeeRateMax;
+            var denominator = (reserveOut - amountOut) * feeRateRest;
+            var amountIn = numerator / denominator + 1;
 
-            var reserveInBigIntValue = new BigIntValue(reserveIn);
-            var reserveOutBigIntValue = new BigIntValue(reserveOut);
-            var feeRate = new BigIntValue((long)Math.Floor(poolFeeRate * FeeRateMax));
-            var feeRateRest = new BigIntValue(FeeRateMax).Sub(feeRate);
-            var numerator = reserveInBigIntValue.Mul(amountOut).Mul(FeeRateMax);
-            var denominator = (reserveOutBigIntValue.Sub(amountOut)).Mul(feeRateRest);
-            var amountInStr = numerator.Div(denominator).Add(1).Value;
-            if (!long.TryParse(amountInStr, out var amountIn))
-            {
-                return new Tuple<bool, long>(false, -1);
-            }
-
-            return new Tuple<bool, long>(true, amountIn);
+            return new Tuple<bool, long>(true, (long)Math.Floor(amountIn));
         }
 
         public Tuple<bool, long> GetAmountOut(double poolFeeRate, long amountIn, long reserveIn, long reserveOut)
@@ -170,23 +163,15 @@ namespace AwakenServer.Route
             {
                 return new Tuple<bool, long>(false, -1);
             }
+            
+            var feeRate = poolFeeRate * FeeRateMax;
+            var feeRateRest = FeeRateMax - feeRate;
+            var amountInWithFee = feeRateRest * amountIn;
+            var numerator = amountInWithFee * reserveOut;
+            var denominator = reserveIn * FeeRateMax + amountInWithFee;
+            var amountOut = numerator / denominator;
 
-            var reserveInBigIntValue = new BigIntValue(reserveIn);
-            var reserveOutBigIntValue = new BigIntValue(reserveOut);
-
-            var feeRate = new BigIntValue((long)Math.Floor(poolFeeRate * FeeRateMax));
-            var feeRateRest = new BigIntValue(FeeRateMax).Sub(feeRate);
-
-            var amountInWithFee = feeRateRest.Mul(amountIn);
-            var numerator = amountInWithFee.Mul(reserveOutBigIntValue);
-            var denominator = reserveInBigIntValue.Mul(FeeRateMax).Add(amountInWithFee);
-            var amountOutStr = numerator.Div(denominator).Value;
-            if (!long.TryParse(amountOutStr, out var amountOut))
-            {
-                return new Tuple<bool, long>(false, -1);
-            }
-
-            return new Tuple<bool, long>(true, amountOut);
+            return new Tuple<bool, long>(true, (long)Math.Floor(amountOut));
         }
 
         public async Task<List<long>> GetAmountsInAsync(List<string> tokens, List<Guid> tradePairs, long amountOut)
@@ -298,18 +283,38 @@ namespace AwakenServer.Route
 
         public async Task<BestRoutesDto> GetBestRoutesAsync(GetBestRoutesInput input)
         {
-            var routes =
+            var swapRoutes =
                 await GetRoutesAsync(input.ChainId, input.RouteType, input.SymbolIn, input.SymbolOut, MaxDepth);
             var percents = GetPercents(DistributionPercent);
             var percentToSortedRoutes = new Dictionary<int, List<PercentSwapRoute>>();
             
             _logger.LogInformation(
-                $"Get best routes, all routes count: {routes.Count}");
+                $"Get best routes, all routes count: {swapRoutes.Count}");
+
+            var crossFeeRateRoutes = new List<SwapRoute>();
+            if (input.CrossRate)
+            {
+                crossFeeRateRoutes = swapRoutes;
+            }
+            else
+            {
+                foreach (var route in swapRoutes)
+                {
+                    HashSet<double> feeRates = new HashSet<double>(route.TradePairs.Select(v => v.FeeRate));
+                    if (feeRates.Count == 1)
+                    {
+                        crossFeeRateRoutes.Add(route);
+                    }
+                }
+            }
+            
+            _logger.LogInformation(
+                $"Get best routes, all cross(or not) rate routes count: {crossFeeRateRoutes.Count}");
             
             foreach (var percent in percents)
             {
                 percentToSortedRoutes[percent] = new List<PercentSwapRoute>();
-                foreach (var route in routes)
+                var tasks = crossFeeRateRoutes.Select(async route =>
                 {
                     var percentSwapRoute = _objectMapper.Map<SwapRoute, PercentSwapRoute>(route);
                     try
@@ -317,36 +322,48 @@ namespace AwakenServer.Route
                         percentSwapRoute.Exact = input.RouteType == RouteType.ExactIn
                             ? (long)Math.Floor(percent / 100d * input.AmountIn)
                             : (long)Math.Floor(percent / 100d * input.AmountOut);
-                        var tokens = route.Tokens.Select(x => x.Symbol).ToList();
-                        var tradePairIds = route.TradePairs.Select(x => x.Id).ToList();
+                        var tokens = percentSwapRoute.Tokens.Select(x => x.Symbol).ToList();
+                        var tradePairIds = percentSwapRoute.TradePairs.Select(x => x.Id).ToList();
                         var amounts = input.RouteType == RouteType.ExactIn
                             ? await GetAmountsOutAsync(tokens, tradePairIds, percentSwapRoute.Exact)
                             : await GetAmountsInAsync(tokens, tradePairIds, percentSwapRoute.Exact);
                         if (amounts == null)
                         {
-                            continue;
+                            return null;
                         }
                         percentSwapRoute.Amounts = amounts;
-                        percentSwapRoute.Quote = input.RouteType == RouteType.ExactIn ? amounts[amounts.Count-1] : amounts[0];
+                        percentSwapRoute.Quote = input.RouteType == RouteType.ExactIn ? amounts[amounts.Count - 1] : amounts[0];
                     }
                     catch (Exception e)
                     {
                         _logger.LogError($"Get best routes, Exception: {e}");
-                        continue;
+                        return null;
                     }
-
                     percentSwapRoute.Percent = percent;
-                    percentToSortedRoutes[percent].Add(percentSwapRoute);
-                }
+                    return percentSwapRoute;
+                }).ToList();
 
-                percentToSortedRoutes[percent].Sort((quoteRouteA, quoteRouteB) =>
+                var results = await Task.WhenAll(tasks);
+
+                foreach (var route in results)
+                {
+                    if (route != null)
+                    {
+                        percentToSortedRoutes[percent].Add(route);
+                    }
+                }
+            }
+            
+            foreach (var percentRoutes in percentToSortedRoutes)
+            {
+                percentToSortedRoutes[percentRoutes.Key].Sort((quoteRouteA, quoteRouteB) =>
                 {
                     return input.RouteType == RouteType.ExactIn
                         ? quoteRouteB.Quote.CompareTo(quoteRouteA.Quote)
                         : quoteRouteA.Quote.CompareTo(quoteRouteB.Quote);
                 });
             }
-
+            
             percentToSortedRoutes.ToList().ForEach(kvp =>
                 _logger.LogInformation($"Get best routes, percent: {kvp.Key}, route count: {kvp.Value.Count}"));
                     
@@ -403,7 +420,7 @@ namespace AwakenServer.Route
                 _logger.LogInformation($"Get best routes, splits: {splits}, current best swaps count: {bestSwaps.Count}");
                 var layer = queue.Count;
                 splits++;
-                if (splits > MaxSplits)
+                if (splits > input.MaxSplits)
                 {
                     _logger.LogInformation("Max splits reached. Stopping search.");
                     break;
