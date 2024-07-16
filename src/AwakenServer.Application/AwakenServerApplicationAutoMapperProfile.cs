@@ -142,8 +142,9 @@ namespace AwakenServer
             CreateMap<Trade.Index.KLine, KLineDto>();
             CreateMap<KLineGrainDto, KLineEto>();
             CreateMap<NewTradeRecordEvent, TradeRecordDto>();
-            CreateMap<Trade.Dtos.SwapRecord, Trade.SwapRecord>();
+            CreateMap<Trade.Dtos.SwapRecord, Trade.SwapRecord>().ReverseMap();
             CreateMap<Trade.Dtos.SwapRecord, SwapRecordDto>();
+            CreateMap<PercentRoute, PercentRouteDto>();
             
             CreateMap<TradePairMarketDataSnapshot, AwakenServer.Trade.TradePairMarketDataSnapshot>();
             CreateMap<AwakenServer.Trade.TradePairMarketDataSnapshot, TradePairMarketDataSnapshotGrainDto>();

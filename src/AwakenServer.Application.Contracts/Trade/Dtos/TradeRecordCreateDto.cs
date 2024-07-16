@@ -19,5 +19,6 @@ namespace AwakenServer.Trade.Dtos
         public long BlockHeight { get; set; }
 
         public bool IsRevert { get; set; }
+        public string MethodName { get; set; }
     }
 }

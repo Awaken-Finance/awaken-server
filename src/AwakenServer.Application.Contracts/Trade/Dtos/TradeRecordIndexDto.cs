@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Volo.Abp.Application.Dtos;
 
 namespace AwakenServer.Trade.Dtos
@@ -19,5 +20,6 @@ namespace AwakenServer.Trade.Dtos
         public string TransactionHash { get; set; }
         public string Channel { get; set; }
         public string Sender { get; set; }
+        public List<PercentRouteDto> PercentRoutes { get; set; }
     }
 }
