@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
@@ -33,7 +34,15 @@ namespace AwakenServer
             try
             {
                 Log.Information("Starting AwakenServer.HttpApi.Host.");
-                CreateHostBuilder(args).Build().Run();
+                var host = CreateHostBuilder(args).Build();
+
+                using (var scope = host.Services.CreateScope())
+                {
+                    var serviceProvider = scope.ServiceProvider;
+                    serviceProvider.GetRequiredService<CorsConfigurationUpdater>();
+                }
+
+                host.Run();
                 return 0;
             }
             catch (Exception ex)
