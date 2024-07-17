@@ -44,6 +44,7 @@ namespace AwakenServer
                 
                 options.AutoEventSelectors.Add<TradeRecord>();
                 options.EtoMappings.Add<TradeRecord, TradeRecordEto>();
+                options.EtoMappings.Add<TradeRecord, MultiTradeRecordEto>();
 
                 options.AutoEventSelectors.Add<UserLiquidity>();
                 options.EtoMappings.Add<UserLiquidity, UserLiquidityEto>();

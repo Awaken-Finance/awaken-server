@@ -17,7 +17,5 @@ public class AwakenServerGrainsModule : AbpModule
     {
         base.ConfigureServices(context);
         Configure<AbpAutoMapperOptions>(options => options.AddMaps<AwakenServerGrainsModule>());
-        
-        context.Services.AddSingleton<ITokenPriceProvider, TokenPriceAetherlinkProvider>();
     }
 }

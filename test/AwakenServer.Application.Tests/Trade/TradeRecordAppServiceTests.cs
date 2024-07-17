@@ -79,6 +79,130 @@ namespace AwakenServer.Trade
             ret.ShouldBe(false);
         }
         
+        [Fact]
+        public async Task MultiSwapTest()
+        {
+            var swapRecordDto = new SwapRecordDto
+            {
+                ChainId = "tDVV",
+                PairAddress = "2Ck7Hg4LD3LMHiKpbbPJuyVXv1zbFLzG7tP6ZmWf3L2ajwtSnk",
+                Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                AmountOut = 100,
+                AmountIn = 1,
+                SymbolOut = "USDT",
+                SymbolIn = "ELF",
+                Channel = "test",
+                BlockHeight = 99,
+                SwapRecords = new()
+                {
+                    new Dtos.SwapRecord()
+                    {
+                        SymbolOut = "SGR-1",
+                        SymbolIn = "USDT",
+                        AmountIn = 100,
+                        AmountOut = 200,
+                        PairAddress = "2mizZPNPiWmre1rRAaWydcRdLzAA5RBAp2a7mWGzPSc7GHy25D",
+                        Channel = ""
+                    }
+                }
+            };
+            var tradePair = new Index.TradePair()
+            {
+                Id = TradePairEthUsdtId,
+                ChainId = "tDVV",
+                Address = "2Ck7Hg4LD3LMHiKpbbPJuyVXv1zbFLzG7tP6ZmWf3L2ajwtSnk",
+                Token0 = new Token()
+                {
+                    Symbol = "ELF",
+                    Decimals = 8
+                },
+                Token1 = new Token()
+                {
+                    Symbol = "USDT",
+                    Decimals = 6
+                },
+            };
+            var tradePairSGR = new Index.TradePair()
+            {
+                Id = TradePairBtcEthId,
+                ChainId = "tDVV",
+                Address = "2mizZPNPiWmre1rRAaWydcRdLzAA5RBAp2a7mWGzPSc7GHy25D",
+                Token0 = new Token()
+                {
+                    Symbol = "USDT",
+                    Decimals = 6
+                },
+                Token1 = new Token()
+                {
+                    Symbol = "SGR-1",
+                    Decimals = 8
+                },
+            };
+            await _tradePairIndexRepository.AddAsync(tradePair);
+            await _tradePairIndexRepository.AddAsync(tradePairSGR);
+            var ret = await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            ret.ShouldBe(true);
+            await _tradePairIndexRepository.DeleteAsync(tradePair.Id);
+            swapRecordDto.TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d36";
+            ret = await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            ret.ShouldBe(false);
+        }
+        
+        [Fact]
+        public async Task MultiSwapRecordsTest()
+        {
+            var swapRecordDto = new SwapRecordDto
+            {
+                ChainId = "tDVV",
+                PairAddress = TradePairEthUsdtAddress,
+                Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                AmountOut = NumberFormatter.WithDecimals(10, 8),
+                AmountIn = NumberFormatter.WithDecimals(100, 6),
+                SymbolOut = TokenEthSymbol,
+                SymbolIn = TokenUsdtSymbol,
+                Channel = "test",
+                BlockHeight = 99,
+                SwapRecords = new List<Dtos.SwapRecord>()
+                {
+                    new Dtos.SwapRecord()
+                    {
+                        PairAddress = TradePairBtcEthAddress,
+                        AmountIn = NumberFormatter.WithDecimals(10, 8),
+                        AmountOut = NumberFormatter.WithDecimals(90, 8),
+                        SymbolIn = TokenEthSymbol,
+                        SymbolOut = TokenBtcSymbol
+                    }
+                }
+            };
+            
+            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+
+            var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
+            {
+                ChainId = "tDVV",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37"
+            });
+            record.Items.Count.ShouldBe(1);
+            record.Items[0].Token0Amount.ShouldBe("100");
+            record.Items[0].Token1Amount.ShouldBe("90");
+            record.Items[0].TradePair.Token0.Symbol.ShouldBe(TokenUsdtSymbol);
+            record.Items[0].TradePair.Token1.Symbol.ShouldBe(TokenBtcSymbol);
+            
+            var pair1 = await _tradePairIndexRepository.GetAsync(TradePairEthUsdtId);
+            pair1.Volume24h.ShouldBe(10);
+            pair1.TradeValue24h.ShouldBe(100);
+            pair1.TradeCount24h.ShouldBe(1);
+            
+            var pair2 = await _tradePairIndexRepository.GetAsync(TradePairBtcEthId);
+            pair2.Volume24h.ShouldBe(90);
+            pair2.TradeValue24h.ShouldBe(10);
+            pair2.TradeCount24h.ShouldBe(1);
+        }
+        
         // [Fact]
         // public async Task RevertTest()
         // {

@@ -8,8 +8,10 @@ using AwakenServer.Grains.Grain.Tokens;
 using AwakenServer.Grains.Grain.Favorite;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
+using AwakenServer.Grains.Grain.SwapTokenPath;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.State.Tokens;
+using AwakenServer.SwapTokenPath.Dtos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
@@ -63,6 +65,7 @@ namespace AwakenServer
                 opt => opt.MapFrom(source => DateTimeHelper.FromUnixTimeMilliseconds(source.Timestamp)));
             CreateMap<TradeRecord, TradeRecordGrainDto>();
             CreateMap<TradeRecord, TradeRecordEto>();
+            CreateMap<TradeRecord, MultiTradeRecordEto>();
             CreateMap<Trade.Index.TradeRecord, TradeRecord>();
             CreateMap<UserTradeSummaryGrainDto, UserTradeSummaryEto>();
             CreateMap<UserTradeSummaryEto, Trade.Index.UserTradeSummary>();
@@ -101,6 +104,7 @@ namespace AwakenServer
             CreateMap<TradePairDto, Trade.TradePair>();
             CreateMap<TradePairGrainDto, TradePairDto>().ReverseMap();
             CreateMap<TradePairGrainDto, TradePairEto>();
+            CreateMap<TradePairGrainDto, TradePairWithTokenDto>();
             CreateMap<GetTradePairByIdsInput, GetTradePairsInput>();
 
             CreateMap<LiquidityRecordCreateDto, Trade.LiquidityRecord>().Ignore(x => x.Id).ForMember(
@@ -109,7 +113,6 @@ namespace AwakenServer
             CreateMap<Trade.LiquidityRecord, NewLiquidityRecordEvent>();
             CreateMap<NewLiquidityRecordEvent, LiquidityRecordDto>();
             CreateMap<LiquidityRecordEto, Trade.Index.LiquidityRecord>();
-            CreateMap<LiquidityRecordDto, UserLiquidityGrainDto>();
             CreateMap<LiquidityRecordDto, LiquidityRecordGrainDto>().ForMember(
                 destination => destination.Timestamp,
                 opt => opt.MapFrom(source => DateTimeHelper.FromUnixTimeMilliseconds(source.Timestamp)));
@@ -126,12 +129,12 @@ namespace AwakenServer
             CreateMap<UserLiquidityEto, UserLiquidity>();
             CreateMap<LiquidityRecordDto, LiquidityRecordIndexDto>().Ignore(x => x.ChainId);
             CreateMap<UserLiquidityDto, UserLiquidityIndexDto>();
-            CreateMap<UserLiquidityDto, UserLiquidityGrainDto>();
-            CreateMap<GetUserAssertInput, GetUserLiquidityInput>();
+            CreateMap<GetUserAssetInput, GetUserLiquidityInput>();
             CreateMap<Trade.Index.UserLiquidity, UserLiquidityIndexDto>();
             
             CreateMap<TradeRecord, NewTradeRecordEvent>();
             CreateMap<TradeRecordEto, Trade.Index.TradeRecord>();
+            CreateMap<MultiTradeRecordEto, Trade.Index.TradeRecord>();
             CreateMap<Trade.Index.TradeRecord, TradeRecordIndexDto>().ForMember(
                 destination => destination.Timestamp,
                 opt => opt.MapFrom(source => DateTimeHelper.ToUnixTimeMilliseconds(source.Timestamp)));
@@ -139,12 +142,21 @@ namespace AwakenServer
             CreateMap<Trade.Index.KLine, KLineDto>();
             CreateMap<KLineGrainDto, KLineEto>();
             CreateMap<NewTradeRecordEvent, TradeRecordDto>();
+            CreateMap<Trade.Dtos.SwapRecord, Trade.SwapRecord>();
+            CreateMap<Trade.Dtos.SwapRecord, SwapRecordDto>();
             
             CreateMap<TradePairMarketDataSnapshot, AwakenServer.Trade.TradePairMarketDataSnapshot>();
             CreateMap<AwakenServer.Trade.TradePairMarketDataSnapshot, TradePairMarketDataSnapshotGrainDto>();
             CreateMap<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>();
             CreateMap<AwakenServer.Trade.Index.TradePairMarketDataSnapshot, TradePairMarketDataSnapshotGrainDto>().ReverseMap();
             
+            CreateMap<TokenPath, TokenPathDto>();
+            CreateMap<PathNode, PathNodeDto>();
+            CreateMap<TradePairGrainDto, TradePairDto>();
+            CreateMap<GetTokenPathsInput, GetTokenPathGrainDto>();
+
+            CreateMap<CurrentUserLiquidityEto, CurrentUserLiquidityIndex>();
+            CreateMap<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>();
             
             //Favorite
             CreateMapForFavorite();

@@ -53,6 +53,9 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         _workerOptions.QueryOnceLimit = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
             optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).QueryOnceLimit : 10000;
         
+        _workerOptions.IsSyncHistoryData = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
+            optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).IsSyncHistoryData : false;
+        
         _logger.LogInformation($"AwakenServerWorkerBase: BusinessType: {_businessType.ToString()}," +
                                $"Start with config: " +
                                $"TimePeriod: {timer.Period}, " +
@@ -68,6 +71,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
                 AsyncHelper.RunSync(async () =>
                     await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType,
                         _workerOptions.ResetBlockHeight));
+                _logger.LogInformation($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}");
             }
         }
         
@@ -96,6 +100,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
                     AsyncHelper.RunSync(async () =>
                         await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType,
                             _workerOptions.ResetBlockHeight));
+                    _logger.LogInformation($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}");
                 }
             }
 

@@ -13,4 +13,9 @@ public interface IAssetAppService
     Task<CommonResponseDto<Empty>> SetDefaultTokenAsync(SetDefaultTokenDto input);
 
     Task<DefaultTokenDto> GetDefaultTokenAsync(GetDefaultTokenDto input);
+    
+    Task<IdleTokensDto> GetIdleTokensAsync(GetIdleTokensDto input);
+    
+    Task<UserCombinedAssetsDto> GetUserCombinedAssetsAsync(GetUserCombinedAssetsDto input);
+    
 }

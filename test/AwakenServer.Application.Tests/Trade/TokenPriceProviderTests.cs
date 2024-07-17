@@ -20,6 +20,9 @@ namespace AwakenServer.Trade
         private readonly IChainAppService _chainAppService;
         private readonly ITradePairAppService _tradePairAppService;
         private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
+        private readonly ChainTestHelper _chainTestHelper;
+        private readonly TradePairTestHelper _tradePairTestHelper;
+        
         //private readonly ITradePairRepository _tradePairRepository;
 
         public TokenPriceProviderTests()
@@ -29,12 +32,14 @@ namespace AwakenServer.Trade
             _chainAppService = GetRequiredService<IChainAppService>();
             _tradePairAppService = GetRequiredService<ITradePairAppService>();
             _tradePairMarketDataProvider = GetRequiredService<ITradePairMarketDataProvider>();
+            _chainTestHelper = GetRequiredService<ChainTestHelper>();
+            _tradePairTestHelper = GetRequiredService<TradePairTestHelper>();
         }
 
         [Fact]
         public async Task GetTokenUSDPriceTest()
         {
-            var chainBSC = await _chainAppService.CreateAsync(new ChainCreateDto
+            var chainBSC = await _chainTestHelper.CreateAsync(new ChainCreateDto
             {
                 Name = "BSC"
             });
@@ -43,7 +48,7 @@ namespace AwakenServer.Trade
             var tokenB = await CreateTokenAsync(ChainId, "TOKENB");
             var tokenMDX = await CreateTokenAsync(ChainId, "MDX");
             
-            await _tradePairAppService.CreateAsync(new TradePairCreateDto
+            await _tradePairTestHelper.CreateAsync(new TradePairCreateDto
             {
                 ChainId = ChainId,
                 Address = "0x06a6FaC8c710e53c4B2c2F96477119dA368",
@@ -52,7 +57,7 @@ namespace AwakenServer.Trade
                 Token1Id = TokenEthId
             });
             
-            await _tradePairAppService.CreateAsync(new TradePairCreateDto
+            await _tradePairTestHelper.CreateAsync(new TradePairCreateDto
             {
                 ChainId = ChainId,
                 Address = "0x06a6FaC8c710e53c4B2c2F96477119dA369",
@@ -155,7 +160,7 @@ namespace AwakenServer.Trade
         {
             await _tradePairAppService.DeleteManyAsync(new List<Guid>{TradePairBtcEthId, TradePairEthUsdtId});
             
-            var pair = await _tradePairAppService.CreateAsync(new TradePairCreateDto
+            var pair = await _tradePairTestHelper.CreateAsync(new TradePairCreateDto
             {
                 ChainId = ChainId,
                 Address = "0x06a6FaC8c710e53c4B2c2F96477119dA368",

@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using AwakenServer.Asset;
 using Microsoft.AspNetCore.Mvc;
 using Volo.Abp;
+using Volo.Abp.Application.Dtos;
 using Volo.Abp.AspNetCore.Mvc;
 
 namespace AwakenServer.Controllers.Asset;
@@ -13,10 +14,13 @@ namespace AwakenServer.Controllers.Asset;
 public class AssetController : AbpController
 {
     private readonly IAssetAppService _assetAppService;
-
-    public AssetController(IAssetAppService assetAppService)
+    private readonly IMyPortfolioAppService _myPortfolioAppService;
+    
+    public AssetController(IAssetAppService assetAppService,
+        IMyPortfolioAppService myPortfolioAppService)
     {
         _assetAppService = assetAppService;
+        _myPortfolioAppService = myPortfolioAppService;
     }
 
     [HttpGet]
@@ -24,6 +28,27 @@ public class AssetController : AbpController
     public virtual async Task<UserAssetInfoDto> TokenListAsync(GetUserAssetInfoDto input)
     {
         return await _assetAppService.GetUserAssetInfoAsync(input);
+    }
+    
+    [HttpGet]
+    [Route("asset/user-portfolio")]
+    public virtual async Task<UserPortfolioDto> UserPortfolioAsync(GetUserPortfolioDto input)
+    {
+        return await _myPortfolioAppService.GetUserPortfolioAsync(input);
+    }
+    
+    [HttpGet]
+    [Route("asset/idle-tokens")]
+    public virtual async Task<IdleTokensDto> IdleTokensAsync(GetIdleTokensDto input)
+    {
+        return await _assetAppService.GetIdleTokensAsync(input);
+    }
+    
+    [HttpGet]
+    [Route("asset/user-combined-assets")]
+    public virtual async Task<UserCombinedAssetsDto> UserCombinedAssetsAsync(GetUserCombinedAssetsDto input)
+    {
+        return await _assetAppService.GetUserCombinedAssetsAsync(input);
     }
     
     [HttpGet]

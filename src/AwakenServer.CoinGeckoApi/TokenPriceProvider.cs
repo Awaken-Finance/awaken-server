@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
+using AwakenServer.Price;
 using CoinGecko.Clients;
 using CoinGecko.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -73,7 +74,7 @@ public class TokenPriceProvider : ITokenPriceProvider
         var coinId = GetCoinIdAsync(symbol);
         if (coinId == null)
         {
-            _logger.Info($"Get history price {symbol}, can not get the token");
+            _logger.Info($"Get history token price {symbol}, can not get the token");
             return 0;
         }
 
@@ -88,7 +89,7 @@ public class TokenPriceProvider : ITokenPriceProvider
 
                 if (coinData.MarketData == null)
                 {
-                    throw new Exception($"Get history price {symbol}, Unexpected CoinGecko response: MarketData is null");
+                    throw new Exception($"Get history token price {symbol}, Unexpected CoinGecko response: MarketData is null");
                 }
 
                 return (decimal)coinData.MarketData.CurrentPrice[CoinGeckoApiConsts.UsdSymbol].Value;
@@ -96,11 +97,11 @@ public class TokenPriceProvider : ITokenPriceProvider
             catch (Exception ex)
             {
                 retryAttempts++;
-                _logger.LogWarning($"Get history price {symbol}, Attempt {retryAttempts} failed: {ex.Message}");
+                _logger.LogWarning($"Get history token price {symbol}, Attempt {retryAttempts} failed: {ex.Message}");
 
                 if (retryAttempts >= MaxRetryAttempts)
                 {
-                    _logger.LogError($"Get history price {symbol}, Max retry attempts reached. Unable to get coin price.");
+                    _logger.LogError($"Get history token price {symbol}, Max retry attempts reached. Unable to get coin price.");
                     return 0;
                 }
 
