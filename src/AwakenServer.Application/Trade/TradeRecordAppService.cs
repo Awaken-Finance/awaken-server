@@ -470,7 +470,7 @@ namespace AwakenServer.Trade
         public List<PercentRoute> GetPercentRoutes(string methodName, List<List<SwapRecord>> indexSwapRecordDistributions, long amountInSum, long amountOutSum)
         {
             var result = new List<PercentRoute>();
-            bool percentDependsOnIn = methodName == ExactInMethodName ? true : false;
+            bool percentDependsOnIn = methodName == ExactInMethodName;
             foreach (var swapRecords in indexSwapRecordDistributions)
             {
                 if (swapRecords.Count < 1)
@@ -563,7 +563,7 @@ namespace AwakenServer.Trade
                 Channel = dto.Channel,
                 Sender = dto.Sender,
                 BlockHeight = dto.BlockHeight,
-                MethodName = "" // todo dto.MethodName
+                MethodName = dto.MethodName
             };
 
             _logger.LogInformation(
@@ -580,6 +580,7 @@ namespace AwakenServer.Trade
             tradeRecord.PercentRoutes = GetPercentRoutes(record.MethodName, indexSwapRecordDistributions, amountInSum, amountOutSum);
             
             _logger.LogInformation($"creare multi swap records, transactionHash: {dto.TransactionHash}, " +
+                                   $"MethodName: {record.MethodName}, " +
                                    $"PercentRoutes: {JsonConvert.SerializeObject(tradeRecord.PercentRoutes)}");
             
             await tradeRecordGrain.InsertAsync(ObjectMapper.Map<TradeRecord, TradeRecordGrainDto>(tradeRecord));
