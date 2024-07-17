@@ -144,10 +144,10 @@ namespace AwakenServer.Route
                 SymbolOut = TokenBtcSymbol,
                 ResultCount = 3
             });
-            result.routes.Count.ShouldBe(3);
-            result.routes[0].AmountOut.ShouldBe(9922171425);
-            result.routes[1].AmountOut.ShouldBe(9915173414);
-            result.routes[2].AmountOut.ShouldBe(9881563199);
+            result.Routes.Count.ShouldBe(3);
+            result.Routes[0].AmountOut.ShouldBe(9922171425);
+            result.Routes[1].AmountOut.ShouldBe(9915173414);
+            result.Routes[2].AmountOut.ShouldBe(9881563199);
         }
         
         [Fact]
@@ -162,10 +162,10 @@ namespace AwakenServer.Route
                 SymbolOut = TokenBtcSymbol,
                 ResultCount = 3
             });
-            result.routes.Count.ShouldBe(3);
-            result.routes[0].AmountIn.ShouldBe(7621837271);
-            result.routes[1].AmountIn.ShouldBe(7625902385);
-            result.routes[2].AmountIn.ShouldBe(7741803687);
+            result.Routes.Count.ShouldBe(3);
+            result.Routes[0].AmountIn.ShouldBe(7621837271);
+            result.Routes[1].AmountIn.ShouldBe(7625902385);
+            result.Routes[2].AmountIn.ShouldBe(7741803687);
         }
     }
 }

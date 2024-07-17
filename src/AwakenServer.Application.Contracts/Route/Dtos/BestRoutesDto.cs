@@ -6,18 +6,18 @@ namespace AwakenServer.Route.Dtos;
 
 public class BestRoutesDto
 {
-    public List<CombinatorialRouteDto> routes { get; set; } = new();
+    public List<RouteDto> Routes { get; set; } = new();
 }
 
-public class CombinatorialRouteDto
+public class RouteDto
 {
     public long AmountIn { get; set; }
     public long AmountOut { get; set; }
     public long Splits { get; set; }
-    public List<RouteDto> distributions { get; set; }
+    public List<PercentRouteDto> Distributions { get; set; }
 }
 
-public class RouteDto
+public class PercentRouteDto
 {
     public int Percent { get; set; }
     public long AmountIn { get; set; }

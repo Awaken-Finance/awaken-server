@@ -27,6 +27,7 @@ using AwakenServer.Trade.Index;
 using Newtonsoft.Json;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
+using PercentRouteDto = AwakenServer.Route.Dtos.PercentRouteDto;
 using Token = AwakenServer.Tokens.Token;
 
 namespace AwakenServer.Route
@@ -495,10 +496,10 @@ namespace AwakenServer.Route
                 var bestRoute = bestSwaps.Dequeue();
                 var amountIn = input.RouteType == RouteType.ExactIn ? input.AmountIn : bestRoute.Quote;
                 var amountOut = input.RouteType == RouteType.ExactOut ? input.AmountOut : bestRoute.Quote;
-                var distribution = new List<RouteDto>();
+                var distribution = new List<PercentRouteDto>();
                 foreach (var partRoute in bestRoute.distributions)
                 {
-                    distribution.Add(new RouteDto
+                    distribution.Add(new PercentRouteDto
                     {
                         Percent = partRoute.Percent,
                         AmountIn = input.RouteType == RouteType.ExactIn ? partRoute.Exact : partRoute.Quote,
@@ -512,12 +513,12 @@ namespace AwakenServer.Route
                     });
                 }
 
-                result.routes.Insert(0, new CombinatorialRouteDto
+                result.Routes.Insert(0, new RouteDto
                 {
                     AmountIn = amountIn,
                     AmountOut = amountOut,
                     Splits = distribution.Count,
-                    distributions = distribution
+                    Distributions = distribution
                 });
             }
 
