@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using AutoResponseWrapper;
 using AwakenServer.AetherLinkApi;
-using AwakenServer.CoinGeckoApi;
 using AwakenServer.EntityFrameworkCore;
 using AwakenServer.Grains;
 using AwakenServer.MultiTenancy;
@@ -59,7 +58,7 @@ namespace AwakenServer
         {
             var configuration = context.Services.GetConfiguration();
             var hostingEnvironment = context.Services.GetHostingEnvironment();
-
+            
             ConfigureConventionalControllers();
             ConfigureAuthentication(context, configuration);
             ConfigureAuditing();
@@ -73,6 +72,7 @@ namespace AwakenServer
             ConfigureOrleans(context, configuration);
 
             context.Services.AddAutoResponseWrapper();
+            context.Services.AddSingleton<CorsConfigurationUpdater>();
         }
 
         private void ConfigureCache(IConfiguration configuration)
@@ -192,6 +192,7 @@ namespace AwakenServer
 
         private void ConfigureCors(ServiceConfigurationContext context, IConfiguration configuration)
         {
+            Configure<AppOptions>(configuration.GetSection("App"));
             context.Services.AddCors(options =>
             {
                 options.AddDefaultPolicy(builder =>
@@ -210,6 +211,7 @@ namespace AwakenServer
                         .AllowCredentials();
                 });
             });
+            
         }
 
         public override void OnApplicationInitialization(ApplicationInitializationContext context)
