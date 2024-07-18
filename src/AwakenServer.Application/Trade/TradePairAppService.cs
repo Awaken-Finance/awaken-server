@@ -12,6 +12,7 @@ using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.SwapTokenPath;
 using AwakenServer.Grains.Grain.Price;
 using AwakenServer.Grains.Grain.Price.TradePair;
+using AwakenServer.Grains.Grain.Route;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
 using AwakenServer.Tokens;
@@ -531,6 +532,10 @@ namespace AwakenServer.Trade
             var grain = _clusterClient.GetGrain<ITokenPathGrain>(chain.Id);
             var clearCountResultDto = await grain.ResetCacheAsync();
             _logger.LogInformation($"clear swap path cache, token path grain: {grain.GetPrimaryKeyString()}, count: {clearCountResultDto.Data}");
+            
+            var routeGrain = _clusterClient.GetGrain<IRouteGrain>(chain.Id);
+            var clearRouteCountResultDto = await routeGrain.ResetCacheAsync();
+            _logger.LogInformation($"clear route cache, route grain: {routeGrain.GetPrimaryKeyString()}, count: {clearRouteCountResultDto.Data}");
             
             var token0 = await _tokenAppService.GetAsync(new GetTokenInput
             {
