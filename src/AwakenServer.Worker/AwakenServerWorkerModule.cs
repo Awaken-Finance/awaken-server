@@ -1,3 +1,4 @@
+using AwakenServer.Worker.DataCleanup;
 using AwakenServer.Worker.IndexerSync;
 using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp;
@@ -24,6 +25,7 @@ namespace AwakenServer.Worker
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<PortfolioEventSyncWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<InternalTokenPriceBuildWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<UserLiquidityUpdateWorker>());
+            backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<DataCleanupWorker>());
         }
     }
 }

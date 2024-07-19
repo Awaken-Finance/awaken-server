@@ -975,5 +975,95 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
 
         return uniqueAddresses.ToList();
     }
+
+    public async Task<bool> CleanupUserLiquidityDataAsync(string dataVersion, bool executeDeletion)
+    {
+        var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
+        if (string.IsNullOrEmpty(dataVersion))
+        {
+            mustQuery.Add(q => !q.Exists(e => e.Field(f => f.Version)));
+        }
+        else
+        {
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(dataVersion)));
+        }
+        QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
+        var affectedCount = 0;
+        int pageSize = 10000; 
+        int currentPage = 0;
+        bool hasMoreData = true;
+        while (hasMoreData)
+        {
+            var pagedData = await _currentUserLiquidityIndexRepository.GetSortListAsync(Filter, 
+                sortFunc: s => s.Descending(t => t.Address),
+                skip: currentPage * pageSize, limit: pageSize);
+            if (pagedData.Item2.Count > 0)
+            {
+                var first10Items = pagedData.Item2.Take(5).ToList();
+                foreach (var item in first10Items)
+                {
+                    _logger.LogInformation($"Data cleanup, index: {typeof(CurrentUserLiquidityIndex).Name.ToLower()}, version: {dataVersion}, will remove data: {JsonConvert.SerializeObject(item)}");
+                }
+                if (executeDeletion)
+                {
+                    await _currentUserLiquidityIndexRepository.BulkDeleteAsync(pagedData.Item2);
+                    _logger.LogInformation($"Data cleanup, execute deletion index: {typeof(CurrentUserLiquidityIndex).Name.ToLower()}, version: {dataVersion}, page count: {pagedData.Item2.Count}");
+                }
+                currentPage++;
+                affectedCount += pagedData.Item2.Count;
+            }
+            else
+            {
+                hasMoreData = false;
+            }
+        }
+        _logger.LogInformation($"Data cleanup, index: {typeof(CurrentUserLiquidityIndex).Name.ToLower()}, version: {dataVersion}, filter data count: {affectedCount}");
+        return true;
+    }
+
+    public async Task<bool> CleanupUserLiquiditySnapshotsDataAsync(string dataVersion, bool executeDeletion)
+    {
+        var mustQuery = new List<Func<QueryContainerDescriptor<UserLiquiditySnapshotIndex>, QueryContainer>>();
+        if (string.IsNullOrEmpty(dataVersion))
+        {
+            mustQuery.Add(q => !q.Exists(e => e.Field(f => f.Version)));
+        }
+        else
+        {
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(dataVersion)));
+        }
+        QueryContainer Filter(QueryContainerDescriptor<UserLiquiditySnapshotIndex> f) => f.Bool(b => b.Must(mustQuery));
+        var affectedCount = 0;
+        int pageSize = 10000; 
+        int currentPage = 0;
+        bool hasMoreData = true;
+        while (hasMoreData)
+        {
+            var pagedData = await _userLiduiditySnapshotIndexRepository.GetSortListAsync(Filter, 
+                sortFunc: s => s.Descending(t => t.Address),
+                skip: currentPage * pageSize, limit: pageSize);
+            if (pagedData.Item2.Count > 0)
+            {
+                var first10Items = pagedData.Item2.Take(5).ToList();
+                foreach (var item in first10Items)
+                {
+                    _logger.LogInformation($"Data cleanup, index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, will remove data: {JsonConvert.SerializeObject(item)}");
+                }
+                if (executeDeletion)
+                {
+                    await _userLiduiditySnapshotIndexRepository.BulkDeleteAsync(pagedData.Item2);
+                    _logger.LogInformation($"Data cleanup, execute deletion index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, page count: {pagedData.Item2.Count}");
+                }
+                currentPage++;
+                affectedCount += pagedData.Item2.Count;
+            }
+            else
+            {
+                hasMoreData = false;
+            }
+        }
+        _logger.LogInformation($"Data cleanup, index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, filter data count: {affectedCount}");
+        return true;
+    }
     
 }

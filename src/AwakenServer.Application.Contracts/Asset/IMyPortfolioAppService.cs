@@ -14,4 +14,6 @@ public interface IMyPortfolioAppService
     Task<UserPortfolioDto> GetUserPortfolioAsync(GetUserPortfolioDto input);
     Task<int> UpdateUserAllAssetAsync(string address, TimeSpan maxTimeSinceLastUpdate);
     Task<List<string>> GetAllUserAddressesAsync();
+    Task<bool> CleanupUserLiquidityDataAsync(string dataVersion, bool executeDeletion);
+    Task<bool> CleanupUserLiquiditySnapshotsDataAsync(string dataVersion, bool executeDeletion);
 }

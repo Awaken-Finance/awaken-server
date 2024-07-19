@@ -8,6 +8,7 @@ using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Provider;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 
 namespace AwakenServer.Worker;
@@ -105,7 +106,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
             }
 
             _logger.LogInformation(
-                "The workerSetting of Worker {BusinessType} has changed to Period = {Period} ms, OpenSwitch = {OpenSwitch}.",
+                "The workerSetting of Worker {BusinessType} has changed to Period = {Period} ms, OpenSwitch = {OpenSwitch}",
                 _businessType, timer.Period, workerSetting.OpenSwitch);
         });
     }
