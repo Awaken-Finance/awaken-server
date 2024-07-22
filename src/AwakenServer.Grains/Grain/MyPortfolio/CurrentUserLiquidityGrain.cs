@@ -35,6 +35,12 @@ public class CurrentUserLiquidityGrain : Grain<CurrentUserLiquidityState>, ICurr
             State.TradePairId = tradePair.Id;
             State.Address = liquidityRecordDto.Address;
         }
+        if (State.IsDeleted)
+        {
+            InitGrain();
+            State.IsDeleted = false;
+        }
+
         State.LastUpdateTime = DateTimeHelper.FromUnixTimeMilliseconds(liquidityRecordDto.Timestamp);
         if (State.LpTokenAmount > 0)
         {
@@ -76,20 +82,36 @@ public class CurrentUserLiquidityGrain : Grain<CurrentUserLiquidityState>, ICurr
         State.Token1ReceivedFee += receivedToken1TotalFee;
         
         var isTokenReversed = tradePair.Token0.Symbol != liquidityRecordDto.Token0;
-        State.Token0CumulativeAddition -= (isTokenReversed
+        State.Token0CumulativeAddition -= isTokenReversed
             ? liquidityRecordDto.Token1Amount
-            : liquidityRecordDto.Token0Amount) - receivedToken0TotalFee;
-        State.Token1CumulativeAddition -= (isTokenReversed
+            : liquidityRecordDto.Token0Amount;
+        State.Token1CumulativeAddition -= isTokenReversed
             ? liquidityRecordDto.Token0Amount
-            : liquidityRecordDto.Token1Amount) - receivedToken1TotalFee;
+            : liquidityRecordDto.Token1Amount;
         State.LpTokenAmount -= liquidityRecordDto.LpTokenAmount;
         State.LastUpdateTime = DateTimeHelper.FromUnixTimeMilliseconds(liquidityRecordDto.Timestamp);
+        if (State.LpTokenAmount == 0)
+        {
+            State.IsDeleted = true;
+        }
+
         await WriteStateAsync();
         return new GrainResultDto<CurrentUserLiquidityGrainDto>()
         {
             Success = true,
             Data = _objectMapper.Map<CurrentUserLiquidityState, CurrentUserLiquidityGrainDto>(State)
         };
+    }
+
+    private void InitGrain()
+    {
+        State.LpTokenAmount = 0;
+        State.Token0UnReceivedFee = 0;
+        State.Token1UnReceivedFee = 0;
+        State.Token0ReceivedFee = 0;
+        State.Token1ReceivedFee = 0;
+        State.Token0CumulativeAddition = 0;
+        State.Token1CumulativeAddition = 0;
     }
 
     public async Task<GrainResultDto<CurrentUserLiquidityGrainDto>> AddTotalFee(long total0Fee, long total1Fee, SwapRecordDto swapRecordDto)
