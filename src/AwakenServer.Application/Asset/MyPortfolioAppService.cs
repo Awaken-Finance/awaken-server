@@ -826,9 +826,11 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 token1Price,
                 userLiquidityIndex);
             
-            var dynamicAPR = (averageHoldingPeriod != 0 && cumulativeAdditionInUsd != 0)
+            var averageHoldingPeriodTemp = (1.0 * DateTimeHelper.ToUnixTimeSeconds(DateTime.UtcNow) - DateTimeHelper.ToUnixTimeSeconds(userLiquidityIndex.AverageHoldingStartTime)) / (24 * 60 * 60);
+
+            var dynamicAPR = (averageHoldingPeriodTemp != 0 && cumulativeAdditionInUsd != 0)
                 ? (valueInUsd - cumulativeAdditionInUsd) / cumulativeAdditionInUsd * (360d /
-                  averageHoldingPeriod) * 100
+                    averageHoldingPeriodTemp) * 100
                 : 0;
             
             _logger.LogInformation($"process user position input address: {input.Address}, " +
