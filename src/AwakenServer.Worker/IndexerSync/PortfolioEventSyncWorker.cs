@@ -71,19 +71,20 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
                 }
                 if (liquidityRecord != null)
                 {
-                    await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord, _portfolioOptions.Value.DataVersion, !_workerOptions.IsSyncHistoryData);
+
+                    await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord, _workerOptions.DataVersion, !_workerOptions.IsSyncHistoryData);
                     blockHeight = Math.Max(blockHeight, liquidityRecord.BlockHeight);
                     await Task.Delay(3000);
                 }
                 else
                 {
-                    await _portfolioAppService.SyncSwapRecordAsync(swapRecord, _portfolioOptions.Value.DataVersion);
+                    await _portfolioAppService.SyncSwapRecordAsync(swapRecord, _workerOptions.DataVersion);
                     blockHeight = Math.Max(blockHeight, swapRecord.BlockHeight);
                 }
 
                 if (logCount++ == 10)
                 {
-                    _logger.LogInformation("Portfolio blockHeight : {height}", blockHeight);
+                    _logger.LogInformation("Portfolio blockHeight : {height}, data version : {version}", blockHeight, _workerOptions.DataVersion);
                     logCount = 0;
                 }
             }

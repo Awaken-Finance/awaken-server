@@ -23,7 +23,6 @@ namespace AwakenServer.Worker
         protected readonly IGraphQLProvider _graphQlProvider;
         
         private readonly IMyPortfolioAppService _myPortfolioAppService;
-        private readonly IOptionsSnapshot<PortfolioOptions> _portfolioOptions;
 
         public UserLiquidityUpdateWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
             IMyPortfolioAppService myPortfolioAppService, IChainAppService chainAppService,
@@ -37,18 +36,18 @@ namespace AwakenServer.Worker
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;
             _myPortfolioAppService = myPortfolioAppService;
-            _portfolioOptions = portfolioOptions;
 
         }
 
         public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
         {
-            var addresses = await _myPortfolioAppService.GetAllUserAddressesAsync(_portfolioOptions.Value.DataVersion);
+
+            var addresses = await _myPortfolioAppService.GetAllUserAddressesAsync(_workerOptions.DataVersion);
             foreach (var address in addresses)
             {
                 try
                 {
-                    var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod), _portfolioOptions.Value.DataVersion);
+                    var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod), _workerOptions.DataVersion);
                     _logger.LogInformation($"update user all liquidity address: {address}, affected liquidity count: {count}");
                 }
                 catch (Exception e)
