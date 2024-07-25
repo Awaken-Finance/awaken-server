@@ -14,20 +14,20 @@ using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 using SwapRecord = AwakenServer.Trade.Dtos.SwapRecord;
 
-namespace AwakenServer.Worker.IndexerSync;
+namespace AwakenServer.Worker.IndexerReSync;
 
 /**
  * sync swap-indexer to awaken-server
  */
-public class PortfolioEventSyncWorker : AwakenServerWorkerBase
+public class PortfolioEventReSyncWorker : AwakenServerWorkerBase
 {
-    protected override WorkerBusinessType _businessType => WorkerBusinessType.PortfolioEvent;
+    protected override WorkerBusinessType _businessType => WorkerBusinessType.NewVersionPortfolioEvent;
  
     protected readonly IChainAppService _chainAppService;
     protected readonly IGraphQLProvider _graphQlProvider;
     private readonly IMyPortfolioAppService _portfolioAppService;
 
-    public PortfolioEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
+    public PortfolioEventReSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
         ILogger<AwakenServerWorkerBase> logger,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
@@ -80,14 +80,14 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
 
                 if (logCount++ == 10)
                 {
-                    _logger.LogInformation("Portfolio blockHeight : {height}", blockHeight);
+                    _logger.LogInformation("Portfolio new version re sync blockHeight : {height}, version: {version}", blockHeight, _workerOptions.DataVersion);
                     logCount = 0;
                 }
             }
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Portfolio event fail.");
+            _logger.LogError(e, "Portfolio new version re sync event fail.");
         }
 
         return blockHeight;

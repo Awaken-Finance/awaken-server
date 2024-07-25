@@ -11,6 +11,7 @@ using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 using Shouldly;
 using Xunit;
 using TradePairMarketDataSnapshot = AwakenServer.Trade.TradePairMarketDataSnapshot;
@@ -99,7 +100,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 100
         };
-        var result = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint);
+        var result = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
         result.ShouldBeTrue();
     }
 
@@ -123,7 +124,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 100
         };
-        var syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint);
+        var syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
         syncResult.ShouldBeTrue();
         
         var swapRecordDto = new SwapRecordDto
@@ -141,7 +142,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             Channel = "test",
             BlockHeight = 99,
         };
-        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto);
+        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto, _portfolioOptions.Value.DataVersion);
         var swapRecordDto1 = new SwapRecordDto
         {
             ChainId = "tDVV",
@@ -157,7 +158,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             Channel = "test",
             BlockHeight = 99,
         };
-        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1);
+        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1, _portfolioOptions.Value.DataVersion);
     }
 
     private async Task SyncAddLiquidityRecordTest()
@@ -180,7 +181,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 100
         };
-        var syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint);
+        var syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
         syncResult.ShouldBeTrue();
 
         var currentTradePairGrain =
@@ -230,7 +231,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 300
         };
-        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn);
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn, _portfolioOptions.Value.DataVersion);
         var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)));
@@ -256,7 +257,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 300
         };
-        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint);
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
         currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)));
@@ -289,7 +290,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 200
         };
-        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint1);
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint1, _portfolioOptions.Value.DataVersion);
         
         var currentTradePairGrain =
             Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
@@ -332,7 +333,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 300
         };
-        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn);
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn, _portfolioOptions.Value.DataVersion);
         currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.LastUpdateTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(3000));
@@ -375,7 +376,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             Channel = "test",
             BlockHeight = 99,
         };
-        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto);
+        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto, _portfolioOptions.Value.DataVersion);
         var swapRecordDto1 = new SwapRecordDto
         {
             ChainId = "tDVV",
@@ -391,7 +392,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             Channel = "test",
             BlockHeight = 99,
         };
-        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1);
+        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1, _portfolioOptions.Value.DataVersion);
         
         var currentTradePairGrain =
             Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
@@ -438,7 +439,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 400
         };
-        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn);
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn, _portfolioOptions.Value.DataVersion);
         
         var currentTradePairGrain =
             Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
