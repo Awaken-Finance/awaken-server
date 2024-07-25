@@ -55,6 +55,9 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         _workerOptions.IsSyncHistoryData = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
             optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).IsSyncHistoryData : false;
         
+        _workerOptions.DataVersion = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
+            optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).DataVersion : "v1";
+        
         _logger.LogInformation($"AwakenServerWorkerBase: BusinessType: {_businessType.ToString()}," +
                                $"Start with config: " +
                                $"TimePeriod: {timer.Period}, " +

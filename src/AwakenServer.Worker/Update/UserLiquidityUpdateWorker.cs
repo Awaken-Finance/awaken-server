@@ -23,28 +23,30 @@ namespace AwakenServer.Worker
         protected readonly IGraphQLProvider _graphQlProvider;
         
         private readonly IMyPortfolioAppService _myPortfolioAppService;
-        
+
         public UserLiquidityUpdateWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
             IMyPortfolioAppService myPortfolioAppService, IChainAppService chainAppService,
             IGraphQLProvider graphQlProvider,
             IOptionsMonitor<WorkerOptions> optionsMonitor,
             ILogger<AwakenServerWorkerBase> logger,
-            IOptions<ChainsInitOptions> chainsOption)
+            IOptions<ChainsInitOptions> chainsOption,
+            IOptionsSnapshot<PortfolioOptions> portfolioOptions)
             : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
         {
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;
             _myPortfolioAppService = myPortfolioAppService;
+
         }
 
         public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
         {
-            var addresses = await _myPortfolioAppService.GetAllUserAddressesAsync();
+            var addresses = await _myPortfolioAppService.GetAllUserAddressesAsync(_workerOptions.DataVersion);
             foreach (var address in addresses)
             {
                 try
                 {
-                    var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod));
+                    var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod), _workerOptions.DataVersion);
                     _logger.LogInformation($"update user all liquidity address: {address}, affected liquidity count: {count}");
                 }
                 catch (Exception e)
