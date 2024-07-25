@@ -23,6 +23,7 @@ public class WorkerSetting
     public long QueryStartBlockHeightOffset { get; set; } = -1;
     public int QueryOnceLimit { get; set; } = 10000;
     public bool IsSyncHistoryData { get; set; }
+    public string DataVersion { get; set; }
 }
 
 public class TradeRecordRevertWorkerSettings : WorkerSetting
