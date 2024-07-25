@@ -3,11 +3,13 @@ using Microsoft.Extensions.Options;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Provider;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 
 namespace AwakenServer.Worker;
@@ -15,14 +17,11 @@ namespace AwakenServer.Worker;
 public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
 {
     protected abstract WorkerBusinessType _businessType { get; }
-
     protected WorkerSetting _workerOptions { get; set; } = new();
-    
     protected readonly ILogger<AwakenServerWorkerBase> _logger;
-    
     protected readonly IChainAppService _chainAppService;
     protected readonly IGraphQLProvider _graphQlProvider;
-    
+    protected readonly Dictionary<string, bool> _chainHasResetBlockHeight = new();
 
     protected AwakenServerWorkerBase(AbpAsyncTimer timer, 
         IServiceScopeFactory serviceScopeFactory, 
@@ -66,13 +65,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
 
         foreach (var chain in chainsOption.Value.Chains)
         {
-            if (_workerOptions.ResetBlockHeightFlag)
-            {
-                AsyncHelper.RunSync(async () =>
-                    await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType,
-                        _workerOptions.ResetBlockHeight));
-                _logger.LogInformation($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}");
-            }
+            _chainHasResetBlockHeight[chain.Name] = false;
         }
         
         //to change timer Period if the WorkerOptions has changed.
@@ -93,24 +86,31 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
                 timer.Stop();
             }
             
-            foreach (var chain in chainsOption.Value.Chains)
+            if (_workerOptions.ResetBlockHeightFlag)
             {
-                if (_workerOptions.ResetBlockHeightFlag)
+                foreach (var chainHasResetBlockHeight in _chainHasResetBlockHeight)
                 {
-                    AsyncHelper.RunSync(async () =>
-                        await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType,
-                            _workerOptions.ResetBlockHeight));
-                    _logger.LogInformation($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}");
+                    _chainHasResetBlockHeight[chainHasResetBlockHeight.Key] = false;
+                    _logger.LogInformation($"On options change, chain: {chainHasResetBlockHeight.Key}, HasResetBlockHeight: {_chainHasResetBlockHeight[chainHasResetBlockHeight.Key]}");
                 }
             }
-
+            
             _logger.LogInformation(
-                "The workerSetting of Worker {BusinessType} has changed to Period = {Period} ms, OpenSwitch = {OpenSwitch}.",
-                _businessType, timer.Period, workerSetting.OpenSwitch);
+                "The workerSetting of Worker {BusinessType} has changed to Period = {Period} ms, OpenSwitch = {OpenSwitch}, ResetBlockHeightFlag = {ResetBlockHeightFlag}, ResetBlockHeight = {ResetBlockHeight}",
+                _businessType, timer.Period, workerSetting.OpenSwitch, workerSetting.ResetBlockHeightFlag, workerSetting.ResetBlockHeight);
         });
     }
     
     public abstract Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight);
+
+    private async Task ResetBlockHeight(ChainDto chain)
+    {
+        AsyncHelper.RunSync(async () =>
+            await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType,
+                _workerOptions.ResetBlockHeight));
+        _chainHasResetBlockHeight[chain.Name] = true;
+        _logger.LogInformation($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}, chain has reset block height: {_chainHasResetBlockHeight[chain.Name]}");
+    }
     
     public async Task DealDataAsync()
     {
@@ -120,6 +120,17 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         }
         
         var chains = await _chainAppService.GetListAsync(new GetChainInput());
+        if (_workerOptions.ResetBlockHeightFlag)
+        {
+            foreach (var chain in chains.Items)
+            {
+                if (!_chainHasResetBlockHeight[chain.Name])
+                {
+                    await ResetBlockHeight(chain);
+                }
+            }
+        }
+        
         foreach (var chain in chains.Items)
         {
             try
@@ -140,7 +151,14 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
 
                 if (blockHeight > 0)
                 {
-                    await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType, blockHeight);
+                    if (_workerOptions.ResetBlockHeightFlag && !_chainHasResetBlockHeight[chain.Name])
+                    {
+                        await ResetBlockHeight(chain);
+                    }
+                    else
+                    {
+                        await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType, blockHeight);
+                    }
                 }
                 
                 _logger.LogInformation(
