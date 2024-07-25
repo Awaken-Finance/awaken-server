@@ -80,7 +80,7 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
 
                 if (logCount++ == 10)
                 {
-                    _logger.LogInformation("Portfolio blockHeight : {height}", blockHeight);
+                    _logger.LogInformation("Portfolio blockHeight : {height}, data version : {version}", blockHeight, _workerOptions.DataVersion);
                     logCount = 0;
                 }
             }
