@@ -14,34 +14,31 @@ using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 using SwapRecord = AwakenServer.Trade.Dtos.SwapRecord;
 
-namespace AwakenServer.Worker.IndexerSync;
+namespace AwakenServer.Worker.IndexerReSync;
 
 /**
  * sync swap-indexer to awaken-server
  */
-public class PortfolioEventSyncWorker : AwakenServerWorkerBase
+public class PortfolioEventReSyncWorker : AwakenServerWorkerBase
 {
-    protected override WorkerBusinessType _businessType => WorkerBusinessType.PortfolioEvent;
+    protected override WorkerBusinessType _businessType => WorkerBusinessType.NewVersionPortfolioEvent;
  
     protected readonly IChainAppService _chainAppService;
     protected readonly IGraphQLProvider _graphQlProvider;
     private readonly IMyPortfolioAppService _portfolioAppService;
-    private readonly IOptionsSnapshot<PortfolioOptions> _portfolioOptions;
 
-    public PortfolioEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
+    public PortfolioEventReSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
         ILogger<AwakenServerWorkerBase> logger,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
-        IMyPortfolioAppService portfolioAppService,
-        IOptionsSnapshot<PortfolioOptions> portfolioOptions)
+        IMyPortfolioAppService portfolioAppService)
         : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
         _portfolioAppService = portfolioAppService;
-        _portfolioOptions = portfolioOptions;
     }
 
     public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
@@ -71,26 +68,26 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
                 }
                 if (liquidityRecord != null)
                 {
-                    await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord, _portfolioOptions.Value.DataVersion, !_workerOptions.IsSyncHistoryData);
+                    await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord, _workerOptions.DataVersion, !_workerOptions.IsSyncHistoryData);
                     blockHeight = Math.Max(blockHeight, liquidityRecord.BlockHeight);
                     await Task.Delay(3000);
                 }
                 else
                 {
-                    await _portfolioAppService.SyncSwapRecordAsync(swapRecord, _portfolioOptions.Value.DataVersion);
+                    await _portfolioAppService.SyncSwapRecordAsync(swapRecord, _workerOptions.DataVersion);
                     blockHeight = Math.Max(blockHeight, swapRecord.BlockHeight);
                 }
 
                 if (logCount++ == 10)
                 {
-                    _logger.LogInformation("Portfolio blockHeight : {height}", blockHeight);
+                    _logger.LogInformation("Portfolio new version re sync blockHeight : {height}, version: {version}", blockHeight, _workerOptions.DataVersion);
                     logCount = 0;
                 }
             }
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Portfolio event fail.");
+            _logger.LogError(e, "Portfolio new version re sync event fail.");
         }
 
         return blockHeight;
