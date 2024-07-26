@@ -23,6 +23,7 @@ public class WorkerSetting
     public long QueryStartBlockHeightOffset { get; set; } = -1;
     public int QueryOnceLimit { get; set; } = 10000;
     public bool IsSyncHistoryData { get; set; }
+    public string DataVersion { get; set; }
 }
 
 public class TradeRecordRevertWorkerSettings : WorkerSetting
@@ -35,4 +36,11 @@ public class TradeRecordRevertWorkerSettings : WorkerSetting
 
     public int BatchFlushCount { get; set; } = 10;
     public int StartBlockHeightGap { get; set; } = 10;
+}
+
+public class DataCleanupWorkerSettings : WorkerSetting
+{
+    public List<string> Indexes { get; set; }
+    public string DataVersion { get; set; }
+    public bool ExecuteDeletion { get; set; }
 }

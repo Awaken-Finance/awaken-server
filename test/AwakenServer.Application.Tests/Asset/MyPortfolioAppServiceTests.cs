@@ -11,6 +11,7 @@ using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 using Shouldly;
 using Xunit;
 using TradePairMarketDataSnapshot = AwakenServer.Trade.TradePairMarketDataSnapshot;
@@ -99,7 +100,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 100
         };
-        var result = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint);
+        var result = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
         result.ShouldBeTrue();
     }
 
@@ -123,7 +124,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 100
         };
-        var syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint);
+        var syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
         syncResult.ShouldBeTrue();
         
         var swapRecordDto = new SwapRecordDto
@@ -141,7 +142,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             Channel = "test",
             BlockHeight = 99,
         };
-        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto);
+        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto, _portfolioOptions.Value.DataVersion);
         var swapRecordDto1 = new SwapRecordDto
         {
             ChainId = "tDVV",
@@ -157,7 +158,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             Channel = "test",
             BlockHeight = 99,
         };
-        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1);
+        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1, _portfolioOptions.Value.DataVersion);
     }
 
     private async Task SyncAddLiquidityRecordTest()
@@ -180,7 +181,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 100
         };
-        var syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint);
+        var syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
         syncResult.ShouldBeTrue();
 
         var currentTradePairGrain =
@@ -208,6 +209,63 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         snapshotIndex.LpTokenAmount.ShouldBe(50000);
     }
 
+    [Fact]
+    public async Task RemoveAllLiquidityTest()
+    {
+        await SyncAddLiquidityRecordTest();
+        var inputBurn = new LiquidityRecordDto()
+        {
+            ChainId = ChainName,
+            Pair = TradePairBtcUsdtAddress,
+            Address = "0x123456789",
+            Timestamp = 3000,
+            Token0Amount = 90,
+            Token0 = "BTC",
+            Token1Amount = 900,
+            Token1 = "USDT",
+            LpTokenAmount = 50000,
+            Type = LiquidityType.Burn,
+            TransactionHash = "0xdab24d0f0c28a3be6b59332ab0cb0b4cd54f10f3c1b12cfc81d72e934d74b28f2",
+            Channel = "TestChanel",
+            Sender = "0x123456789",
+            To = "0x123456789",
+            BlockHeight = 300
+        };
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn, _portfolioOptions.Value.DataVersion);
+        var currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
+            q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)));
+        currentUserLiquidityIndex.LpTokenAmount.ShouldBe(0);
+        currentUserLiquidityIndex.Token0CumulativeAddition.ShouldBe(10);
+        currentUserLiquidityIndex.Token1CumulativeAddition.ShouldBe(100);
+        
+        var inputMint = new LiquidityRecordDto()
+        {
+            ChainId = ChainName,
+            Pair = TradePairBtcUsdtAddress,
+            Address = "0x123456789",
+            Timestamp = 3000,
+            Token0Amount = 100,
+            Token0 = "BTC",
+            Token1Amount = 1000,
+            Token1 = "USDT",
+            LpTokenAmount = 50000,
+            Type = LiquidityType.Mint,
+            TransactionHash = "0xdab24d0f0c28a3be6b59332ab0cb0b4cd54f10f3c1b12cfc81d72e934d74b28f3",
+            Channel = "TestChanel",
+            Sender = "0x123456789",
+            To = "0x123456789",
+            BlockHeight = 300
+        };
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
+        currentUserLiquidityIndex = await _currentUserLiquidityIndexRepository.GetAsync(q =>
+            q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
+            q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)));
+        currentUserLiquidityIndex.LpTokenAmount.ShouldBe(50000);
+        currentUserLiquidityIndex.Token0CumulativeAddition.ShouldBe(100);
+        currentUserLiquidityIndex.Token1CumulativeAddition.ShouldBe(1000);
+    }
+
 
     [Fact]
     public async Task SyncSecondAddAndRemoveLiquidityRecordTest()
@@ -232,7 +290,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 200
         };
-        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint1);
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint1, _portfolioOptions.Value.DataVersion);
         
         var currentTradePairGrain =
             Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
@@ -275,7 +333,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 300
         };
-        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn);
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn, _portfolioOptions.Value.DataVersion);
         currentTradePairResult = await currentTradePairGrain.GetAsync();
         currentTradePairResult.Success.ShouldBeTrue();
         currentTradePairResult.Data.LastUpdateTime.ShouldBe(DateTimeHelper.FromUnixTimeMilliseconds(3000));
@@ -318,7 +376,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             Channel = "test",
             BlockHeight = 99,
         };
-        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto);
+        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto, _portfolioOptions.Value.DataVersion);
         var swapRecordDto1 = new SwapRecordDto
         {
             ChainId = "tDVV",
@@ -334,7 +392,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             Channel = "test",
             BlockHeight = 99,
         };
-        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1);
+        await _myPortfolioAppService.SyncSwapRecordAsync(swapRecordDto1, _portfolioOptions.Value.DataVersion);
         
         var currentTradePairGrain =
             Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
@@ -381,7 +439,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             To = "0x123456789",
             BlockHeight = 400
         };
-        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn);
+        await _myPortfolioAppService.SyncLiquidityRecordAsync(inputBurn, _portfolioOptions.Value.DataVersion);
         
         var currentTradePairGrain =
             Cluster.Client.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(TradePairBtcUsdtId), _portfolioOptions.Value.DataVersion));
@@ -395,8 +453,8 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             q.Term(i => i.Field(f => f.TradePairId).Value(TradePairBtcUsdtId)) &&
             q.Term(i => i.Field(f => f.Address).Value(inputBurn.Address)));
         currentUserLiquidityIndex.LpTokenAmount.ShouldBe(25000);
-        currentUserLiquidityIndex.Token0CumulativeAddition.ShouldBe(55);
-        currentUserLiquidityIndex.Token1CumulativeAddition.ShouldBe(550);
+        currentUserLiquidityIndex.Token0CumulativeAddition.ShouldBe(50);
+        currentUserLiquidityIndex.Token1CumulativeAddition.ShouldBe(500);
         currentUserLiquidityIndex.Token0UnReceivedFee.ShouldBe(5);
         currentUserLiquidityIndex.Token1UnReceivedFee.ShouldBe(50);
         currentUserLiquidityIndex.Token0ReceivedFee.ShouldBe(5);

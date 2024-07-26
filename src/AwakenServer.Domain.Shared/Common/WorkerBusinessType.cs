@@ -10,5 +10,7 @@ public enum WorkerBusinessType
     TransactionRevert,
     PortfolioEvent,
     InternalTokenPriceUpdate,
-    UserLiquidityUpdate
+    UserLiquidityUpdate,
+    DataCleanup,
+    NewVersionPortfolioEvent
 }
