@@ -41,7 +41,6 @@ namespace AwakenServer.Worker
 
         public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
         {
-
             var addresses = await _myPortfolioAppService.GetAllUserAddressesAsync(_workerOptions.DataVersion);
             foreach (var address in addresses)
             {
