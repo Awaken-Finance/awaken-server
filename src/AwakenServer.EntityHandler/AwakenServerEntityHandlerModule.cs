@@ -55,12 +55,10 @@ public class AwakenServerEntityHandlerModule : AbpModule
         ConfigureOrleans(context, configuration);
 
         Configure<ChainsInitOptions>(configuration.GetSection("ChainsInit"));
-
         Configure<ApiOptions>(configuration.GetSection("Api"));
-
         Configure<WorkerOptions>(configuration.GetSection("WorkerSettings"));
-        
-        Configure<TradeRecordRevertWorkerSettings>(configuration.GetSection("WorkerSettings:TradeRecordRevert"));
+        Configure<TradeRecordRevertWorkerSettings>(configuration.GetSection("WorkerSettings:Workers:TransactionRevert"));
+        Configure<DataCleanupWorkerSettings>(configuration.GetSection("WorkerSettings:Workers:DataCleanup"));
         
         context.Services.AddMassTransit(x =>
         {
