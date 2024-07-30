@@ -3,9 +3,17 @@ using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 
 namespace AwakenServer.Route.Dtos;
+public enum StatusCode
+{
+    Success = 1000,
+    InsufficientLiquidity = 2000,
+    NoRouteFound = 2001
+}
 
 public class BestRoutesDto
 {
+    public StatusCode StatusCode { get; set; }
+    public string Message { get; set; }
     public List<RouteDto> Routes { get; set; } = new();
 }
 
