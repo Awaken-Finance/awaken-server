@@ -534,6 +534,7 @@ namespace AwakenServer.Trade
                 var indexSwapRecord = new SwapRecord();
                 ObjectMapper.Map(swapRecord, indexSwapRecord);
                 indexSwapRecord.TradePairId = tradePair.Id;
+                indexSwapRecord.TradePair = tradePair;
                 indexSwapRecords.Add(indexSwapRecord);
                 if (symbolInSet.Contains(swapRecord.SymbolIn) && i > 0)
                 {

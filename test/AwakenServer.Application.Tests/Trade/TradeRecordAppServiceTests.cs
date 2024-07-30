@@ -244,7 +244,11 @@ namespace AwakenServer.Trade
             record.Items[0].PercentRoutes[0].Percent.ShouldBe("100");
             record.Items[0].PercentRoutes[0].Route.Count.ShouldBe(2);
             record.Items[0].PercentRoutes[0].Route[0].SymbolIn.ShouldBe(TokenUsdtSymbol);
+            record.Items[0].PercentRoutes[0].Route[0].TradePair.Token0.Symbol.ShouldBe(TokenEthSymbol);
+            record.Items[0].PercentRoutes[0].Route[0].TradePair.Token1.Symbol.ShouldBe(TokenUsdtSymbol);
+            record.Items[0].PercentRoutes[0].Route[0].TradePair.FeeRate.ShouldBe(0.0005);
             record.Items[0].PercentRoutes[0].Route[1].SymbolOut.ShouldBe(TokenBtcSymbol);
+            
         }
         
         [Fact]
