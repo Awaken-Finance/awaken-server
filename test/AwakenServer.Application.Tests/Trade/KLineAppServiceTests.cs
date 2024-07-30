@@ -94,8 +94,8 @@ namespace AwakenServer.Trade
             kLines.Items[0].Low.ShouldBe(9);
             kLines.Items[0].High.ShouldBe(10);
             kLines.Items[0].OpenWithoutFee.ShouldBe(9.7);
-            kLines.Items[0].CloseWithoutFee.ShouldBe(8.7);
-            kLines.Items[0].LowWithoutFee.ShouldBe(8.7);
+            kLines.Items[0].CloseWithoutFee.ShouldBe(8.73d);
+            kLines.Items[0].LowWithoutFee.ShouldBe(8.73d);
             kLines.Items[0].HighWithoutFee.ShouldBe(9.7);
             kLines.Items[0].Volume.ShouldBe(200);
             kLines.Items[0].Timestamp.ShouldBe(KLineHelper.GetKLineTimestamp(input.Period,

@@ -367,9 +367,17 @@ namespace AwakenServer.Trade
                 var periodTimestamp = KLineHelper.GetKLineTimestamp(period, timeStamp);
                 var token0Amount = double.Parse(dto.Token0Amount);
 
+                var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(dto.TradePairId));
+                var tradePairResult = await tradePairGrain.GetAsync();
+                if (!tradePairResult.Success)
+                {
+                    _logger.LogError($"fill kline, can't find trade pair: {dto.TradePairId}");
+                    continue;
+                }
+                
                 var priceWithoutFee = dto.Side == TradeSide.Buy
-                    ? dto.Price - dto.TotalFee
-                    : dto.Price + dto.TotalFee;
+                    ? dto.Price * (1-tradePairResult.Data.FeeRate)
+                    : dto.Price / (1-tradePairResult.Data.FeeRate);
                 
                 var kLine = new KLineGrainDto
                 {
