@@ -494,7 +494,7 @@ namespace AwakenServer.Trade
         
         public async Task<bool> CreateMultiSwapAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
-            _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}");
+            _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}, method name: {dto.MethodName}");
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
@@ -534,6 +534,7 @@ namespace AwakenServer.Trade
                 var indexSwapRecord = new SwapRecord();
                 ObjectMapper.Map(swapRecord, indexSwapRecord);
                 indexSwapRecord.TradePairId = tradePair.Id;
+                indexSwapRecord.TradePair = tradePair;
                 indexSwapRecords.Add(indexSwapRecord);
                 if (symbolInSet.Contains(swapRecord.SymbolIn) && i > 0)
                 {
@@ -569,9 +570,9 @@ namespace AwakenServer.Trade
             _logger.LogInformation(
                 "creare multi swap records, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
                 "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
-                "blockHeight: {blockHeight}, totalFee: {totalFee}", dto.ChainId, "multiSwap no tradePairId", dto.Sender,
+                "blockHeight: {blockHeight}, totalFee: {totalFee}, MethodName: {MethodName}", dto.ChainId, "multiSwap no tradePairId", dto.Sender,
                 dto.TransactionHash, dto.Timestamp,
-                record.Side, dto.Channel, record.Token0Amount, record.Token1Amount, dto.BlockHeight, dto.TotalFee);
+                record.Side, dto.Channel, record.Token0Amount, record.Token1Amount, dto.BlockHeight, dto.TotalFee, record.MethodName);
             
             var tradeRecord = ObjectMapper.Map<TradeRecordCreateDto, TradeRecord>(record);
             tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
