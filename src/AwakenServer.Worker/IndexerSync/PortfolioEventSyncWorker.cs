@@ -26,7 +26,6 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
     protected readonly IChainAppService _chainAppService;
     protected readonly IGraphQLProvider _graphQlProvider;
     private readonly IMyPortfolioAppService _portfolioAppService;
-    private readonly IOptionsSnapshot<PortfolioOptions> _portfolioOptions;
 
     public PortfolioEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
         ILogger<AwakenServerWorkerBase> logger,
@@ -34,14 +33,12 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
-        IMyPortfolioAppService portfolioAppService,
-        IOptionsSnapshot<PortfolioOptions> portfolioOptions)
+        IMyPortfolioAppService portfolioAppService)
         : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
         _portfolioAppService = portfolioAppService;
-        _portfolioOptions = portfolioOptions;
     }
 
     public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)

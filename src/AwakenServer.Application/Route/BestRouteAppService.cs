@@ -252,7 +252,7 @@ namespace AwakenServer.Route
         public PercentSwapRoute FindFirstRouteNotUsingUsedPools(List<PercentSwapRoute> currentRoutes,
             List<PercentSwapRoute> percentRoutes)
         {
-            HashSet<string> currentTradePairs = new HashSet<string>();
+            var currentTradePairs = new HashSet<string>();
             foreach (var currentRoute in currentRoutes)
             {
                 foreach (var tradePair in currentRoute.TradePairs)
@@ -367,11 +367,7 @@ namespace AwakenServer.Route
             
             percentToSortedRoutes.ToList().ForEach(kvp =>
                 _logger.LogInformation($"Get best routes, percent: {kvp.Key}, route count: {kvp.Value.Count}"));
-                    
-            if (percentToSortedRoutes[100].Count <= 0)
-            {
-                return new BestRoutesDto();
-            }
+            
             
             var bestSwaps = new PriorityQueue<PercentSwapRouteDistribution, PercentSwapRouteDistribution>(input.ResultCount, Comparer<PercentSwapRouteDistribution>.Create((quoteRouteA, quoteRouteB) =>
             {
@@ -387,7 +383,7 @@ namespace AwakenServer.Route
                     var bestSwap = new PercentSwapRouteDistribution
                     {
                         Quote = percentToSortedRoutes[100][i].Quote,
-                        distributions = new List<PercentSwapRoute> { percentToSortedRoutes[100][i] }
+                        Distributions = new List<PercentSwapRoute> { percentToSortedRoutes[100][i] }
                     };
                     if (bestSwaps.Count >= input.ResultCount)
                     {
@@ -460,7 +456,7 @@ namespace AwakenServer.Route
                             var route = new PercentSwapRouteDistribution
                             {
                                 Quote = quoteNew,
-                                distributions = newRoutes
+                                Distributions = newRoutes
                             };
                             if (bestSwaps.Count >= input.ResultCount)
                             {
@@ -497,7 +493,7 @@ namespace AwakenServer.Route
                 var amountIn = input.RouteType == RouteType.ExactIn ? input.AmountIn : bestRoute.Quote;
                 var amountOut = input.RouteType == RouteType.ExactOut ? input.AmountOut : bestRoute.Quote;
                 var distribution = new List<PercentRouteDto>();
-                foreach (var partRoute in bestRoute.distributions)
+                foreach (var partRoute in bestRoute.Distributions)
                 {
                     var amountsStr = partRoute.Amounts.Select(x => x.ToString()).ToList();
                     distribution.Add(new PercentRouteDto
@@ -539,7 +535,7 @@ namespace AwakenServer.Route
         public class PercentSwapRouteDistribution
         {
             public long Quote { get; set; }
-            public List<PercentSwapRoute> distributions { get; set; }
+            public List<PercentSwapRoute> Distributions { get; set; }
         }
 
         public class QueueNode
