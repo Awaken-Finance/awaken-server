@@ -397,10 +397,15 @@ namespace AwakenServer.Trade
                         q.Term(i => i.Field(f => f.ChainId).Value(dto.ChainId)) &&
                         q.Term(i => i.Field(f => f.TradePairId).Value(dto.TradePairId)) &&
                         q.Term(i => i.Field(f => f.Period).Value(kLine.Period)) &&
-                        q.Term(i => i.Field(f => f.Timestamp).Value(dto.Timestamp)));
+                        q.Term(i => i.Field(f => f.Timestamp).Value(kLine.Timestamp)));
 
                     if (existIndex != null)
                     {
+                        _logger.LogInformation($"fill kline, existIndex: {JsonConvert.SerializeObject(existIndex)}, " +
+                                               $"OpenWithoutFee: {result.Data.OpenWithoutFee}, " +
+                                               $"CloseWithoutFee: {result.Data.CloseWithoutFee}, " +
+                                               $"HighWithoutFee: {result.Data.HighWithoutFee}, " +
+                                               $"LowWithoutFee: {result.Data.LowWithoutFee}");
                         existIndex.OpenWithoutFee = result.Data.OpenWithoutFee;
                         existIndex.CloseWithoutFee = result.Data.CloseWithoutFee;
                         existIndex.HighWithoutFee = result.Data.HighWithoutFee;
