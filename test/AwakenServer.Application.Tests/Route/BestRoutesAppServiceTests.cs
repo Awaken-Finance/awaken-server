@@ -148,6 +148,8 @@ namespace AwakenServer.Route
             result.Routes[0].AmountOut.ShouldBe("9922171425");
             result.Routes[1].AmountOut.ShouldBe("9915173414");
             result.Routes[2].AmountOut.ShouldBe("9881563199");
+            result.Routes[0].Distributions[0].TradePairs.Count.ShouldBe(2);
+            result.Routes[0].Distributions[0].TradePairExtensions.Count.ShouldBe(2);
         }
         
         [Fact]

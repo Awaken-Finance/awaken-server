@@ -496,14 +496,38 @@ namespace AwakenServer.Route
                 foreach (var partRoute in bestRoute.Distributions)
                 {
                     var amountsStr = partRoute.Amounts.Select(x => x.ToString()).ToList();
+                    var TradePairExtensios = new List<TradePairExtensionDto>();
+                    foreach (var tradePair in partRoute.TradePairs)
+                    {
+                        var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
+                        var pairResult = await tradePairGrain.GetAsync();
+                        if (pairResult.Success)
+                        {
+                            TradePairExtensios.Add(new TradePairExtensionDto()
+                            {
+                                ValueLocked0 = pairResult.Data.ValueLocked0.ToString(),
+                                ValueLocked1 = pairResult.Data.ValueLocked1.ToString()
+                            });
+                        }
+                        else
+                        {
+                            _logger.LogError($"Get best route, can't find trade pair: {tradePair.Id}");
+                        }
+                    }
+
+                    if (TradePairExtensios.Count != partRoute.TradePairs.Count)
+                    {
+                        continue;
+                    }
+                    
                     distribution.Add(new PercentRouteDto
                     {
                         Percent = partRoute.Percent,
                         AmountIn = (input.RouteType == RouteType.ExactIn ? partRoute.Exact : partRoute.Quote).ToString(),
                         AmountOut = (input.RouteType == RouteType.ExactOut ? partRoute.Exact : partRoute.Quote).ToString(),
                         TradePairs =
-                            _objectMapper.Map<List<TradePairWithToken>, List<TradePairWithTokenDto>>(partRoute
-                                .TradePairs),
+                            _objectMapper.Map<List<TradePairWithToken>, List<TradePairWithTokenDto>>(partRoute.TradePairs),
+                        TradePairExtensions = TradePairExtensios,
                         Tokens = _objectMapper.Map<List<Token>, List<TokenDto>>(partRoute.Tokens),
                         FeeRates = partRoute.FeeRates,
                         Amounts = amountsStr
