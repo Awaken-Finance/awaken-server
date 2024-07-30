@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using AwakenServer.Grains;
+using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Trade.Etos;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Serilog.Core;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
 using Volo.Abp.EventBus.Distributed;
@@ -46,6 +48,10 @@ namespace AwakenServer.Trade.Handlers
 
                 var id = GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.TradePairId, period);
                 var grain = _clusterClient.GetGrain<IKLineGrain>(id);
+                var priceWithoutFee = eventData.Side == TradeSide.Buy
+                    ? eventData.Price - eventData.TotalFee
+                    : eventData.Price + eventData.TotalFee;
+                
                 var kLine = new KLineGrainDto
                 {
                     ChainId = eventData.ChainId,
@@ -54,6 +60,10 @@ namespace AwakenServer.Trade.Handlers
                     Close = eventData.Price,
                     High = eventData.Price,
                     Low = eventData.Price,
+                    OpenWithoutFee = priceWithoutFee,
+                    CloseWithoutFee = priceWithoutFee,
+                    HighWithoutFee = priceWithoutFee,
+                    LowWithoutFee = priceWithoutFee,
                     Volume = token0Amount,
                     Period = period,
                     Timestamp = periodTimestamp
