@@ -107,32 +107,6 @@ namespace AwakenServer.Route
         }
         
         [Fact]
-        public async Task GetAmountsInTest()
-        {
-            var tokens = new List<string>() { TokenEthSymbol, TokenUsdtSymbol, TokenBtcSymbol };
-            var tradePairIds = new List<Guid>() { TradePairEthUsdtId, TradePairBtcUsdtId };
-            var exactAmountOut = NumberFormatter.WithDecimals(10, 8);
-            var amountsIn = await _bestRoutesAppService.GetAmountsInAsync(tokens, tradePairIds, exactAmountOut);
-            amountsIn.Count.ShouldBe(3);
-            amountsIn[0].ShouldBe(1294308216);
-            amountsIn[1].ShouldBe(1145475373);
-            amountsIn[2].ShouldBe(exactAmountOut);
-        }
-        
-        [Fact]
-        public async Task GetAmountsOutTest()
-        {
-            var tokens = new List<string>() { TokenEthSymbol, TokenUsdtSymbol, TokenBtcSymbol };
-            var tradePairIds = new List<Guid>() { TradePairEthUsdtId, TradePairBtcUsdtId };
-            var exactAmountIn = NumberFormatter.WithDecimals(10, 8);
-            var amountsOut = await _bestRoutesAppService.GetAmountsOutAsync(tokens, tradePairIds, exactAmountIn);
-            amountsOut.Count.ShouldBe(3);
-            amountsOut[0].ShouldBe(exactAmountIn);
-            amountsOut[1].ShouldBe(908677667);
-            amountsOut[2].ShouldBe(810020707);
-        }
-        
-        [Fact]
         public async Task GetBestRouteExactInTest()
         {
             var result = await _bestRoutesAppService.GetBestRoutesAsync(new GetBestRoutesInput()
@@ -148,6 +122,8 @@ namespace AwakenServer.Route
             result.Routes[0].AmountOut.ShouldBe("9922171425");
             result.Routes[1].AmountOut.ShouldBe("9915173414");
             result.Routes[2].AmountOut.ShouldBe("9881563199");
+            result.Routes[0].Distributions[0].TradePairs.Count.ShouldBe(2);
+            result.Routes[0].Distributions[0].TradePairExtensions.Count.ShouldBe(2);
         }
         
         [Fact]

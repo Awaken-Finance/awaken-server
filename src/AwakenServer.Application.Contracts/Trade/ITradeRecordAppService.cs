@@ -17,8 +17,8 @@ namespace AwakenServer.Trade
 
 
         Task<bool> CreateAsync(long currentConfirmedHeight, SwapRecordDto dto);
-
         
+        Task<bool> FillKLineIndexAsync(SwapRecordDto dto);
         Task RevertTradeRecordAsync(string chainId);
 
         Task<int> GetUserTradeAddressCountAsync(string chainId, Guid tradePairId, DateTime? minDateTime = null,

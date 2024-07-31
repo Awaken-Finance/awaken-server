@@ -58,7 +58,9 @@ namespace AwakenServer.Trade
                 Price = 10,
                 Timestamp = DateTime.UtcNow.AddDays(-3),
                 Token0Amount = "100",
-                Token1Amount = "200"
+                Token1Amount = "200",
+                Side = TradeSide.Buy,
+                TotalFee = 0.3
             };
             
             var kLines = await _kLineAppService.GetListAsync(new GetKLinesInput
@@ -91,6 +93,10 @@ namespace AwakenServer.Trade
             kLines.Items[0].Close.ShouldBe(9);
             kLines.Items[0].Low.ShouldBe(9);
             kLines.Items[0].High.ShouldBe(10);
+            kLines.Items[0].OpenWithoutFee.ShouldBe(9.7);
+            kLines.Items[0].CloseWithoutFee.ShouldBe(8.73d);
+            kLines.Items[0].LowWithoutFee.ShouldBe(8.73d);
+            kLines.Items[0].HighWithoutFee.ShouldBe(9.7);
             kLines.Items[0].Volume.ShouldBe(200);
             kLines.Items[0].Timestamp.ShouldBe(KLineHelper.GetKLineTimestamp(input.Period,
                 DateTimeHelper.ToUnixTimeMilliseconds(eventData.Timestamp)));

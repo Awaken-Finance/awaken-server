@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AElf.EthereumNode.EventHandler" Version="1.1.9" />
+    <PackageReference Include="AElf.EthereumNode.EventHandler" Version="1.2.1-19314" />
     <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
     <PackageReference Include="Volo.Abp.Account.HttpApi.Client" Version="7.0.0" />
     <PackageReference Include="Volo.Abp.Identity.HttpApi.Client" Version="7.0.0" />

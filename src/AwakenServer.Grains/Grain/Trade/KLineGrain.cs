@@ -29,6 +29,7 @@ public class KLineGrain : Grain<KLineState>, IKLineGrain
             if (State.Timestamp == kLineGrainDto.Timestamp)
             {
                 State.Close = kLineGrainDto.Close;
+                State.CloseWithoutFee = kLineGrainDto.CloseWithoutFee;
                 if (State.High < kLineGrainDto.High)
                 {
                     State.High = kLineGrainDto.High;
@@ -36,6 +37,14 @@ public class KLineGrain : Grain<KLineState>, IKLineGrain
                 if (State.Low > kLineGrainDto.Low)
                 {
                     State.Low = kLineGrainDto.Low;
+                }
+                if (State.HighWithoutFee < kLineGrainDto.HighWithoutFee)
+                {
+                    State.HighWithoutFee = kLineGrainDto.HighWithoutFee;
+                }
+                if (State.LowWithoutFee > kLineGrainDto.LowWithoutFee)
+                {
+                    State.LowWithoutFee = kLineGrainDto.LowWithoutFee;
                 }
                 State.Volume += kLineGrainDto.Volume;
             }
@@ -46,6 +55,10 @@ public class KLineGrain : Grain<KLineState>, IKLineGrain
                 State.Close = kLineGrainDto.Close;
                 State.High = kLineGrainDto.High;
                 State.Low = kLineGrainDto.Low;
+                State.OpenWithoutFee = kLineGrainDto.OpenWithoutFee;
+                State.CloseWithoutFee = kLineGrainDto.CloseWithoutFee;
+                State.HighWithoutFee = kLineGrainDto.HighWithoutFee;
+                State.LowWithoutFee = kLineGrainDto.LowWithoutFee;
                 State.Volume = kLineGrainDto.Volume;
             }
         }
