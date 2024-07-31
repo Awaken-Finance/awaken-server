@@ -591,9 +591,18 @@ namespace AwakenServer.Trade
                 var currentAmount1 = lastIsSell
                     ? lastSwapRecord.AmountOut.ToDecimalsString(lastTradePair.Token1.Decimals)
                     : lastSwapRecord.AmountOut.ToDecimalsString(lastTradePair.Token0.Decimals);
+                
+                var feeRateRest = 1d;
+                foreach (var swapRecord in swapRecords)
+                {
+                    var tradePair = pairList.First(t => t.Id == swapRecord.TradePairId);
+                    feeRateRest *= 1 - tradePair.FeeRate;
+                }
+                
                 var currentTotalFee = firstSwapRecord.AmountIn / Math.Pow(10,
                                           firstIsSell ? firstTradePair.Token0.Decimals : firstTradePair.Token1.Decimals)
-                                      * (1 - Math.Pow(1 - firstTradePair.FeeRate, swapRecords.Count));
+                                      * (1 - feeRateRest);
+                
                 amount0 += double.Parse(currentAmount0);
                 amount1 += double.Parse(currentAmount1);
                 totalFee += currentTotalFee;
