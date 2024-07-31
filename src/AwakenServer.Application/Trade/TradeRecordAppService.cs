@@ -396,7 +396,7 @@ namespace AwakenServer.Trade
                     Timestamp = periodTimestamp
                 };
               
-                var id = GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TradePairId, period, "resync", periodTimestamp);
+                var id = GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TradePairId, period, "resync");
                 var grain = _clusterClient.GetGrain<IKLineGrain>(id);
                 var result = await grain.AddOrUpdateAsync(kLine);
                 if (result.Success)
