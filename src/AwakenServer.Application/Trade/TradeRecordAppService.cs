@@ -194,11 +194,38 @@ namespace AwakenServer.Trade
                     skip: input.SkipCount);
                 item2 = list.Item2;
             }
-            foreach (var tradeRecord in item2.Where(t => t.Side == TradeSide.Swap))
-            {
-                tradeRecord.Price = 1 / tradeRecord.Price;
-            }
 
+            try
+            {
+                foreach (var tradeRecord in item2.Where(t => t.Side == TradeSide.Swap))
+                {
+                    tradeRecord.Price = 1 / tradeRecord.Price;
+                
+                    if (tradeRecord.PercentRoutes == null || tradeRecord.PercentRoutes.Count <= 0)
+                    {
+                        var percentSwapRecords = new List<SwapRecord>();
+                        foreach (var swapRecord in tradeRecord.SwapRecords)
+                        {
+                            swapRecord.TradePair = await GetAsync(tradeRecord.ChainId, swapRecord.PairAddress);
+                            // Adding reference to the same swapRecord
+                            percentSwapRecords.Add(swapRecord);
+                        }
+                        tradeRecord.PercentRoutes = new List<PercentRoute>()
+                        {
+                            new PercentRoute()
+                            {
+                                Percent = "100",
+                                Route = percentSwapRecords
+                            }
+                        };
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to process swap order for trade record. Exception: {e}");
+            }
+            
             var totalCount = await _tradeRecordIndexRepository.CountAsync(Filter);
 
             return new PagedResultDto<TradeRecordIndexDto>
