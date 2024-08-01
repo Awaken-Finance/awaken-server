@@ -447,7 +447,7 @@ namespace AwakenServer.Trade
                 var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
                 if (tradePair == null)
                 {
-                    _logger.LogInformation("fill kline index can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                    _logger.LogError("fill kline index can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
                         swapRecord.PairAddress);
                     return false;
                 } 
