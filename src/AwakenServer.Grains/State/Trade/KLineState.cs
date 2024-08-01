@@ -12,6 +12,10 @@ public class KLineState
     public double Close { get; set; }
     public double High { get; set; }
     public double Low { get; set; }
+    public double OpenWithoutFee { get; set; }
+    public double CloseWithoutFee { get; set; }
+    public double HighWithoutFee { get; set; }
+    public double LowWithoutFee { get; set; }
     public double Volume { get; set; }
     public long Timestamp { get; set; }
 }

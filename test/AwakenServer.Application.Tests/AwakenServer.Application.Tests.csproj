@@ -31,7 +31,7 @@
 
     <ItemGroup>
         <PackageReference Include="AElf.EventHandler.TestBase" Version="1.1.1" />
-        <PackageReference Include="AElf.AElfNode.EventHandler.TestBase" Version="1.1.9" />
+        <PackageReference Include="AElf.AElfNode.EventHandler.TestBase" Version="1.2.1-19314" />
         <PackageReference Include="AElf.ContractTestKit" Version="1.0.0" />
     </ItemGroup>
 

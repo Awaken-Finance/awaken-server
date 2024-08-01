@@ -53,6 +53,10 @@ namespace AwakenServer.EntityHandler.Trade
             existIndex.Close = eto.Close;
             existIndex.High = eto.High;
             existIndex.Low = eto.Low;
+            existIndex.OpenWithoutFee = eto.OpenWithoutFee;
+            existIndex.CloseWithoutFee = eto.CloseWithoutFee;
+            existIndex.HighWithoutFee = eto.HighWithoutFee;
+            existIndex.LowWithoutFee = eto.LowWithoutFee;
             existIndex.Volume = eto.Volume;
 
             await _kLineIndexRepository.AddOrUpdateAsync(existIndex);

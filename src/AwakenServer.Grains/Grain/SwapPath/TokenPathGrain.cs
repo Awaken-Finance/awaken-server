@@ -22,7 +22,6 @@ public class FeeRateGraph
     public double FeeRate { get; set; }
     public Dictionary<string, HashSet<string>> Graph { get; set; } = new();
     public Dictionary<string, Dictionary<string, PathNode>> RelationTokenDictionary { get; set; } = new();
-    
     public Dictionary<string, TokenDto> TokenDictionary { get; set; } = new();
 }
 

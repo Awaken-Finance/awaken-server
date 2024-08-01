@@ -23,6 +23,7 @@ public class SwapRecordDto
     public string Channel { get; set; }
     public long BlockHeight { get; set; }
     public List<SwapRecord> SwapRecords { get; set; }
+    public string MethodName { get; set; }
 }
 
 public class SwapRecord

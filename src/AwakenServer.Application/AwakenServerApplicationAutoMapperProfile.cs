@@ -19,6 +19,7 @@ using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
 using Volo.Abp.AutoMapper;
 using KLine = AwakenServer.Trade.Index.KLine;
+using SwapRecord = AwakenServer.Trade.SwapRecord;
 using Token = AwakenServer.Tokens.Token;
 using TradePairMarketDataSnapshot = AwakenServer.Trade.Index.TradePairMarketDataSnapshot;
 using TradeRecord = AwakenServer.Trade.TradeRecord;
@@ -138,12 +139,14 @@ namespace AwakenServer
             CreateMap<Trade.Index.TradeRecord, TradeRecordIndexDto>().ForMember(
                 destination => destination.Timestamp,
                 opt => opt.MapFrom(source => DateTimeHelper.ToUnixTimeMilliseconds(source.Timestamp)));
+            CreateMap<Trade.SwapRecord, SwapDetailDto>();
             CreateMap<KLineEto, KLine>();
             CreateMap<Trade.Index.KLine, KLineDto>();
             CreateMap<KLineGrainDto, KLineEto>();
             CreateMap<NewTradeRecordEvent, TradeRecordDto>();
-            CreateMap<Trade.Dtos.SwapRecord, Trade.SwapRecord>();
+            CreateMap<Trade.Dtos.SwapRecord, Trade.SwapRecord>().ReverseMap();
             CreateMap<Trade.Dtos.SwapRecord, SwapRecordDto>();
+            CreateMap<PercentRoute, PercentRouteDto>();
             
             CreateMap<TradePairMarketDataSnapshot, AwakenServer.Trade.TradePairMarketDataSnapshot>();
             CreateMap<AwakenServer.Trade.TradePairMarketDataSnapshot, TradePairMarketDataSnapshotGrainDto>();

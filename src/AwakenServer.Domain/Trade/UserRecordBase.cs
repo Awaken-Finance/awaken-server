@@ -21,12 +21,13 @@ namespace AwakenServer.Trade
         public double TotalFee { get; set; }
         [Keyword] 
         public string Channel { get; set; }
-
+        
         [Keyword] public string Sender { get; set; }
         public long BlockHeight { get; set; } 
         public bool IsConfirmed { get; set; }
         public List<SwapRecord> SwapRecords { get; set; }
-
+        [Keyword] public string MethodName { get; set; }
+        public List<PercentRoute> PercentRoutes { get; set; }
         protected UserRecordBase()
         {
         }

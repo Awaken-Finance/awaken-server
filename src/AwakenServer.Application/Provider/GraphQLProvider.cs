@@ -217,7 +217,8 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                     symbolOut,
                     symbolIn,
                     channel
-                }
+                },
+                methodName
             }}",
             Variables = new
             {
