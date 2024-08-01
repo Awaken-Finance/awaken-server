@@ -1,13 +1,20 @@
 using System;
+using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.CSharp.Core;
 using AElf.Indexing.Elasticsearch;
+using AElf.Types;
 using AutoMapper;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Route;
+using AwakenServer.Grains.Grain.SwapTokenPath;
+using AwakenServer.Price;
 using AwakenServer.Route.Dtos;
+using AwakenServer.SwapTokenPath.Dtos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
@@ -15,8 +22,10 @@ using Microsoft.Extensions.Logging;
 using Nest;
 using Orleans;
 using Volo.Abp;
+using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using AwakenServer.Trade.Index;
+using Newtonsoft.Json;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
 using PercentRouteDto = AwakenServer.Route.Dtos.PercentRouteDto;
@@ -103,25 +112,23 @@ namespace AwakenServer.Route
             return result.Data.Routes;
         }
 
-        public async Task<Tuple<long, long, double>> GetReservesAsync(Guid tradePairId, string symbolIn,
+        public async Task<Tuple<long, long, double>> GetReservesAsync(ConcurrentDictionary<Guid, TradePairReserve> tradePairReserveMap, Guid tradePairId, string symbolIn,
             string symbolOut)
         {
-            var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePairId));
-            var pairResult = await tradePairGrain.GetAsync();
-            if (!pairResult.Success)
+            if (!tradePairReserveMap.ContainsKey(tradePairId))
             {
-                _logger.LogInformation($"GetReservesAsync failed. Can not find trade pair: {tradePairId}");
+                _logger.LogError("Get best route, can't find trade pair: {tradePairId}");
                 return new Tuple<long, long, double>(0, 0, 0);
             }
-
-            var token0Reserve = (long)Math.Floor(pairResult.Data.ValueLocked0 * Math.Pow(10, pairResult.Data.Token0.Decimals));
-            var token1Reserve = (long)Math.Floor(pairResult.Data.ValueLocked1 * Math.Pow(10, pairResult.Data.Token1.Decimals));
-            if (symbolIn == pairResult.Data.Token0.Symbol)
+            
+            var tradePair = tradePairReserveMap[tradePairId];
+        
+            if (symbolIn == tradePair.Token0Symbol)
             {
-                return new Tuple<long, long, double>(token0Reserve, token1Reserve, pairResult.Data.FeeRate);
+                return new Tuple<long, long, double>(tradePair.Token0Reserve, tradePair.Token1Reserve, tradePair.FeeRate);
             }
 
-            return new Tuple<long, long, double>(token1Reserve, token0Reserve, pairResult.Data.FeeRate);
+            return new Tuple<long, long, double>(tradePair.Token1Reserve, tradePair.Token0Reserve, tradePair.FeeRate);
         }
 
         public Tuple<bool, long> GetAmountIn(double poolFeeRate, long amountOut, long reserveIn, long reserveOut)
@@ -167,7 +174,7 @@ namespace AwakenServer.Route
             return new Tuple<bool, long>(true, (long)Math.Floor(amountOut));
         }
 
-        public async Task<List<long>> GetAmountsInAsync(List<string> tokens, List<Guid> tradePairs, long amountOut)
+        public async Task<List<long>> GetAmountsInAsync(ConcurrentDictionary<Guid, TradePairReserve> tradePairReserveMap, List<string> tokens, List<Guid> tradePairs, long amountOut)
         {
             if (tokens.Count < 2)
             {
@@ -182,7 +189,7 @@ namespace AwakenServer.Route
                 var symbolOut = tokens[i];
                 var symbolIn = tokens[i - 1];
                 var tradePairId = tradePairs[j];
-                var (reserveIn, reserveOut, feeRate) = await GetReservesAsync(tradePairId, symbolIn, symbolOut);
+                var (reserveIn, reserveOut, feeRate) = await GetReservesAsync(tradePairReserveMap, tradePairId, symbolIn, symbolOut);
                 var (success, amount) = GetAmountIn(feeRate, amounts[0], reserveIn, reserveOut);
                 if (!success)
                 {
@@ -194,7 +201,7 @@ namespace AwakenServer.Route
             return amounts;
         }
 
-        public async Task<List<long>> GetAmountsOutAsync(List<string> tokens, List<Guid> tradePairs, long amountIn)
+        public async Task<List<long>> GetAmountsOutAsync(ConcurrentDictionary<Guid, TradePairReserve> tradePairReserveMap, List<string> tokens, List<Guid> tradePairs, long amountIn)
         {
             if (tokens.Count < 2)
             {
@@ -209,7 +216,7 @@ namespace AwakenServer.Route
                 var symbolIn = tokens[i];
                 var symbolOut = tokens[i + 1];
                 var tradePairId = tradePairs[j];
-                var (reserveIn, reserveOut, feeRate) = await GetReservesAsync(tradePairId, symbolIn, symbolOut);
+                var (reserveIn, reserveOut, feeRate) = await GetReservesAsync(tradePairReserveMap, tradePairId, symbolIn, symbolOut);
                 var (success, amount) = GetAmountOut(feeRate, amounts[i], reserveIn, reserveOut);
                 if (!success)
                 {
@@ -242,32 +249,38 @@ namespace AwakenServer.Route
         }
 
         public PercentSwapRoute FindFirstRouteNotUsingUsedPools(List<PercentSwapRoute> currentRoutes,
-            List<PercentSwapRoute> percentRoutes)
+            List<PercentSwapRoute> percentRoutes, ConcurrentDictionary<string, SwapRoute> routeMap)
         {
             var currentTradePairs = new HashSet<string>();
             foreach (var currentRoute in currentRoutes)
             {
-                foreach (var tradePair in currentRoute.TradePairs)
+                if (routeMap.ContainsKey(currentRoute.RouteId))
                 {
-                    currentTradePairs.Add(tradePair.Address);
+                    foreach (var tradePair in routeMap[currentRoute.RouteId].TradePairs)
+                    {
+                        currentTradePairs.Add(tradePair.Address);
+                    }
                 }
             }
 
             foreach (var route in percentRoutes)
             {
-                bool contains = false;
-                foreach (var tradePair in route.TradePairs)
+                if (routeMap.ContainsKey(route.RouteId))
                 {
-                    if (currentTradePairs.Contains(tradePair.Address))
+                    bool contains = false;
+                    foreach (var tradePair in routeMap[route.RouteId].TradePairs)
                     {
-                        contains = true;
-                        break;
+                        if (currentTradePairs.Contains(tradePair.Address))
+                        {
+                            contains = true;
+                            break;
+                        }
                     }
-                }
 
-                if (!contains)
-                {
-                    return route;
+                    if (!contains)
+                    {
+                        return route;
+                    }
                 }
             }
 
@@ -278,12 +291,22 @@ namespace AwakenServer.Route
         {
             var swapRoutes =
                 await GetRoutesAsync(input.ChainId, input.RouteType, input.SymbolIn, input.SymbolOut, MaxDepth);
-            var percents = GetPercents(DistributionPercent);
-            var percentToSortedRoutes = new Dictionary<int, List<PercentSwapRoute>>();
             
             _logger.LogInformation(
                 $"Get best routes, all routes count: {swapRoutes.Count}");
-
+            
+            if (swapRoutes.Count <= 0)
+            {
+                return new BestRoutesDto()
+                {
+                    StatusCode = StatusCode.NoRouteFound,
+                    Message = "No route found."
+                };
+            }
+            
+            var percents = GetPercents(DistributionPercent);
+            var percentToSortedRoutes = new Dictionary<int, List<PercentSwapRoute>>();
+            
             var crossFeeRateRoutes = new List<SwapRoute>();
             if (input.CrossRate)
             {
@@ -301,25 +324,63 @@ namespace AwakenServer.Route
                 }
             }
             
+            var routeMap = new ConcurrentDictionary<string, SwapRoute>();
+            var tradePairMap = new ConcurrentDictionary<Guid, TradePairReserve>();
+
+            var mapTasks = crossFeeRateRoutes.Select(async crossFeeRateRoute =>
+            {
+                routeMap[crossFeeRateRoute.FullPathStr] = crossFeeRateRoute;
+                foreach (var tradePair in crossFeeRateRoute.TradePairs)
+                {
+                    if (tradePairMap.ContainsKey(tradePair.Id))
+                    {
+                        continue;
+                    }
+                    
+                    var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
+                    var pairResult = await tradePairGrain.GetAsync();
+                    if (!pairResult.Success)
+                    {
+                        _logger.LogError($"GetReservesAsync failed. Can not find trade pair: {tradePair.Id}");
+                        continue;
+                    }
+
+                    var token0Reserve = (long)Math.Floor(pairResult.Data.ValueLocked0 * Math.Pow(10, pairResult.Data.Token0.Decimals));
+                    var token1Reserve = (long)Math.Floor(pairResult.Data.ValueLocked1 * Math.Pow(10, pairResult.Data.Token1.Decimals));
+                    tradePairMap[tradePair.Id] = new TradePairReserve()
+                    {
+                        FeeRate = pairResult.Data.FeeRate,
+                        Token0Symbol = pairResult.Data.Token0.Symbol,
+                        Token1Symbol = pairResult.Data.Token1.Symbol,
+                        Token0Reserve = token0Reserve,
+                        Token1Reserve = token1Reserve
+                    };
+                }
+            }).ToList();
+
+            await Task.WhenAll(mapTasks);
+
+
             _logger.LogInformation(
                 $"Get best routes, all cross(or not) rate routes count: {crossFeeRateRoutes.Count}");
             
             foreach (var percent in percents)
             {
                 percentToSortedRoutes[percent] = new List<PercentSwapRoute>();
-                var tasks = crossFeeRateRoutes.Select(async route =>
+                var tasks = crossFeeRateRoutes.Select(async originalRoute =>
                 {
-                    var percentSwapRoute = _objectMapper.Map<SwapRoute, PercentSwapRoute>(route);
+                    var percentSwapRoute = new PercentSwapRoute();
+                    percentSwapRoute.RouteId = originalRoute.FullPathStr;
+                    var tokenSymbols = originalRoute.Tokens.Select(x => x.Symbol).ToList();
+                    var tradePairIds = originalRoute.TradePairs.Select(x => x.Id).ToList();
                     try
                     {
                         percentSwapRoute.Exact = input.RouteType == RouteType.ExactIn
                             ? (long)Math.Floor(percent / 100d * input.AmountIn)
                             : (long)Math.Floor(percent / 100d * input.AmountOut);
-                        var tokens = percentSwapRoute.Tokens.Select(x => x.Symbol).ToList();
-                        var tradePairIds = percentSwapRoute.TradePairs.Select(x => x.Id).ToList();
                         var amounts = input.RouteType == RouteType.ExactIn
-                            ? await GetAmountsOutAsync(tokens, tradePairIds, percentSwapRoute.Exact)
-                            : await GetAmountsInAsync(tokens, tradePairIds, percentSwapRoute.Exact);
+                            ? await GetAmountsOutAsync(tradePairMap, tokenSymbols, tradePairIds, percentSwapRoute.Exact)
+                            : await GetAmountsInAsync(tradePairMap, tokenSymbols, tradePairIds, percentSwapRoute.Exact);
                         if (amounts == null)
                         {
                             return null;
@@ -338,14 +399,13 @@ namespace AwakenServer.Route
 
                 var results = await Task.WhenAll(tasks);
 
-                foreach (var route in results)
-                {
-                    if (route != null)
-                    {
-                        percentToSortedRoutes[percent].Add(route);
-                    }
-                }
+                percentToSortedRoutes[percent] = results
+                    .Where(route => route != null)
+                    .ToList();
             }
+            
+            _logger.LogInformation(
+                $"Get best routes, begin to sort");
             
             foreach (var percentRoutes in percentToSortedRoutes)
             {
@@ -359,6 +419,7 @@ namespace AwakenServer.Route
             
             percentToSortedRoutes.ToList().ForEach(kvp =>
                 _logger.LogInformation($"Get best routes, percent: {kvp.Key}, route count: {kvp.Value.Count}"));
+            
             
             var bestSwaps = new PriorityQueue<PercentSwapRouteDistribution, PercentSwapRouteDistribution>(input.ResultCount, Comparer<PercentSwapRouteDistribution>.Create((quoteRouteA, quoteRouteB) =>
             {
@@ -432,7 +493,7 @@ namespace AwakenServer.Route
                         }
 
                         var routeWithQuoteA = FindFirstRouteNotUsingUsedPools(queueNode.CurrentRoutes,
-                            percentToSortedRoutes[percentA]);
+                            percentToSortedRoutes[percentA], routeMap);
                         if (routeWithQuoteA == null)
                         {
                             continue;
@@ -471,7 +532,20 @@ namespace AwakenServer.Route
                 }
             }
 
-            var result = new BestRoutesDto();
+            if (bestSwaps.Count <= 0)
+            {
+                return new BestRoutesDto()
+                {
+                    StatusCode = StatusCode.InsufficientLiquidity,
+                    Message = "Insufficient liquidity."
+                };
+            }
+            
+            var result = new BestRoutesDto()
+            {
+                StatusCode = StatusCode.Success
+            };
+            
             var count = input.ResultCount;
             while (count-- > 0)
             {
@@ -486,24 +560,49 @@ namespace AwakenServer.Route
                 var distribution = new List<PercentRouteDto>();
                 foreach (var partRoute in bestRoute.Distributions)
                 {
+                    var amountsStr = partRoute.Amounts.Select(x => x.ToString()).ToList();
+                    var TradePairExtensios = new List<TradePairExtensionDto>();
+                    foreach (var tradePair in routeMap[partRoute.RouteId].TradePairs)
+                    {
+                        var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
+                        var pairResult = await tradePairGrain.GetAsync();
+                        if (pairResult.Success)
+                        {
+                            TradePairExtensios.Add(new TradePairExtensionDto()
+                            {
+                                ValueLocked0 = pairResult.Data.ValueLocked0.ToString(),
+                                ValueLocked1 = pairResult.Data.ValueLocked1.ToString()
+                            });
+                        }
+                        else
+                        {
+                            _logger.LogError($"Get best route, can't find trade pair: {tradePair.Id}");
+                        }
+                    }
+
+                    if (TradePairExtensios.Count != routeMap[partRoute.RouteId].TradePairs.Count)
+                    {
+                        continue;
+                    }
+                    
                     distribution.Add(new PercentRouteDto
                     {
                         Percent = partRoute.Percent,
-                        AmountIn = input.RouteType == RouteType.ExactIn ? partRoute.Exact : partRoute.Quote,
-                        AmountOut = input.RouteType == RouteType.ExactOut ? partRoute.Exact : partRoute.Quote,
+                        AmountIn = (input.RouteType == RouteType.ExactIn ? partRoute.Exact : partRoute.Quote).ToString(),
+                        AmountOut = (input.RouteType == RouteType.ExactOut ? partRoute.Exact : partRoute.Quote).ToString(),
                         TradePairs =
-                            _objectMapper.Map<List<TradePairWithToken>, List<TradePairWithTokenDto>>(partRoute
-                                .TradePairs),
-                        Tokens = _objectMapper.Map<List<Token>, List<TokenDto>>(partRoute.Tokens),
-                        FeeRates = partRoute.FeeRates,
-                        Amounts = partRoute.Amounts
+                            _objectMapper.Map<List<TradePairWithToken>, List<TradePairWithTokenDto>>(routeMap[partRoute.RouteId].TradePairs),
+                        TradePairExtensions = TradePairExtensios,
+                        Tokens = _objectMapper.Map<List<Token>, List<TokenDto>>(routeMap[partRoute.RouteId].Tokens),
+                        FeeRates = routeMap[partRoute.RouteId].FeeRates,
+                        Amounts = amountsStr
                     });
                 }
 
                 result.Routes.Insert(0, new RouteDto
                 {
-                    AmountIn = amountIn,
-                    AmountOut = amountOut,
+                    AmountIn = amountIn.ToString(),
+                    AmountOut = amountOut.ToString(),
                     Splits = distribution.Count,
                     Distributions = distribution
                 });
@@ -514,12 +613,13 @@ namespace AwakenServer.Route
 
 
         [AutoMap(typeof(SwapRoute))]
-        public class PercentSwapRoute : SwapRoute
+        public class PercentSwapRoute
         {
             public int Percent { get; set; }
             public long Exact { get; set; }
             public long Quote { get; set; }
             public List<long> Amounts { get; set; }
+            public string RouteId { get; set; }
         }
 
         public class PercentSwapRouteDistribution
@@ -533,6 +633,15 @@ namespace AwakenServer.Route
             public int PercentIndex { get; set; }
             public List<PercentSwapRoute> CurrentRoutes { get; set; }
             public int RemainingPercent { get; set; }
+        }
+
+        public class TradePairReserve
+        {
+            public string Token0Symbol { get; set; }
+            public string Token1Symbol { get; set; }
+            public long Token0Reserve { get; set; }
+            public long Token1Reserve { get; set; }
+            public double FeeRate { get; set; }
         }
     }
 }

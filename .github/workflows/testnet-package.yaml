@@ -2,14 +2,13 @@ name: Build and Package
 
 on:
   push:
-    branches:
-      - 'release/*'
+    branches: ['dev', 'release/*']
 env:
   DOTNET_INSTALL_DIR: "./.dotnet"
 
 jobs:
   publish:
-    runs-on: awaken-server-runner
+    runs-on: awaken-runner
     strategy:
       matrix:
         servicename: [AwakenServer.Silo,AwakenServer.HttpApi.Host,AwakenServer.EntityHandler]
@@ -27,7 +26,7 @@ jobs:
           retention-days: 1
   build-and-push-image:
     needs: publish
-    runs-on: awaken-server-runner
+    runs-on: awaken-runner
     strategy:
       matrix:
         servicename: [AwakenServer.Silo,AwakenServer.HttpApi.Host,AwakenServer.EntityHandler]

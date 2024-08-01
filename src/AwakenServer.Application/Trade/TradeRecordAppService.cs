@@ -45,10 +45,10 @@ namespace AwakenServer.Trade
         private readonly ILogger<TradeRecordAppService> _logger;
         private readonly TradeRecordRevertWorkerSettings _tradeRecordRevertWorkerOptions;
         private readonly IDistributedEventBus _distributedEventBus;
-        private readonly IGraphQLProvider _graphQlProvider;
         private readonly IBus _bus;
         private readonly IRevertProvider _revertProvider;
-        private readonly IAElfClientProvider _aelfClientProvider;
+        private readonly KLinePeriodOptions _kLinePeriodOptions;
+        private readonly INESTRepository<Index.KLine, Guid> _kLineIndexRepository;
 
 
         private const string ASC = "asc";
@@ -70,10 +70,10 @@ namespace AwakenServer.Trade
             ILogger<TradeRecordAppService> logger,
             IOptionsSnapshot<TradeRecordRevertWorkerSettings> tradeRecordOptions,
             IDistributedEventBus distributedEventBus,
-            IGraphQLProvider graphQlProvider,
             IBus bus,
-            IAElfClientProvider aefClientProvider,
-            IRevertProvider revertProvider)
+            IRevertProvider revertProvider,
+            IOptionsSnapshot<KLinePeriodOptions> kLinePeriodOptions,
+            INESTRepository<Index.KLine, Guid> kLineIndexRepository)
         {
             _tradeRecordIndexRepository = tradeRecordIndexRepository;
             _userTradeSummaryIndexRepository = userTradeSummaryIndexRepository;
@@ -84,10 +84,11 @@ namespace AwakenServer.Trade
             _logger = logger;
             _tradeRecordRevertWorkerOptions = tradeRecordOptions.Value;
             _distributedEventBus = distributedEventBus;
-            _graphQlProvider = graphQlProvider;
             _bus = bus;
             _revertProvider = revertProvider;
-            _aelfClientProvider = aefClientProvider;
+            _kLinePeriodOptions = kLinePeriodOptions.Value;
+            _kLineIndexRepository = kLineIndexRepository;
+
         }
         
 
@@ -358,6 +359,142 @@ namespace AwakenServer.Trade
             await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
         }
 
+        public async Task<bool> WriteKLineIndexAsync(TradeRecord dto)
+        {
+            var timeStamp = DateTimeHelper.ToUnixTimeMilliseconds(dto.Timestamp);
+            foreach (var period in _kLinePeriodOptions.Periods)
+            {
+                var periodTimestamp = KLineHelper.GetKLineTimestamp(period, timeStamp);
+                var token0Amount = double.Parse(dto.Token0Amount);
+
+                var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(dto.TradePairId));
+                var tradePairResult = await tradePairGrain.GetAsync();
+                if (!tradePairResult.Success)
+                {
+                    _logger.LogError($"fill kline, can't find trade pair: {dto.TradePairId}");
+                    continue;
+                }
+                
+                var priceWithoutFee = dto.Side == TradeSide.Buy
+                    ? dto.Price * (1-tradePairResult.Data.FeeRate)
+                    : dto.Price / (1-tradePairResult.Data.FeeRate);
+                
+                var kLine = new KLineGrainDto
+                {
+                    ChainId = dto.ChainId,
+                    TradePairId = dto.TradePairId,
+                    Open = dto.Price,
+                    Close = dto.Price,
+                    High = dto.Price,
+                    Low = dto.Price,
+                    OpenWithoutFee = priceWithoutFee,
+                    CloseWithoutFee = priceWithoutFee,
+                    HighWithoutFee = priceWithoutFee,
+                    LowWithoutFee = priceWithoutFee,
+                    Volume = token0Amount,
+                    Period = period,
+                    Timestamp = periodTimestamp
+                };
+              
+                var id = GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TradePairId, period, "resync");
+                var grain = _clusterClient.GetGrain<IKLineGrain>(id);
+                var result = await grain.AddOrUpdateAsync(kLine);
+                if (result.Success)
+                {
+                    var existIndex = await _kLineIndexRepository.GetAsync(q =>
+                        q.Term(i => i.Field(f => f.ChainId).Value(dto.ChainId)) &&
+                        q.Term(i => i.Field(f => f.TradePairId).Value(dto.TradePairId)) &&
+                        q.Term(i => i.Field(f => f.Period).Value(kLine.Period)) &&
+                        q.Term(i => i.Field(f => f.Timestamp).Value(kLine.Timestamp)));
+
+                    if (existIndex != null)
+                    {
+                        _logger.LogInformation($"fill kline, existIndex: {JsonConvert.SerializeObject(existIndex)}, " +
+                                               $"OpenWithoutFee: {result.Data.OpenWithoutFee}, " +
+                                               $"CloseWithoutFee: {result.Data.CloseWithoutFee}, " +
+                                               $"HighWithoutFee: {result.Data.HighWithoutFee}, " +
+                                               $"LowWithoutFee: {result.Data.LowWithoutFee}");
+                        existIndex.OpenWithoutFee = result.Data.OpenWithoutFee;
+                        existIndex.CloseWithoutFee = result.Data.CloseWithoutFee;
+                        existIndex.HighWithoutFee = result.Data.HighWithoutFee;
+                        existIndex.LowWithoutFee = result.Data.LowWithoutFee;
+                        await _kLineIndexRepository.AddOrUpdateAsync(existIndex); 
+                    }
+                }
+            }
+
+            return true;
+        }
+        
+        public async Task<bool> FillKLineIndexAsync(SwapRecordDto dto)
+        {
+            dto.SwapRecords.AddFirst(new Dtos.SwapRecord()
+            {
+                PairAddress = dto.PairAddress,
+                AmountIn = dto.AmountIn,
+                AmountOut = dto.AmountOut,
+                SymbolIn = dto.SymbolIn,
+                SymbolOut = dto.SymbolOut,
+                TotalFee = dto.TotalFee,
+                Channel = dto.Channel
+            });
+            
+            var pairList = new List<Index.TradePair>();
+            var indexSwapRecords = new List<SwapRecord>();
+            for (var i = 0; i < dto.SwapRecords.Count; i++)
+            {
+                var swapRecord = dto.SwapRecords[i];
+                var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
+                if (tradePair == null)
+                {
+                    _logger.LogError("fill kline index can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                        swapRecord.PairAddress);
+                    return false;
+                } 
+                pairList.Add(tradePair);
+                var indexSwapRecord = new SwapRecord();
+                ObjectMapper.Map(swapRecord, indexSwapRecord);
+                indexSwapRecord.TradePairId = tradePair.Id;
+                indexSwapRecord.TradePair = tradePair;
+                indexSwapRecords.Add(indexSwapRecord);
+            }
+            
+            var record = new TradeRecordCreateDto
+            {
+                ChainId = dto.ChainId,
+                TradePairId = Guid.Empty,
+                Address = dto.Sender,
+                TransactionHash = dto.TransactionHash,
+                Timestamp = dto.Timestamp,
+                Channel = dto.Channel,
+                Sender = dto.Sender,
+                BlockHeight = dto.BlockHeight,
+                MethodName = dto.MethodName
+            };
+            
+            var tradeRecord = ObjectMapper.Map<TradeRecordCreateDto, TradeRecord>(record);
+            tradeRecord.Id = Guid.NewGuid();
+            
+            foreach (var indexSwapRecord in indexSwapRecords)
+            {
+                var pair = pairList.First(t => t.Id == indexSwapRecord.TradePairId);
+                var isSell = pair.Token0.Symbol == indexSwapRecord.SymbolIn;
+                tradeRecord.TradePairId = indexSwapRecord.TradePairId;
+                tradeRecord.Side = isSell ? TradeSide.Sell : TradeSide.Buy;
+                tradeRecord.Token0Amount = isSell
+                    ? indexSwapRecord.AmountIn.ToDecimalsString(pair.Token0.Decimals)
+                    : indexSwapRecord.AmountOut.ToDecimalsString(pair.Token0.Decimals);
+                tradeRecord.Token1Amount = isSell 
+                    ? indexSwapRecord.AmountOut.ToDecimalsString(pair.Token1.Decimals)
+                    : indexSwapRecord.AmountIn.ToDecimalsString(pair.Token1.Decimals);
+                tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
+                tradeRecord.TotalFee = indexSwapRecord.TotalFee;
+                await WriteKLineIndexAsync(tradeRecord);
+            }
+
+            return true;
+        }
+        
         public async Task<bool> CreateAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
             if (!dto.SwapRecords.IsNullOrEmpty())
@@ -454,9 +591,18 @@ namespace AwakenServer.Trade
                 var currentAmount1 = lastIsSell
                     ? lastSwapRecord.AmountOut.ToDecimalsString(lastTradePair.Token1.Decimals)
                     : lastSwapRecord.AmountOut.ToDecimalsString(lastTradePair.Token0.Decimals);
+                
+                var feeRateRest = 1d;
+                foreach (var swapRecord in swapRecords)
+                {
+                    var tradePair = pairList.First(t => t.Id == swapRecord.TradePairId);
+                    feeRateRest *= 1 - tradePair.FeeRate;
+                }
+                
                 var currentTotalFee = firstSwapRecord.AmountIn / Math.Pow(10,
                                           firstIsSell ? firstTradePair.Token0.Decimals : firstTradePair.Token1.Decimals)
-                                      * (1 - Math.Pow(1 - firstTradePair.FeeRate, swapRecords.Count));
+                                      * (1 - feeRateRest);
+                
                 amount0 += double.Parse(currentAmount0);
                 amount1 += double.Parse(currentAmount1);
                 totalFee += currentTotalFee;
@@ -534,6 +680,7 @@ namespace AwakenServer.Trade
                 var indexSwapRecord = new SwapRecord();
                 ObjectMapper.Map(swapRecord, indexSwapRecord);
                 indexSwapRecord.TradePairId = tradePair.Id;
+                indexSwapRecord.TradePair = tradePair;
                 indexSwapRecords.Add(indexSwapRecord);
                 if (symbolInSet.Contains(swapRecord.SymbolIn) && i > 0)
                 {
@@ -604,6 +751,7 @@ namespace AwakenServer.Trade
                     ? indexSwapRecord.AmountOut.ToDecimalsString(pair.Token1.Decimals)
                     : indexSwapRecord.AmountIn.ToDecimalsString(pair.Token1.Decimals);
                 tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
+                tradeRecord.TotalFee = indexSwapRecord.TotalFee;
                 await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
             }
             
@@ -746,7 +894,6 @@ namespace AwakenServer.Trade
                     }
                 });
         }
-        
         
         public async Task RevertTradeRecordAsync(string chainId)
         {

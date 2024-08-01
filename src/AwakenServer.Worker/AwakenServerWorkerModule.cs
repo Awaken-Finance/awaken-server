@@ -28,6 +28,8 @@ namespace AwakenServer.Worker
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<UserLiquidityUpdateWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<DataCleanupWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<PortfolioEventReSyncWorker>());
+            backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<SwapEventReSyncWorker>());
+            
         }
     }
 }

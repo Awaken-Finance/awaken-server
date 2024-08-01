@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Client.MultiToken;
@@ -296,6 +297,8 @@ public class AssetAppService : ApplicationService, IAssetAppService
 
     public async Task<IdleTokensDto> GetIdleTokensAsync(GetIdleTokensDto input)
     {
+        _logger.LogInformation($"get idle tokens, CultureInfo.CurrentCulture: {CultureInfo.CurrentCulture.Name}");
+        
         var tokenListDto = await GetUserAssetInfoAsync(new GetUserAssetInfoDto()
         {
             ChainId = input.ChainId,
