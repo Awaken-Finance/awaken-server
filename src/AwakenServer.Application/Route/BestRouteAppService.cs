@@ -168,7 +168,7 @@ namespace AwakenServer.Route
             var feeRateRest = FeeRateMax - feeRate;
             var amountInWithFee = feeRateRest * amountIn;
             var numerator = amountInWithFee * reserveOut;
-            var denominator = reserveIn * FeeRateMax + amountInWithFee;
+            var denominator = (double)reserveIn * FeeRateMax + amountInWithFee;
             var amountOut = numerator / denominator;
 
             return new Tuple<bool, long>(true, (long)Math.Floor(amountOut));
