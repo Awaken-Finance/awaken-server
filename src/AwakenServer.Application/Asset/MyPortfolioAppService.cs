@@ -450,10 +450,10 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var token0ValueInUsd = lpTokenPercentage * pair.ValueLocked0 * token0Price;
             var token1ValueInUsd = lpTokenPercentage * pair.ValueLocked1 * token1Price;
             var valueInUsd = lpTokenPercentage * (pair.ValueLocked0 * token0Price + pair.ValueLocked1 * token1Price);
-            var token0Fee = token0Price * Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
-            var token1Fee = token1Price * Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
+            var token0CumulativeFee = token0Price * Double.Parse((userLiquidityIndex.Token0UnReceivedFee + userLiquidityIndex.Token0ReceivedFee).ToDecimalsString(pair.Token0.Decimals));
+            var token1CumulativeFee = token1Price * Double.Parse((userLiquidityIndex.Token1UnReceivedFee + userLiquidityIndex.Token1ReceivedFee).ToDecimalsString(pair.Token1.Decimals));
 
-            var fee = token0Fee + token1Fee;
+            var fee = token0CumulativeFee + token1CumulativeFee;
             
             sumValueInUsd += valueInUsd;
             sumFeeInUsd += fee;
@@ -512,10 +512,10 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var currentToken1Position = double.Parse(tokenPositionDictionary[pair.Token1.Symbol].ValueInUsd) + token1ValueInUsd;
             tokenPositionDictionary[pair.Token1.Symbol].ValueInUsd = currentToken1Position.ToString();
             
-            var currentToken0Fee = double.Parse(tokenFeeDictionary[pair.Token0.Symbol].ValueInUsd) + token0Fee;
+            var currentToken0Fee = double.Parse(tokenFeeDictionary[pair.Token0.Symbol].ValueInUsd) + token0CumulativeFee;
             tokenFeeDictionary[pair.Token0.Symbol].ValueInUsd = currentToken0Fee.ToString();
             
-            var currentToken1Fee = double.Parse(tokenFeeDictionary[pair.Token1.Symbol].ValueInUsd) + token1Fee;
+            var currentToken1Fee = double.Parse(tokenFeeDictionary[pair.Token1.Symbol].ValueInUsd) + token1CumulativeFee;
             tokenFeeDictionary[pair.Token1.Symbol].ValueInUsd = currentToken1Fee.ToString();
         }
         
@@ -726,9 +726,9 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
           
             case EstimatedAprType.All:
             {
-                var unReveivedFee = Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(token0Decimal)) *
+                var fee = Double.Parse((userLiquidityIndex.Token0UnReceivedFee + userLiquidityIndex.Token0ReceivedFee).ToDecimalsString(token0Decimal)) *
                                     token0Price +
-                                    Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(token1Decimal)) *
+                                    Double.Parse((userLiquidityIndex.Token1UnReceivedFee + userLiquidityIndex.Token1ReceivedFee).ToDecimalsString(token1Decimal)) *
                                     token1Price;
                 var cumulativeAddition =
                     Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(token0Decimal)) *
@@ -742,11 +742,11 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
 
                 _logger.LogInformation($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
                                        $"type: {type}, " +
-                                       $"unReveivedFee: {unReveivedFee}, " +
+                                       $"unReveivedFee: {fee}, " +
                                        $"cumulativeAddition: {cumulativeAddition}," +
                                        $"averageHoldingPeriod: {averageHoldingPeriod}");
 
-                return ((unReveivedFee / cumulativeAddition) * (360d / averageHoldingPeriod)) * 100;
+                return ((fee / cumulativeAddition) * (360d / averageHoldingPeriod)) * 100;
             }
             default:
             {
@@ -800,16 +800,16 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var token1PercentStr = token0ValueInUsd + token1ValueInUsd == 0 ? "0" : Math.Round(100 - double.Parse(token0PercentStr),2).ToString();
             
             var valueInUsd = lpTokenPercentage * (pair.ValueLocked0 * token0Price + pair.ValueLocked1 * token1Price);
-            var token0UnReceivedFee =
-                Double.Parse(userLiquidityIndex.Token0UnReceivedFee.ToDecimalsString(pair.Token0.Decimals));
-            var token1UnReceivedFee =
-                Double.Parse(userLiquidityIndex.Token1UnReceivedFee.ToDecimalsString(pair.Token1.Decimals));
-
-            var token0FeeAmountInUsd = token0UnReceivedFee * token0Price;
-            var token1FeeAmountInUsd = token1UnReceivedFee * token1Price;
-            var token0FeePercent = token0FeeAmountInUsd + token1FeeAmountInUsd == 0 ? 0 : token0FeeAmountInUsd / (token0FeeAmountInUsd + token1FeeAmountInUsd);
+            var token0CumulativeFeeAmount =
+                Double.Parse((userLiquidityIndex.Token0UnReceivedFee + userLiquidityIndex.Token0ReceivedFee).ToDecimalsString(pair.Token0.Decimals));
+            var token1CumulativeFeeAmount =
+                Double.Parse((userLiquidityIndex.Token1UnReceivedFee + userLiquidityIndex.Token1ReceivedFee).ToDecimalsString(pair.Token1.Decimals));
+            
+            var token0CumulativeFeeInUsd = token0CumulativeFeeAmount * token0Price;
+            var token1CumulativeFeeInUsd = token1CumulativeFeeAmount * token1Price;
+            var token0FeePercent = token0CumulativeFeeInUsd + token1CumulativeFeeInUsd == 0 ? 0 : token0CumulativeFeeInUsd / (token0CumulativeFeeInUsd + token1CumulativeFeeInUsd);
             var token0FeePercentStr = Math.Round(token0FeePercent * 100,2).ToString();
-            var token1FeePercentStr = token0FeeAmountInUsd + token1FeeAmountInUsd == 0 ? "0" : Math.Round(100 - double.Parse(token0FeePercentStr),2).ToString();
+            var token1FeePercentStr = token0CumulativeFeeInUsd + token1CumulativeFeeInUsd == 0 ? "0" : Math.Round(100 - double.Parse(token0FeePercentStr),2).ToString();
 
             var token0CumulativeAdditionAmountInUsd =
                 Double.Parse(userLiquidityIndex.Token0CumulativeAddition.ToDecimalsString(pair.Token0.Decimals)) *
@@ -874,11 +874,11 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 },
                 Fee = new LiquidityPoolValueInfo()
                 {
-                    ValueInUsd = (token0FeeAmountInUsd + token1FeeAmountInUsd).ToString(),
-                    Token0Amount = token0UnReceivedFee.ToString(),
-                    Token0AmountInUsd = (token0FeeAmountInUsd).ToString(),
-                    Token1Amount = token1UnReceivedFee.ToString(),
-                    Token1AmountInUsd = (token1FeeAmountInUsd).ToString(),
+                    ValueInUsd = (token0CumulativeFeeInUsd + token1CumulativeFeeInUsd).ToString(),
+                    Token0Amount = token0CumulativeFeeAmount.ToString(),
+                    Token0AmountInUsd = (token0CumulativeFeeInUsd).ToString(),
+                    Token1Amount = token1CumulativeFeeAmount.ToString(),
+                    Token1AmountInUsd = (token1CumulativeFeeInUsd).ToString(),
                     Token0Percent = token0FeePercentStr,
                     Token1Percent = token1FeePercentStr,
                 },
@@ -910,7 +910,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                         Percent = estimatedAPR.Item3.ToString("F2")
                     }
                 },
-                ImpermanentLossInUSD = (valueInUsd - cumulativeAdditionInUsd).ToString(),
+                ImpermanentLossInUSD = (valueInUsd - cumulativeAdditionInUsd - (token0CumulativeFeeInUsd + token1CumulativeFeeInUsd)).ToString(),
                 DynamicAPR = dynamicAPR.ToString()
             });
         }
