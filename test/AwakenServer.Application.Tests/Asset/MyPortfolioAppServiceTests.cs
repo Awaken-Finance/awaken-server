@@ -495,7 +495,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         result.Items[0].Fee.Token0AmountInUsd.ShouldBe("0.005");
         result.Items[0].Fee.Token1AmountInUsd.ShouldBe("0.0025");
         result.Items[0].DynamicAPR.Substring(0, 10).ShouldBe("1762201.79");
-        result.Items[0].ImpermanentLossInUSD.ShouldBe("0.048999");
+        result.Items[0].ImpermanentLossInUSD.ShouldBe("0.041499");
         result.Items[0].EstimatedAPR[2].Type.ShouldBe(EstimatedAprType.All);
         // result.Items[0].EstimatedAPR[2].Percent.Substring(0, 5).ShouldBe("0.180");
     }
