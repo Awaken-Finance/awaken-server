@@ -22,6 +22,7 @@ public class MockGraphQLProvider :  IGraphQLProvider, ISingletonDependency
     private List<TradePairInfoDto> tradePairInfoList;
     private List<SwapRecordDto> swapRecordList;
     private List<SyncRecordDto> syncRecordList;
+    private List<LimitOrderDto> limitOrderList;
     private readonly IObjectMapper _objectMapper;
     private readonly INESTRepository<TradePairInfoIndex, Guid> _tradePairInfoIndex;
     private readonly ITokenAppService _tokenAppService;
@@ -36,6 +37,7 @@ public class MockGraphQLProvider :  IGraphQLProvider, ISingletonDependency
         tradePairInfoList = new List<TradePairInfoDto>();
         swapRecordList = new List<SwapRecordDto>();
         syncRecordList = new List<SyncRecordDto>();
+        limitOrderList = new List<LimitOrderDto>();
         _objectMapper = objectMapper;
         _tradePairInfoIndex = tradePairInfoIndex;
         _tokenAppService = tokenAppService;
@@ -169,6 +171,11 @@ public class MockGraphQLProvider :  IGraphQLProvider, ISingletonDependency
     {
         syncRecordList.Add(dto);
     }
+    
+    public void AddLimitOrder(LimitOrderDto dto)
+    {
+        limitOrderList.Add(dto);
+    }
 
     public async Task<LiquidityRecordPageResult> QueryLiquidityRecordAsync(GetLiquidityRecordIndexInput input)
     {
@@ -191,6 +198,27 @@ public class MockGraphQLProvider :  IGraphQLProvider, ISingletonDependency
         var resultList = userLiquidityList.Where(q => q.ChainId.Equals(input.ChainId) && q.Address.Equals(input.Address))
             .Skip(input.SkipCount).ToList();
         return new UserLiquidityPageResultDto
+        {
+            TotalCount = resultList.Count,
+            Data = resultList
+        };
+    }
+
+    public async Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrdersInput input)
+    {
+        var resultList = limitOrderList.Where(q => q.Maker.Equals(input.MakerAddress))
+            .Skip(input.SkipCount).Take(input.MaxResultCount).ToList();
+        return new LimitOrderPageResultDto
+        {
+            TotalCount = resultList.Count,
+            Data = resultList
+        };
+    }
+
+    public async Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrderDetailsInput input)
+    {
+        var resultList = limitOrderList.Where(q => q.OrderId.Equals(input.OrderId)).ToList();
+        return new LimitOrderPageResultDto
         {
             TotalCount = resultList.Count,
             Data = resultList
