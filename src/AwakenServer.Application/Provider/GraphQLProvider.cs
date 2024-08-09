@@ -370,7 +370,8 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                         chainId,
                         address,
                         symbol,
-                        balance,    
+                        balance,
+                        imageUri
                     }}",
             Variables = new
             {

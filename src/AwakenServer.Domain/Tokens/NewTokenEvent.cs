@@ -11,4 +11,5 @@ public class NewTokenEvent
     public string Address { get; set; }
     public string Symbol { get; set; }
     public int Decimals { get; set; }
+    public string ImageUri { get; set; }
 }

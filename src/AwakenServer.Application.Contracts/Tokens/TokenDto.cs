@@ -9,5 +9,6 @@ namespace AwakenServer.Tokens
         public string Symbol { get; set; }
         public int Decimals { get; set; }
         public string ChainId { get; set; }
+        public string ImageUri { get; set; }
     }
 }

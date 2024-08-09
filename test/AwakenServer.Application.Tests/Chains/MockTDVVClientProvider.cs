@@ -44,12 +44,20 @@ public class MockTDVVClientProvider: IBlockchainClientProvider
                     Decimals = 8,
                     Symbol = symbol
                 });
+            case "NewToken":
+                return Task.FromResult(new TokenDto
+                {
+                    Address = "7RzVGiuVWkvL4VfVHdZfQF2Tri3sgLe9U991bohHFfSRZXuGX",
+                    Decimals = 8,
+                    Symbol = symbol,
+                    ImageUri = "TestImageUri"
+                });
             default:
                 return Task.FromResult(new TokenDto
                 {
                     Address = "7RzVGiuVWkvL4VfVHdZfQF2Tri3sgLe9U991bohHFfSRZXuGX",
                     Decimals = 8,
-                    Symbol = symbol
+                    Symbol = symbol,
                 });
                 
         }

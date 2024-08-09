@@ -34,6 +34,7 @@ using Token = AwakenServer.Tokens.Token;
 using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
 
+using TokenInfo = AElf.Contracts.MultiToken.TokenInfo;
 using IndexTradePair = AwakenServer.Trade.Index.TradePair;
 
 namespace AwakenServer.Trade
@@ -270,7 +271,7 @@ namespace AwakenServer.Trade
                     token1.TryAdd(pair.Token1.Id, _objectMapper.Map<TokenDto, Token>(pair.Token1));
                 }
             }
-
+            
             return new TokenListDto
             {
                 Token0 = ObjectMapper.Map<List<Tokens.Token>, List<TokenDto>>(token0.Values.ToList()),
@@ -496,13 +497,10 @@ namespace AwakenServer.Trade
                     Address = tokenInfo.Address,
                     Decimals = tokenInfo.Decimals,
                     Symbol = tokenInfo.Symbol,
+                    ImageUri = tokenInfo.ImageUri,
                     ChainId = chain.Id
                 });
                 
-                _logger.LogInformation("token created: Id:{id}, ChainId:{chainId}, Symbol:{symbol}, Decimal:{decimal}",
-                    token.Id,
-                    token.ChainId, token.Symbol, token.Decimals);
-
                 return token;
             }
 
