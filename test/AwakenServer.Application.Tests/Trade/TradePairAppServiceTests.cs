@@ -1098,6 +1098,7 @@ namespace AwakenServer.Trade
                 Id = ChainId
             });
             newToken.Symbol.ShouldBe("NewToken");
+            newToken.ImageUri.ShouldBe("TestImageUri");
             
             var id = Guid.NewGuid();
             var TradePairInfoDto = new TradePairInfoDto
@@ -1146,6 +1147,52 @@ namespace AwakenServer.Trade
             }
 
             return;
+        }
+        
+        [Fact]
+        public async Task SyncTradePairWithNewToken_Test()
+        {
+            var newToken = await _tradePairAppService.SyncTokenAsync(ChainId, "NewToken", new ChainDto
+            {
+                Name = ChainName,
+                Id = ChainId
+            });
+            newToken.Symbol.ShouldBe("NewToken");
+            newToken.ImageUri.ShouldBe("TestImageUri");
+            var newTokenId = newToken.Id;
+            
+            newToken = await _tokenAppService.GetAsync(new GetTokenInput()
+            {
+                Id = newTokenId
+            });
+            newToken.ImageUri.ShouldBe("TestImageUri");
+            
+            newToken = await _tokenAppService.GetAsync(new GetTokenInput()
+            {
+                Symbol = "NewToken"
+            });
+            newToken.ImageUri.ShouldBe("TestImageUri");
+            
+            var id = Guid.NewGuid();
+            var TradePairInfoDto = new TradePairInfoDto
+            {
+                Id = id.ToString(),
+                ChainId = ChainName,
+                Token0Symbol = "NewToken",
+                Token1Symbol = "USDT",
+                FeeRate = 0.5,
+                Address = "rCdkUKwrcUPm4F7Ek71pzJ8xoWRQ1YRdLo9i7wJ1XutSY5pjG"
+            };
+            
+            await _tradePairAppService.SyncPairAsync(0,TradePairInfoDto, new ChainDto()
+            {
+                Id = ChainId,
+                Name = ChainName
+            });
+            
+            var tradePair = await _tradePairAppService.GetAsync(Guid.Parse(TradePairInfoDto.Id));
+            tradePair.ShouldNotBeNull();
+            tradePair.Token0.ImageUri.ShouldBe("TestImageUri");
         }
         
         [Fact]

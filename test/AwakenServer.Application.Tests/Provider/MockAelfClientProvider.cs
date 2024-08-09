@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using AElf.Client.MultiToken;
 using AwakenServer.Chains;
 using AwakenServer.Tokens;
+using TokenInfo = AElf.Contracts.MultiToken.TokenInfo;
 
 namespace AwakenServer.Provider;
 

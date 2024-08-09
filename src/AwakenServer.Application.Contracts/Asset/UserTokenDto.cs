@@ -8,6 +8,7 @@ public class UserTokenDto
     public string Address { get; set; }
     public string Symbol { get; set; }
     public long Balance { get; set; }
+    public string ImageUri { get; set; }
 }
 
 public class UserTokenResultDto
