@@ -9,7 +9,10 @@ using AElf.Types;
 using AwakenServer.Tokens;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
+using MongoDB.Bson.IO;
 using TransactionFeeCharged = AElf.Contracts.MultiToken.TransactionFeeCharged;
+using TokenInfo = AElf.Contracts.MultiToken.TokenInfo;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 namespace AwakenServer.Chains
 {
@@ -24,7 +27,9 @@ namespace AwakenServer.Chains
     {
         private readonly IBlockchainClientFactory<AElfClient> _blockchainClientFactory;
         private readonly ILogger<AElfClientProvider> _logger;
-
+        private const string FTImageUriKey = "__ft_image_uri";
+        private const string NFTImageUriKey = "__nft_image_uri";
+        
         public AElfClientProvider(IBlockchainClientFactory<AElfClient> blockchainClientFactory,
             ILogger<AElfClientProvider> logger)
         {
@@ -51,6 +56,34 @@ namespace AwakenServer.Chains
             }
 
             var token = await GetTokenInfoFromChainAsync(chainName, address, symbol);
+            
+            _logger.LogInformation($"get token info, chain: {chainName}, address:{address}, symbol: {symbol}, TokenInfo: {JsonConvert.SerializeObject(token)}");
+            
+            var externalInfo = token.ExternalInfo;
+            if (externalInfo != null && externalInfo.Value != null)
+            {
+                if (externalInfo.Value.ContainsKey(FTImageUriKey))
+                {
+                    return new TokenDto
+                    {
+                        Address = address,
+                        Decimals = token.Decimals,
+                        Symbol = token.Symbol,
+                        ImageUri = externalInfo.Value[FTImageUriKey]
+                    };
+                }
+                else if (externalInfo.Value.ContainsKey(NFTImageUriKey))
+                {
+                    return new TokenDto
+                    {
+                        Address = address,
+                        Decimals = token.Decimals,
+                        Symbol = token.Symbol,
+                        ImageUri = externalInfo.Value[NFTImageUriKey]
+                    };
+                }
+            }
+            
             return new TokenDto
             {
                 Address = address,
@@ -76,6 +109,7 @@ namespace AwakenServer.Chains
             {
                 RawTransaction = txWithSignGetToken.ToByteArray().ToHex()
             });
+           
             return
                 TokenInfo.Parser.ParseFrom(
                     ByteArrayHelper.HexStringToByteArray(transactionGetTokenResult));

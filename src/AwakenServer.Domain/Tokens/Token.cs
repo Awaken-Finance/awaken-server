@@ -15,7 +15,7 @@ namespace AwakenServer.Tokens
         [Keyword] [NotNull] public virtual string Symbol { get; set; }
 
         public virtual int Decimals { get; set; }
-
+        [Keyword] public string ImageUri { get; set; }
         public Token()
         {
         }

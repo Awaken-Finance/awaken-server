@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains.Grain.Tokens;
+using Microsoft.Extensions.Logging;
 using Nest;
 using Orleans;
 using Volo.Abp;
@@ -22,14 +23,17 @@ namespace AwakenServer.Tokens
         private readonly IObjectMapper _objectMapper;
         private static readonly ConcurrentDictionary<string, TokenDto> SymbolCache = new();
         private readonly IDistributedEventBus _distributedEventBus;
+        private readonly ILogger<TokenAppService> _logger;
 
         public TokenAppService(INESTRepository<Token, Guid> tokenIndexRepository, IClusterClient clusterClient,
-            IObjectMapper objectMapper, IDistributedEventBus distributedEventBus)
+            IObjectMapper objectMapper, IDistributedEventBus distributedEventBus,
+            ILogger<TokenAppService> logger)
         {
             _tokenIndexRepository = tokenIndexRepository;
             _clusterClient = clusterClient;
             _objectMapper = objectMapper;
             _distributedEventBus = distributedEventBus;
+            _logger = logger;
         }
 
         public void DeleteAsync(Guid id)
@@ -131,6 +135,10 @@ namespace AwakenServer.Tokens
                 SymbolCache.AddOrUpdate(tokenGrainDto.Data.Symbol, tokenDto, (_, existingTokenDto) => tokenDto);
             }
 
+            _logger.LogInformation("token created: Id:{id}, ChainId:{chainId}, Symbol:{symbol}, Decimal:{decimal}, ImageUri:{ImageUri}",
+                token.Id,
+                token.ChainId, token.Symbol, token.Decimals, token.ImageUri);
+            
             return tokenDto;
         }
     }

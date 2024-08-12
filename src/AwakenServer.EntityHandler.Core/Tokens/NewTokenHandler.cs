@@ -32,8 +32,8 @@ public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransient
         try
         {
             await _tokenIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewTokenEvent, Token>(eventData));
-            _logger.LogDebug("Token info add success:{Id}-{Symbol}-{ChainId}", eventData.Id, eventData.Symbol,
-                eventData.ChainId);
+            _logger.LogDebug("Token info add success:{Id}-{Symbol}-{ChainId}, ImageUri:{ImageUri}", eventData.Id, eventData.Symbol,
+                eventData.ChainId, eventData.ImageUri);
         }
         catch (Exception ex)
         {

@@ -12,6 +12,7 @@ using Nethereum.Util;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
 using Volo.Abp.ObjectMapping;
+using TokenInfo = AElf.Contracts.MultiToken.TokenInfo;
 
 namespace AwakenServer.Trade.Handlers
 {
