@@ -5,7 +5,7 @@ public class LimitOrderIndexDto
     public TradePairWithTokenDto TradePair { get; set; }
     public string ChainId { get; set; }
     public long OrderId { get; set; }
-    public string Maker { get; set; }
+    public string MakerAddress { get; set; }
     public string SymbolIn { get; set; }
     public string SymbolOut { get; set; }
     public string TransactionHash { get; set; }
@@ -24,4 +24,6 @@ public class LimitOrderIndexDto
     public long RemoveTime { get; set; }
     public long LastUpdateTime { get; set; }
     public LimitOrderStatus LimitOrderStatus { get; set; }
+    public string TotalFee { get; set; }
+    public string NetworkFee { get; set; }
 }

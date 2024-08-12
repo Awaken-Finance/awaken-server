@@ -91,11 +91,15 @@ namespace AwakenServer.Trade
             foreach (var limitOrder in queryResult.Data)
             {
                 var limitOrderIndexDto = _objectMapper.Map<LimitOrderDto, LimitOrderIndexDto>(limitOrder);
+                var token0 = tokenMap[limitOrderIndexDto.SymbolIn].Token;
+                var token1 = tokenMap[limitOrderIndexDto.SymbolOut].Token;
+                
+                limitOrderIndexDto.MakerAddress = limitOrder.Maker;
                 limitOrderIndexDto.TradePair = new TradePairWithTokenDto()
                 {
                     ChainId = limitOrderIndexDto.ChainId,
-                    Token0 = tokenMap[limitOrderIndexDto.SymbolIn].Token,
-                    Token1 = tokenMap[limitOrderIndexDto.SymbolOut].Token
+                    Token0 = token0,
+                    Token1 = token1
                 };
 
                 var token0Price = tokenMap[limitOrderIndexDto.SymbolIn].Price;
@@ -118,6 +122,18 @@ namespace AwakenServer.Trade
                     limitOrder.AmountOutFilled.ToDecimalsString(tokenMap[limitOrderIndexDto.SymbolOut].Token.Decimals);
                 limitOrderIndexDto.AmountOutFilledUSD =
                     (Double.Parse(limitOrderIndexDto.AmountOutFilled) * token1Price).ToString();
+
+                var totalFee = 0d;
+                var networkFee = double.Parse(limitOrder.TransactionFee.ToDecimalsString(8));
+                
+                foreach (var fillRecord in limitOrder.FillRecords)
+                {
+                    totalFee += double.Parse(fillRecord.TotalFee.ToDecimalsString(token0.Decimals));
+                    networkFee += double.Parse(fillRecord.TransactionFee.ToDecimalsString(8));
+                }
+
+                limitOrderIndexDto.TotalFee = totalFee.ToString();
+                limitOrderIndexDto.NetworkFee = networkFee.ToString();
                 
                 dataList.Add(limitOrderIndexDto);
             }
@@ -160,6 +176,9 @@ namespace AwakenServer.Trade
                 
                 fillRecordDto.AmountOutFilled = fillRecord.AmountOutFilled.ToDecimalsString(tokenMap[orderLimit.SymbolOut].Token.Decimals);
                 fillRecordDto.AmountOutFilledUSD = (Double.Parse(fillRecordDto.AmountOutFilled) * token1Price).ToString();
+                
+                fillRecordDto.NetworkFee = fillRecord.TransactionFee.ToDecimalsString(8);
+                fillRecordDto.TotalFee = fillRecord.TotalFee.ToDecimalsString(tokenMap[orderLimit.SymbolIn].Token.Decimals);
                 
                 resultData.Add(fillRecordDto);
             }

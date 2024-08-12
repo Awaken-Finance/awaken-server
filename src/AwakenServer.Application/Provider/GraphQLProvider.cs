@@ -366,8 +366,8 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderResultDto>(new GraphQLRequest
         {
             Query = 
-                @"query($makerAddress:String,$limitOrderStatus:Int!,$skipCount:Int!,$maxResultCount:Int!,$sorting:String = null){
-            limitOrders(dto: {makerAddress:$makerAddress,limitOrderStatus:$limitOrderStatus,skipCount:$skipCount,maxResultCount:$maxResultCount,sorting:$sorting}){
+                @"query($makerAddress:String,$limitOrderStatus:Int!,$tokenSymbol:String = null,$skipCount:Int!,$maxResultCount:Int!,$sorting:String = null){
+            limitOrders(dto: {makerAddress:$makerAddress,limitOrderStatus:$limitOrderStatus,tokenSymbol:$tokenSymbol,skipCount:$skipCount,maxResultCount:$maxResultCount,sorting:$sorting}){
                     totalCount,
                     data{
                         chainId,
@@ -376,6 +376,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                         symbolIn,
                         symbolOut,
                         transactionHash,
+                        transactionFee,
                         amountIn,
                         amountOut,
                         amountInFilled,
@@ -391,8 +392,10 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                             takerAddress,
                             amountInFilled,
                             amountOutFilled,
+                            totalFee,
                             transactionTime,
                             transactionHash,
+                            transactionFee,
                             status,            
                         }
                     }
@@ -402,6 +405,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             {
                 makerAddress = input.MakerAddress,
                 limitOrderStatus = input.LimitOrderStatus,
+                tokenSymbol = input.TokenSymbol,
                 skipCount = input.SkipCount,
                 maxResultCount = input.MaxResultCount,
                 sorting = input.Sorting
@@ -426,6 +430,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                         symbolIn,
                         symbolOut,
                         transactionHash,
+                        transactionFee,
                         amountIn,
                         amountOut,
                         amountInFilled,
@@ -441,8 +446,10 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                             takerAddress,
                             amountInFilled,
                             amountOutFilled,
+                            totalFee,
                             transactionTime,
                             transactionHash,
+                            transactionFee,
                             status,            
                         }
                     }

@@ -8,6 +8,8 @@ public class LimitOrderFillRecordIndexDto
     public string AmountInFilledUSD { get; set; }
     public string AmountOutFilledUSD { get; set; }
     public long TransactionTime { get; set; }
+    public string NetworkFee { get; set; }
+    public string TotalFee { get; set; }
     public string TransactionHash { get; set; }
     public LimitOrderStatus Status { get; set; }
 }

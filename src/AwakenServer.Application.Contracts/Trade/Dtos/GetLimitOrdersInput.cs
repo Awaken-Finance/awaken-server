@@ -8,6 +8,7 @@ public class GetLimitOrdersInput : PagedAndSortedResultRequestDto
     [Required] 
     public string MakerAddress { get; set; }
     public LimitOrderStatus LimitOrderStatus { get; set; } = 0;
+    public string TokenSymbol { get; set; }
 }
 
 public enum LimitOrderStatus
