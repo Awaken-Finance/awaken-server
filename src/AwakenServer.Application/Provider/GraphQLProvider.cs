@@ -417,11 +417,12 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     
     public async Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrderDetailsInput input)
     {
-        var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderResultDto>(new GraphQLRequest
+        _logger.LogInformation($"Query limitOrderDetails, OrderId: {input.OrderId}");
+        var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderDetailResultDto>(new GraphQLRequest
         {
             Query = 
                 @"query($orderId:Long!){
-            limitOrders(dto: {orderId:$orderId}){
+            limitOrderDetails(dto: {orderId:$orderId}){
                     totalCount,
                     data{
                         chainId,
@@ -459,9 +460,21 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             {
                 orderId = input.OrderId
             }
-                
         });
-        return graphQlResponse.Data.LimitOrders;
+        
+        if (graphQlResponse.Errors != null)
+        {
+            ErrorLog(graphQlResponse.Errors);
+            return new LimitOrderPageResultDto();
+        }
+        
+        if (graphQlResponse.Data == null || graphQlResponse.Data.LimitOrderDetails == null)
+        {
+            _logger.LogError($"Query limitOrderDetails, result is null");
+            return new LimitOrderPageResultDto();
+        }
+        
+        return graphQlResponse.Data.LimitOrderDetails;
     }
     
     public async Task<List<UserTokenDto>> GetUserTokensAsync(string chainId, string address)

@@ -7,7 +7,7 @@ public class GetLimitOrdersInput : PagedAndSortedResultRequestDto
 {
     [Required] 
     public string MakerAddress { get; set; }
-    public LimitOrderStatus LimitOrderStatus { get; set; } = 0;
+    public int LimitOrderStatus { get; set; } = 0;
     public string TokenSymbol { get; set; }
 }
 
@@ -17,6 +17,6 @@ public enum LimitOrderStatus
     PartiallyFilling = 2,
     FullFilled = 3,
     Cancelled = 4,
-    Epired = 5,
+    Expired = 5,
     Revoked = 6
 }

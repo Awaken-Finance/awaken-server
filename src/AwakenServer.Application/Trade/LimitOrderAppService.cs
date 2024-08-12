@@ -152,7 +152,9 @@ namespace AwakenServer.Trade
                 OrderId = input.OrderId
             });
 
-            if (queryResult.Data.Count != 1)
+            _logger.LogInformation($"Query limit order detail: {input.OrderId}, result count: {queryResult.TotalCount}");
+            
+            if (queryResult.Data == null || queryResult.Data.Count <= 0)
             {
                 return new PagedResultDto<LimitOrderFillRecordIndexDto>();
             }
