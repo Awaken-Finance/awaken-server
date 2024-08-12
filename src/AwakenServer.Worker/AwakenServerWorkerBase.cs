@@ -148,7 +148,8 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
                     $"newIndexHeight: {newIndexHeight}, " +
                     $"ResetBlockHeightFlag: {_workerOptions.ResetBlockHeightFlag}, " +
                     $"ResetBlockHeight: {_workerOptions.ResetBlockHeight}, " +
-                    $"QueryStartBlockHeightOffset: {_workerOptions.QueryStartBlockHeightOffset}");
+                    $"QueryStartBlockHeightOffset: {_workerOptions.QueryStartBlockHeightOffset}, " +
+                    $"startHeight: {lastEndHeight + _workerOptions.QueryStartBlockHeightOffset}");
                 
                 var blockHeight = await SyncDataAsync(chain, lastEndHeight + _workerOptions.QueryStartBlockHeightOffset, newIndexHeight);
 
@@ -165,8 +166,8 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
                 }
                 
                 _logger.LogInformation(
-                    "End deal data for businessType: {businessType} chainId: {chainId} lastEndHeight: {BlockHeight}",
-                    _businessType, chain.Name, blockHeight);
+                    "End deal data for businessType: {businessType} chainId: {chainId} blockHeight: {BlockHeight} lastEndHeight:{lastEndHeight}",
+                    _businessType, chain.Name, blockHeight, lastEndHeight);
             }
             catch (Exception e)
             {

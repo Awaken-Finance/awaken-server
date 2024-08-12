@@ -329,6 +329,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         _logger.LogInformation($"liquidityRecord from graphql: {graphQlResponse.Data.LiquidityRecord.TotalCount}");
         return graphQlResponse.Data.LiquidityRecord;
     }
+
     
     public async Task<UserLiquidityPageResultDto> QueryUserLiquidityAsync(GetUserLiquidityInput input)
     {
@@ -360,6 +361,109 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         return graphQlResponse.Data.UserLiquidity;
     }
 
+    public async Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrdersInput input)
+    {
+        var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderResultDto>(new GraphQLRequest
+        {
+            Query = 
+                @"query($makerAddress:String,$limitOrderStatus:Int!,$tokenSymbol:String = null,$skipCount:Int!,$maxResultCount:Int!,$sorting:String = null){
+            limitOrders(dto: {makerAddress:$makerAddress,limitOrderStatus:$limitOrderStatus,tokenSymbol:$tokenSymbol,skipCount:$skipCount,maxResultCount:$maxResultCount,sorting:$sorting}){
+                    totalCount,
+                    data{
+                        chainId,
+                        orderId,
+                        maker,
+                        symbolIn,
+                        symbolOut,
+                        transactionHash,
+                        transactionFee,
+                        amountIn,
+                        amountOut,
+                        amountInFilled,
+                        amountOutFilled,
+                        deadline,
+                        commitTime,
+                        fillTime,
+                        cancelTime,
+                        removeTime,
+                        lastUpdateTime,
+                        limitOrderStatus,
+                        fillRecords{
+                            takerAddress,
+                            amountInFilled,
+                            amountOutFilled,
+                            totalFee,
+                            transactionTime,
+                            transactionHash,
+                            transactionFee,
+                            status,            
+                        }
+                    }
+                }
+            }",
+            Variables = new
+            {
+                makerAddress = input.MakerAddress,
+                limitOrderStatus = input.LimitOrderStatus,
+                tokenSymbol = input.TokenSymbol,
+                skipCount = input.SkipCount,
+                maxResultCount = input.MaxResultCount,
+                sorting = input.Sorting
+            }
+                
+        });
+        return graphQlResponse.Data.LimitOrders;
+    }
+    
+    public async Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrderDetailsInput input)
+    {
+        var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderResultDto>(new GraphQLRequest
+        {
+            Query = 
+                @"query($orderId:Long!){
+            limitOrders(dto: {orderId:$orderId}){
+                    totalCount,
+                    data{
+                        chainId,
+                        orderId,
+                        maker,
+                        symbolIn,
+                        symbolOut,
+                        transactionHash,
+                        transactionFee,
+                        amountIn,
+                        amountOut,
+                        amountInFilled,
+                        amountOutFilled,
+                        deadline,
+                        commitTime,
+                        fillTime,
+                        cancelTime,
+                        removeTime,
+                        lastUpdateTime,
+                        limitOrderStatus,
+                        fillRecords{
+                            takerAddress,
+                            amountInFilled,
+                            amountOutFilled,
+                            totalFee,
+                            transactionTime,
+                            transactionHash,
+                            transactionFee,
+                            status,            
+                        }
+                    }
+                }
+            }",
+            Variables = new
+            {
+                orderId = input.OrderId
+            }
+                
+        });
+        return graphQlResponse.Data.LimitOrders;
+    }
+    
     public async Task<List<UserTokenDto>> GetUserTokensAsync(string chainId, string address)
     {
         var graphQLResponse = await _graphQLClient.SendQueryAsync<UserTokenResultDto>(new GraphQLRequest

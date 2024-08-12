@@ -161,6 +161,15 @@ namespace AwakenServer
             CreateMap<CurrentUserLiquidityEto, CurrentUserLiquidityIndex>();
             CreateMap<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>();
             
+            CreateMap<LimitOrderDto, LimitOrderIndexDto>()
+                .ForMember(dest => dest.AmountIn, opt => opt.Ignore())
+                .ForMember(dest => dest.AmountOut, opt => opt.Ignore())
+                .ForMember(dest => dest.AmountInFilled, opt => opt.Ignore())
+                .ForMember(dest => dest.AmountOutFilled, opt => opt.Ignore());;
+            CreateMap<FillRecord, LimitOrderFillRecordIndexDto>()
+                .ForMember(dest => dest.AmountInFilled, opt => opt.Ignore())
+                .ForMember(dest => dest.AmountOutFilled, opt => opt.Ignore());
+            
             //Favorite
             CreateMapForFavorite();
         }
