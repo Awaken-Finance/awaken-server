@@ -122,7 +122,7 @@ namespace AwakenServer.Trade
                     limitOrder.AmountOutFilled.ToDecimalsString(tokenMap[limitOrderIndexDto.SymbolOut].Token.Decimals);
                 limitOrderIndexDto.AmountOutFilledUSD =
                     (Double.Parse(limitOrderIndexDto.AmountOutFilled) * token1Price).ToString();
-
+                
                 var totalFee = 0d;
                 var networkFee = double.Parse(limitOrder.TransactionFee.ToDecimalsString(8));
                 
@@ -134,6 +134,14 @@ namespace AwakenServer.Trade
 
                 limitOrderIndexDto.TotalFee = totalFee.ToString();
                 limitOrderIndexDto.NetworkFee = networkFee.ToString();
+                
+                _logger.LogInformation($"Limit order list, " +
+                                       $"input: {JsonConvert.SerializeObject(input.MakerAddress)}, " +
+                                       $"index: {JsonConvert.SerializeObject(limitOrder)}, " +
+                                       $"token0 decimal: {tokenMap[limitOrderIndexDto.SymbolIn].Token.Decimals}, " +
+                                       $"token1 decimal: {tokenMap[limitOrderIndexDto.SymbolOut].Token.Decimals}, " +
+                                       $"amountIn: {limitOrderIndexDto.AmountIn}, " +
+                                       $"amountOut: {limitOrderIndexDto.AmountOut}");
                 
                 dataList.Add(limitOrderIndexDto);
             }
