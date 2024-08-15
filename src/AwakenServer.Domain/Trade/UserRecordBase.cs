@@ -28,6 +28,10 @@ namespace AwakenServer.Trade
         public List<SwapRecord> SwapRecords { get; set; }
         [Keyword] public string MethodName { get; set; }
         public List<PercentRoute> PercentRoutes { get; set; }
+        public bool IsLimitOrder { get; set; }
+        public string SymbolIn { get; set; }
+        public string SymbolOut { get; set; }
+        
         protected UserRecordBase()
         {
         }

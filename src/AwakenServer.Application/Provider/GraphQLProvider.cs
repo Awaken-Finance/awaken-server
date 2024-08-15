@@ -216,9 +216,12 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                     totalFee,
                     symbolOut,
                     symbolIn,
-                    channel
+                    channel,
+                    isLimitOrder
                 },
-                methodName
+                methodName,
+                inputArgs,
+                isLimitOrder
             }}",
             Variables = new
             {

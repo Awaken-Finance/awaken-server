@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using Awaken.Contracts.Hooks;
 using AwakenServer.Grains.Tests;
 using AwakenServer.Provider;
 using AwakenServer.Trade.Dtos;
+using Google.Protobuf;
 using Microsoft.AspNetCore.Routing.Matching;
 using Nest;
 using Shouldly;
@@ -82,6 +84,15 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task MultiSwapTest()
         {
+            var swapInput = new SwapExactTokensForTokensInput()
+            {
+                SwapTokens = { 
+                    new SwapExactTokensForTokens() {
+                        Path = { "ELF", "USDT", "SGR-1" },
+                        FeeRates = { 5, 300 }
+                    } 
+                }
+            };
             var swapRecordDto = new SwapRecordDto
             {
                 ChainId = "tDVV",
@@ -106,7 +117,8 @@ namespace AwakenServer.Trade
                         PairAddress = "2mizZPNPiWmre1rRAaWydcRdLzAA5RBAp2a7mWGzPSc7GHy25D",
                         Channel = ""
                     }
-                }
+                },
+                InputArgs = swapInput.ToByteString().ToBase64(),
             };
             var tradePair = new Index.TradePair()
             {
@@ -153,6 +165,15 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task MultiSwapRecordsTest()
         {
+            var swapInput = new SwapExactTokensForTokensInput()
+            {
+                SwapTokens = { 
+                    new SwapExactTokensForTokens() {
+                        Path = { "USDT", "ETH", "BTC" },
+                        FeeRates = { 5, 300 }
+                    } 
+                }
+            };
             var swapRecordDto = new SwapRecordDto
             {
                 ChainId = "tDVV",
@@ -176,7 +197,9 @@ namespace AwakenServer.Trade
                         SymbolIn = TokenEthSymbol,
                         SymbolOut = TokenBtcSymbol
                     }
-                }
+                },
+                InputArgs = swapInput.ToByteString().ToBase64(),
+                IsLimitOrder = false
             };
             
             await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
@@ -206,6 +229,15 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task PercentRoutesTest1()
         {
+            var swapInput = new SwapExactTokensForTokensInput()
+            {
+                SwapTokens = { 
+                    new SwapExactTokensForTokens() {
+                        Path = { "USDT", "ETH", "BTC" },
+                        FeeRates = { 5, 300 }
+                    } 
+                }
+            };
             var swapRecordDto = new SwapRecordDto
             {
                 ChainId = "tDVV",
@@ -229,7 +261,8 @@ namespace AwakenServer.Trade
                         SymbolIn = TokenEthSymbol,
                         SymbolOut = TokenBtcSymbol
                     }
-                }
+                },
+                InputArgs = swapInput.ToByteString().ToBase64(),
             };
             
             await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
@@ -254,6 +287,19 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task PercentRoutesTest2()
         {
+            var swapInput = new SwapExactTokensForTokensInput()
+            {
+                SwapTokens = { 
+                    new SwapExactTokensForTokens() {
+                        Path = { "USDT", "ETH", "BTC" },
+                        FeeRates = { 5, 300 }
+                    },
+                    new SwapExactTokensForTokens() {
+                        Path = { "USDT", "BTC" },
+                        FeeRates = { 300 }
+                    } 
+                }
+            };
             var swapRecordDto = new SwapRecordDto
             {
                 ChainId = "tDVV",
@@ -285,7 +331,8 @@ namespace AwakenServer.Trade
                         SymbolIn = TokenUsdtSymbol,
                         SymbolOut = TokenBtcSymbol
                     }
-                }
+                },
+                InputArgs = swapInput.ToByteString().ToBase64(),
             };
             
             await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
@@ -296,6 +343,8 @@ namespace AwakenServer.Trade
                 TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37"
             });
             record.Items.Count.ShouldBe(1);
+            record.Items[0].TradePair.Token0.Symbol.ShouldBe("USDT");
+            record.Items[0].TradePair.Token1.Symbol.ShouldBe("BTC");
             record.Items[0].Token0Amount.ShouldBe("200");
             record.Items[0].Token1Amount.ShouldBe("180");
             record.Items[0].Price.ShouldBe(1.1111111111111112d);
@@ -303,6 +352,134 @@ namespace AwakenServer.Trade
             record.Items[0].PercentRoutes[0].Percent.ShouldBe("50");
             record.Items[0].PercentRoutes[0].Route.Count.ShouldBe(2);
             record.Items[0].PercentRoutes[0].Route[0].PairAddress.ShouldBe(TradePairEthUsdtAddress);
+            record.Items[0].PercentRoutes[0].Route[0].SymbolIn.ShouldBe(TokenUsdtSymbol);
+            record.Items[0].PercentRoutes[0].Route[0].SymbolOut.ShouldBe(TokenEthSymbol);
+            record.Items[0].PercentRoutes[0].Route[1].PairAddress.ShouldBe(TradePairBtcEthAddress);
+            record.Items[0].PercentRoutes[0].Route[1].SymbolIn.ShouldBe(TokenEthSymbol);
+            record.Items[0].PercentRoutes[0].Route[1].SymbolOut.ShouldBe(TokenBtcSymbol);
+            record.Items[0].PercentRoutes[1].Percent.ShouldBe("50");
+            record.Items[0].PercentRoutes[1].Route.Count.ShouldBe(1);
+            record.Items[0].PercentRoutes[1].Route[0].PairAddress.ShouldBe(TradePairBtcUsdtAddress);
+            record.Items[0].PercentRoutes[1].Route[0].SymbolIn.ShouldBe(TokenUsdtSymbol);
+            record.Items[0].PercentRoutes[1].Route[0].SymbolOut.ShouldBe(TokenBtcSymbol);
+        }
+        
+        [Fact]
+        public async Task LimitOrderTest1()
+        {
+            var swapInput = new SwapExactTokensForTokensInput()
+            {
+                SwapTokens = { 
+                    new SwapExactTokensForTokens() {
+                        Path = { "USDT", "ETH" },
+                        FeeRates = { 5 }
+                    }
+                }
+            };
+            var swapRecordDto = new SwapRecordDto
+            {
+                ChainId = "tDVV",
+                PairAddress = TradePairEthUsdtAddress,
+                Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                AmountOut = NumberFormatter.WithDecimals(10, 8),
+                AmountIn = NumberFormatter.WithDecimals(100, 6),
+                SymbolIn = TokenUsdtSymbol,
+                SymbolOut = TokenEthSymbol,
+                Channel = "test",
+                BlockHeight = 99,
+                IsLimitOrder = true,
+                InputArgs = swapInput.ToByteString().ToBase64(),
+            };
+            
+            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+
+            var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
+            {
+                ChainId = "tDVV",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37"
+            });
+            record.Items.Count.ShouldBe(1);
+            record.Items[0].TradePair.Id.ShouldBe(Guid.Empty);
+            record.Items[0].TradePair.Token0.Symbol.ShouldBe("USDT");
+            record.Items[0].TradePair.Token0.Decimals.ShouldBe(6);
+            record.Items[0].TradePair.Token1.Symbol.ShouldBe("ETH");
+            record.Items[0].TradePair.Token1.Decimals.ShouldBe(8);
+            record.Items[0].Token0Amount.ShouldBe("100");
+            record.Items[0].Token1Amount.ShouldBe("10");
+            record.Items[0].Price.ShouldBe(10);
+            record.Items[0].PercentRoutes.Count.ShouldBe(0);
+        }
+        
+        [Fact]
+        public async Task LimitOrderTestTest2()
+        {
+            var swapInput = new SwapExactTokensForTokensInput()
+            {
+                SwapTokens = { 
+                    new SwapExactTokensForTokens() {
+                        Path = { "USDT", "ETH", "BTC" },
+                        FeeRates = { 5, 300 }
+                    },
+                    new SwapExactTokensForTokens() {
+                        Path = { "USDT", "BTC" },
+                        FeeRates = { 300 }
+                    } 
+                }
+            };
+            var swapRecordDto = new SwapRecordDto
+            {
+                ChainId = "tDVV",
+                Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                AmountOut = NumberFormatter.WithDecimals(10, 8),
+                AmountIn = NumberFormatter.WithDecimals(100, 6),
+                SymbolIn = TokenUsdtSymbol,
+                SymbolOut = TokenEthSymbol,
+                Channel = "test",
+                BlockHeight = 99,
+                SwapRecords = new List<Dtos.SwapRecord>()
+                {
+                    new Dtos.SwapRecord()
+                    {
+                        PairAddress = TradePairBtcEthAddress,
+                        AmountIn = NumberFormatter.WithDecimals(10, 8),
+                        AmountOut = NumberFormatter.WithDecimals(90, 8),
+                        SymbolIn = TokenEthSymbol,
+                        SymbolOut = TokenBtcSymbol
+                    },
+                    new Dtos.SwapRecord()
+                    {
+                        PairAddress = TradePairBtcUsdtAddress,
+                        AmountIn = NumberFormatter.WithDecimals(100, 6),
+                        AmountOut = NumberFormatter.WithDecimals(90, 8),
+                        SymbolIn = TokenUsdtSymbol,
+                        SymbolOut = TokenBtcSymbol
+                    }
+                },
+                InputArgs = swapInput.ToByteString().ToBase64(),
+                IsLimitOrder = true
+            };
+            
+            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+
+            var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
+            {
+                ChainId = "tDVV",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37"
+            });
+            record.Items.Count.ShouldBe(1);
+            record.Items[0].TradePair.Token0.Symbol.ShouldBe("USDT");
+            record.Items[0].TradePair.Token1.Symbol.ShouldBe("BTC");
+            record.Items[0].Token0Amount.ShouldBe("200");
+            record.Items[0].Token1Amount.ShouldBe("180");
+            record.Items[0].Price.ShouldBe(1.1111111111111112d);
+            record.Items[0].PercentRoutes.Count.ShouldBe(2);
+            record.Items[0].PercentRoutes[0].Percent.ShouldBe("50");
+            record.Items[0].PercentRoutes[0].Route.Count.ShouldBe(2);
+            record.Items[0].PercentRoutes[0].Route[0].PairAddress.ShouldBe(null);
             record.Items[0].PercentRoutes[0].Route[0].SymbolIn.ShouldBe(TokenUsdtSymbol);
             record.Items[0].PercentRoutes[0].Route[0].SymbolOut.ShouldBe(TokenEthSymbol);
             record.Items[0].PercentRoutes[0].Route[1].PairAddress.ShouldBe(TradePairBtcEthAddress);

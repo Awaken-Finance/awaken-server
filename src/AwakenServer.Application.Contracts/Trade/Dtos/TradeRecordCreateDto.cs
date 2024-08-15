@@ -20,5 +20,6 @@ namespace AwakenServer.Trade.Dtos
 
         public bool IsRevert { get; set; }
         public string MethodName { get; set; }
+        public bool IsLimitOrder { get; set; }
     }
 }
