@@ -758,9 +758,17 @@ namespace AwakenServer.Trade
 
         private async Task<List<List<SwapRecord>>> RebuildSwapAsync(SwapRecordDto dto, List<Index.TradePair> pairList, List<SwapRecord> swapRecords)
         {
+            _logger.LogInformation($"RebuildSwapAsync, dto: {JsonConvert.SerializeObject(dto)}");
+            
             var indexSwapRecordDistributions = new List<List<SwapRecord>>();
             var paths = new List<List<string>>();
             var feeRates = new List<List<long>>();
+            
+            if (string.IsNullOrEmpty(dto.InputArgs))
+            {
+                indexSwapRecordDistributions.Add(swapRecords);
+                return indexSwapRecordDistributions;
+            }
             
             if (dto.MethodName == ExactOutMethodName)
             {
@@ -825,14 +833,27 @@ namespace AwakenServer.Trade
                     }
                     else
                     {
+                        var mergedSwapRecord = new SwapRecord()
+                        {
+                            AmountIn = normalSwapRecord.AmountIn,
+                            AmountOut = normalSwapRecord.AmountOut,
+                            Channel = normalSwapRecord.Channel,
+                            IsLimitOrder = normalSwapRecord.IsLimitOrder,
+                            PairAddress = normalSwapRecord.PairAddress,
+                            SymbolIn = normalSwapRecord.SymbolIn,
+                            SymbolOut = normalSwapRecord.SymbolOut,
+                            TotalFee = normalSwapRecord.TotalFee,
+                            TradePairId = normalSwapRecord.TradePairId,
+                            TradePair = normalSwapRecord.TradePair
+                        };
                         int index = swapRecords.IndexOf(normalSwapRecord);
                         if (index != -1 && index < swapRecords.Count - 1
                             && swapRecords[index + 1].SymbolIn == normalSwapRecord.SymbolIn
                             && swapRecords[index + 1].SymbolOut == normalSwapRecord.SymbolOut
                             && swapRecords[index + 1].IsLimitOrder)
                         {
-                            normalSwapRecord.AmountIn += swapRecords[index + 1].AmountIn;
-                            normalSwapRecord.AmountOut += swapRecords[index + 1].AmountOut;
+                            mergedSwapRecord.AmountIn += swapRecords[index + 1].AmountIn;
+                            mergedSwapRecord.AmountOut += swapRecords[index + 1].AmountOut;
                             limitIndex++;
                         }
                         else if (index != -1 && index > 0
@@ -840,11 +861,11 @@ namespace AwakenServer.Trade
                              && swapRecords[index - 1].SymbolOut == normalSwapRecord.SymbolOut
                              && swapRecords[index - 1].IsLimitOrder)
                         {
-                            normalSwapRecord.AmountIn += swapRecords[index - 1].AmountIn;
-                            normalSwapRecord.AmountOut += swapRecords[index - 1].AmountOut;
+                            mergedSwapRecord.AmountIn += swapRecords[index - 1].AmountIn;
+                            mergedSwapRecord.AmountOut += swapRecords[index - 1].AmountOut;
                             limitIndex++;
                         }
-                        recordPath.Add(normalSwapRecord);
+                        recordPath.Add(mergedSwapRecord);
                     }
                 }
                 indexSwapRecordDistributions.Add(recordPath);
@@ -855,7 +876,7 @@ namespace AwakenServer.Trade
         
         public async Task<bool> CreateMultiSwapAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
-            _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}, method name: {dto.MethodName}");
+            _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}, method name: {dto.MethodName}, input args: {dto.InputArgs}");
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
@@ -877,6 +898,8 @@ namespace AwakenServer.Trade
                 Channel = dto.Channel,
                 IsLimitOrder = dto.IsLimitOrder
             });
+            
+            _logger.LogInformation($"creare multi swap, txn id: {dto.TransactionHash}, swap records: {JsonConvert.SerializeObject(dto.SwapRecords)}");
             
             var pairList = new List<Index.TradePair>();
             var indexSwapRecords = new List<SwapRecord>();
@@ -922,6 +945,8 @@ namespace AwakenServer.Trade
                 }
             }
             
+            _logger.LogInformation($"creare multi swap, txn id: {dto.TransactionHash}, index swap records: {JsonConvert.SerializeObject(indexSwapRecords)}");
+
             var indexSwapRecordDistributions = await RebuildSwapAsync(dto, pairList, indexSwapRecords);
             
             var (amount0, amount1, totalFee, amountInSum, amountOutSum) = GetDistributionsSum(indexSwapRecordDistributions, pairList, tokenMap);
@@ -940,7 +965,8 @@ namespace AwakenServer.Trade
                 Channel = dto.Channel,
                 Sender = dto.Sender,
                 BlockHeight = dto.BlockHeight,
-                MethodName = dto.MethodName
+                MethodName = dto.MethodName,
+                InputArgs = dto.InputArgs
             };
 
             _logger.LogInformation(
@@ -954,11 +980,7 @@ namespace AwakenServer.Trade
             tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
             tradeRecord.Id = Guid.NewGuid();
             tradeRecord.SwapRecords = indexSwapRecords;
-            if (indexSwapRecordDistributions.Count > 1 ||
-                (indexSwapRecordDistributions.Count > 0 && indexSwapRecordDistributions[0].Count > 1))
-            {
-                tradeRecord.PercentRoutes = GetPercentRoutes(record.MethodName, indexSwapRecordDistributions, amountInSum, amountOutSum);
-            }
+            tradeRecord.PercentRoutes = GetPercentRoutes(record.MethodName, indexSwapRecordDistributions, amountInSum, amountOutSum);
             
             _logger.LogInformation($"creare multi swap records, transactionHash: {dto.TransactionHash}, " +
                                    $"MethodName: {record.MethodName}, " +

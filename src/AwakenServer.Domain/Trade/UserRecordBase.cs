@@ -31,7 +31,7 @@ namespace AwakenServer.Trade
         public bool IsLimitOrder { get; set; }
         public string SymbolIn { get; set; }
         public string SymbolOut { get; set; }
-        
+        public string InputArgs { get; set; }
         protected UserRecordBase()
         {
         }
