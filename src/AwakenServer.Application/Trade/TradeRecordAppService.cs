@@ -763,6 +763,8 @@ namespace AwakenServer.Trade
             var indexSwapRecordDistributions = new List<List<SwapRecord>>();
             var paths = new List<List<string>>();
             var feeRates = new List<List<long>>();
+            bool isExactInMethod = false;
+            var exactAmounts = new List<long>();
             
             if (string.IsNullOrEmpty(dto.InputArgs))
             {
@@ -778,16 +780,19 @@ namespace AwakenServer.Trade
                 {
                     paths.Add(swapToken.Path.ToList());
                     feeRates.Add(swapToken.FeeRates.ToList());
+                    exactAmounts.Add(swapToken.AmountOut);
                 }
             }
             else
             {
+                isExactInMethod = true;
                 var swapTokens = SwapExactTokensForTokensInput
                     .Parser.ParseFrom(ByteString.FromBase64(dto.InputArgs)).SwapTokens;
                 foreach (var swapToken in swapTokens)
                 {
                     paths.Add(swapToken.Path.ToList());
                     feeRates.Add(swapToken.FeeRates.ToList());
+                    exactAmounts.Add(swapToken.AmountIn);
                 }
             }
 
@@ -797,8 +802,6 @@ namespace AwakenServer.Trade
                 return indexSwapRecordDistributions;
             }
 
-            var limitIndex = 0;
-            var allLimitOrders = swapRecords.Where(x => x.IsLimitOrder).ToList();
             for (int i = 0; i < paths.Count; i++)
             {
                 var path = paths[i];
@@ -820,57 +823,121 @@ namespace AwakenServer.Trade
                         record.IsLimitOrder == false &&
                         (record.TradePair != null && record.TradePair.FeeRate * FeeRateMax == fee)
                     );
-                    if (normalSwapRecord == null)
+                    recordPath.Add(normalSwapRecord == null ? new SwapRecord()
                     {
-                        try
-                        {
-                            recordPath.Add(allLimitOrders[limitIndex++]);
-                        }
-                        catch (Exception e)
-                        {
-                            _logger.LogError($"RebuildSwapAsync, push limit order record failed. {e}");
-                        }
-                    }
-                    else
-                    {
-                        var mergedSwapRecord = new SwapRecord()
-                        {
-                            AmountIn = normalSwapRecord.AmountIn,
-                            AmountOut = normalSwapRecord.AmountOut,
-                            Channel = normalSwapRecord.Channel,
-                            IsLimitOrder = normalSwapRecord.IsLimitOrder,
-                            PairAddress = normalSwapRecord.PairAddress,
-                            SymbolIn = normalSwapRecord.SymbolIn,
-                            SymbolOut = normalSwapRecord.SymbolOut,
-                            TotalFee = normalSwapRecord.TotalFee,
-                            TradePairId = normalSwapRecord.TradePairId,
-                            TradePair = normalSwapRecord.TradePair
-                        };
-                        int index = swapRecords.IndexOf(normalSwapRecord);
-                        if (index != -1 && index < swapRecords.Count - 1
-                            && swapRecords[index + 1].SymbolIn == normalSwapRecord.SymbolIn
-                            && swapRecords[index + 1].SymbolOut == normalSwapRecord.SymbolOut
-                            && swapRecords[index + 1].IsLimitOrder)
-                        {
-                            mergedSwapRecord.AmountIn += swapRecords[index + 1].AmountIn;
-                            mergedSwapRecord.AmountOut += swapRecords[index + 1].AmountOut;
-                            limitIndex++;
-                        }
-                        else if (index != -1 && index > 0
-                             && swapRecords[index - 1].SymbolIn == normalSwapRecord.SymbolIn
-                             && swapRecords[index - 1].SymbolOut == normalSwapRecord.SymbolOut
-                             && swapRecords[index - 1].IsLimitOrder)
-                        {
-                            mergedSwapRecord.AmountIn += swapRecords[index - 1].AmountIn;
-                            mergedSwapRecord.AmountOut += swapRecords[index - 1].AmountOut;
-                            limitIndex++;
-                        }
-                        recordPath.Add(mergedSwapRecord);
-                    }
+                        SymbolIn = tokenA,
+                        SymbolOut = tokenB,
+                        IsLimitOrder = true
+                    } : normalSwapRecord);
                 }
                 indexSwapRecordDistributions.Add(recordPath);
             }
-
+            
+            var limitOrders = swapRecords.Where(x => x.IsLimitOrder).ToList();
+            if (limitOrders.Count <= 0)
+            {
+                return indexSwapRecordDistributions;
+            }
+            
+            if (isExactInMethod)
+            {
+                var limitIndex = 0;
+                for (int i = 0; i < indexSwapRecordDistributions.Count; i++)
+                {
+                    var fullPath = indexSwapRecordDistributions[i];
+                    var curExactAmount = exactAmounts[i];
+                    for (int j = 0; j < fullPath.Count; j++)
+                    {
+                        var poolRecord = fullPath[j];
+                        if (poolRecord.AmountIn != curExactAmount)
+                        {
+                            if (limitIndex >= limitOrders.Count)
+                            {
+                                break;
+                            }
+                            var limitRecord = limitOrders[limitIndex];
+                            if (poolRecord.SymbolIn == limitRecord.SymbolIn
+                                && poolRecord.SymbolOut == limitRecord.SymbolOut)
+                            {
+                                var mergedSwapRecord = new SwapRecord()
+                                {
+                                    AmountIn = poolRecord.AmountIn,
+                                    AmountOut = poolRecord.AmountOut,
+                                    Channel = poolRecord.Channel,
+                                    IsLimitOrder = poolRecord.IsLimitOrder,
+                                    PairAddress = poolRecord.PairAddress,
+                                    SymbolIn = poolRecord.SymbolIn,
+                                    SymbolOut = poolRecord.SymbolOut,
+                                    TotalFee = poolRecord.TotalFee,
+                                    TradePairId = poolRecord.TradePairId,
+                                    TradePair = poolRecord.TradePair
+                                };
+                                mergedSwapRecord.AmountIn += limitRecord.AmountIn;
+                                mergedSwapRecord.AmountOut += limitRecord.AmountOut;
+                                limitIndex++;
+                                fullPath[j] = mergedSwapRecord;
+                                curExactAmount = mergedSwapRecord.AmountOut;
+                            }
+                            else
+                            {
+                                _logger.LogError($"RebuildSwapAsync, limit records not match. " +
+                                                 $"full path: {JsonConvert.SerializeObject(fullPath)}, " +
+                                                 $"record: {JsonConvert.SerializeObject(limitRecord)}");
+                            }
+                        }
+                        
+                    }
+                }
+            }
+            else
+            {
+                var limitIndex = limitOrders.Count - 1;
+                for (int i = indexSwapRecordDistributions.Count - 1; i >= 0; i--)
+                {
+                    var fullPath = indexSwapRecordDistributions[i];
+                    var curExactAmount = exactAmounts[i];
+                    for (int j = fullPath.Count - 1; j >= 0; j--)
+                    {
+                        var poolRecord = fullPath[j];
+                        if (poolRecord.AmountOut != curExactAmount)
+                        {
+                            if (limitIndex < 0)
+                            {
+                                break;
+                            }
+                            var limitRecord = limitOrders[limitIndex];
+                            if (poolRecord.SymbolIn == limitRecord.SymbolIn
+                                && poolRecord.SymbolOut == limitRecord.SymbolOut)
+                            {
+                                var mergedSwapRecord = new SwapRecord()
+                                {
+                                    AmountIn = poolRecord.AmountIn,
+                                    AmountOut = poolRecord.AmountOut,
+                                    Channel = poolRecord.Channel,
+                                    IsLimitOrder = poolRecord.IsLimitOrder,
+                                    PairAddress = poolRecord.PairAddress,
+                                    SymbolIn = poolRecord.SymbolIn,
+                                    SymbolOut = poolRecord.SymbolOut,
+                                    TotalFee = poolRecord.TotalFee,
+                                    TradePairId = poolRecord.TradePairId,
+                                    TradePair = poolRecord.TradePair
+                                };
+                                mergedSwapRecord.AmountIn += limitRecord.AmountIn;
+                                mergedSwapRecord.AmountOut += limitRecord.AmountOut;
+                                limitIndex--;
+                                fullPath[j] = mergedSwapRecord;
+                                curExactAmount = mergedSwapRecord.AmountIn;
+                            }
+                            else
+                            {
+                                _logger.LogError($"RebuildSwapAsync, limit records not match. " +
+                                                 $"full path: {JsonConvert.SerializeObject(fullPath)}, " +
+                                                 $"record: {JsonConvert.SerializeObject(limitRecord)}");
+                            }
+                        }
+                    }
+                }
+            }
             return indexSwapRecordDistributions;
         }
         

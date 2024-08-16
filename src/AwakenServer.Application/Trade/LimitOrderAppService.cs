@@ -141,7 +141,9 @@ namespace AwakenServer.Trade
                                        $"token0 decimal: {tokenMap[limitOrderIndexDto.SymbolIn].Token.Decimals}, " +
                                        $"token1 decimal: {tokenMap[limitOrderIndexDto.SymbolOut].Token.Decimals}, " +
                                        $"amountIn: {limitOrderIndexDto.AmountIn}, " +
-                                       $"amountOut: {limitOrderIndexDto.AmountOut}");
+                                       $"amountOut: {limitOrderIndexDto.AmountOut}, " +
+                                       $"TotalFee: {limitOrderIndexDto.TotalFee}, " +
+                                       $"NetworkFee: {limitOrderIndexDto.NetworkFee}");
                 
                 dataList.Add(limitOrderIndexDto);
             }
