@@ -11,6 +11,7 @@ namespace AwakenServer.Tokens
         public string Symbol { get; set; }
         public int Decimals { get; set; }
 
+        public string ImageUri { get; set; }
         public bool IsEmpty()
         {
             return string.IsNullOrEmpty(ChainId) && string.IsNullOrEmpty(Address) && string.IsNullOrEmpty(Symbol);

@@ -246,7 +246,8 @@ public class AssetAppService : ApplicationService, IAssetAppService
             Symbol = symbol,
             Address = tokenInfo.Address,
             Decimals = tokenInfo.Decimals,
-            ChainId = chainId
+            ChainId = chainId,
+            ImageUri = tokenInfo.ImageUri,
         });
 
 
