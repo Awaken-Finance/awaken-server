@@ -91,6 +91,16 @@ namespace AwakenServer.Trade
             foreach (var limitOrder in queryResult.Data)
             {
                 var limitOrderIndexDto = _objectMapper.Map<LimitOrderDto, LimitOrderIndexDto>(limitOrder);
+                
+                if (limitOrderIndexDto.LimitOrderStatus == LimitOrderStatus.Committed
+                    || limitOrderIndexDto.LimitOrderStatus == LimitOrderStatus.PartiallyFilling)
+                {
+                    if (limitOrderIndexDto.Deadline < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
+                    {
+                        limitOrderIndexDto.LimitOrderStatus = LimitOrderStatus.Expired;
+                    }   
+                }
+                
                 var token0 = tokenMap[limitOrderIndexDto.SymbolIn].Token;
                 var token1 = tokenMap[limitOrderIndexDto.SymbolOut].Token;
                 

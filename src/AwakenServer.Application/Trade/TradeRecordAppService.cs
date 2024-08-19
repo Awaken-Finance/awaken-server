@@ -208,6 +208,13 @@ namespace AwakenServer.Trade
                 {
                     tradeRecord.Price = 1 / tradeRecord.Price;
                 
+                    var totalPercent = tradeRecord.PercentRoutes.Sum(r => int.Parse(r.Percent));
+                    if (totalPercent < 100 && tradeRecord.PercentRoutes.Count > 0)
+                    {
+                        var difference = 100 - totalPercent;
+                        tradeRecord.PercentRoutes[0].Percent = (int.Parse(tradeRecord.PercentRoutes[0].Percent) + difference).ToString();
+                    }
+                    
                     if (tradeRecord.PercentRoutes == null || tradeRecord.PercentRoutes.Count <= 0)
                     {
                         if (tradeRecord.SwapRecords.Count > 0)
@@ -531,74 +538,12 @@ namespace AwakenServer.Trade
 
             return true;
         }
-
-        public async Task<bool> CreateSingleLimitOrderAsync(long currentConfirmedHeight, SwapRecordDto dto)
-        {
-            var tradeRecordGrain =
-                _clusterClient.GetGrain<ITradeRecordGrain>(
-                    GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
-            if (await tradeRecordGrain.Exist())
-            {
-                return true;
-            }
-            
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
-
-            var tokenIn = await _tokenAppService.GetAsync(new GetTokenInput()
-            {
-                Symbol = dto.SymbolIn
-            });
-            var tokenOut =  await _tokenAppService.GetAsync(new GetTokenInput()
-            {
-                Symbol = dto.SymbolOut
-            });
-            var record = new TradeRecordCreateDto
-            {
-                ChainId = dto.ChainId,
-                Address = dto.Sender,
-                TransactionHash = dto.TransactionHash,
-                Timestamp = dto.Timestamp,
-                Side = TradeSide.Swap,
-                Token0Amount =  dto.AmountIn.ToDecimalsString(tokenIn.Decimals),
-                Token1Amount = dto.AmountOut.ToDecimalsString(tokenOut.Decimals),
-                TotalFee = dto.TotalFee / Math.Pow(10, tokenIn.Decimals),
-                Channel = dto.Channel,
-                Sender = dto.Sender,
-                BlockHeight = dto.BlockHeight,
-                IsLimitOrder = true,
-            };
-
-            _logger.LogInformation(
-                "SingleLimitOrder, input chainId: {chainId}, symbolIn: {SymbolIn}, symbolOut: {SymbolOut}, address: {address}, " +
-                "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
-                "blockHeight: {blockHeight}, totalFee: {totalFee}", dto.ChainId, dto.SymbolIn, dto.SymbolOut, dto.Sender,
-                dto.TransactionHash, dto.Timestamp,
-                record.Side, dto.Channel, record.Token0Amount, record.Token1Amount, dto.BlockHeight, dto.TotalFee);
-            
-            var tradeRecord = ObjectMapper.Map<TradeRecordCreateDto, TradeRecord>(record);
-            tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
-            tradeRecord.Id = Guid.NewGuid();
-            tradeRecord.SymbolIn = dto.SymbolIn;
-            tradeRecord.SymbolOut = dto.SymbolOut;
-            
-            await tradeRecordGrain.InsertAsync(ObjectMapper.Map<TradeRecord, TradeRecordGrainDto>(tradeRecord));
-
-            await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradeRecordEto>( 
-                ObjectMapper.Map<TradeRecord, TradeRecordEto>(tradeRecord)
-            ));
-            
-            return true;
-        }
         
         public async Task<bool> CreateAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
-            if (!dto.SwapRecords.IsNullOrEmpty())
+            if (!dto.SwapRecords.IsNullOrEmpty() || dto.IsLimitOrder)
             {
                 return await CreateMultiSwapAsync(currentConfirmedHeight, dto);
-            }
-            if (dto.IsLimitOrder)
-            {
-                return await CreateSingleLimitOrderAsync(currentConfirmedHeight, dto);
             }
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
@@ -752,7 +697,7 @@ namespace AwakenServer.Trade
                     Route = swapRecords
                 });
             }
-
+            
             return result;
         }
 
@@ -943,7 +888,7 @@ namespace AwakenServer.Trade
         
         public async Task<bool> CreateMultiSwapAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
-            _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}, method name: {dto.MethodName}, input args: {dto.InputArgs}");
+            _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, method name: {dto.MethodName}, input args: {dto.InputArgs}");
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
@@ -953,7 +898,11 @@ namespace AwakenServer.Trade
             }
             
             await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
-            
+
+            if (dto.SwapRecords == null)
+            {
+                dto.SwapRecords = new List<Dtos.SwapRecord>();
+            }
             dto.SwapRecords.AddFirst(new Dtos.SwapRecord()
             {
                 PairAddress = dto.PairAddress,

@@ -409,6 +409,7 @@ namespace AwakenServer.Trade
             });
             record.Items.Count.ShouldBe(1);
             record.Items[0].TradePair.Id.ShouldBe(Guid.Empty);
+            record.Items[0].Side.ShouldBe(TradeSide.Swap);
             record.Items[0].TradePair.Token0.Symbol.ShouldBe("USDT");
             record.Items[0].TradePair.Token0.Decimals.ShouldBe(6);
             record.Items[0].TradePair.Token1.Symbol.ShouldBe("ETH");
@@ -416,7 +417,13 @@ namespace AwakenServer.Trade
             record.Items[0].Token0Amount.ShouldBe("100");
             record.Items[0].Token1Amount.ShouldBe("10");
             record.Items[0].Price.ShouldBe(10);
-            record.Items[0].PercentRoutes.Count.ShouldBe(0);
+            record.Items[0].PercentRoutes.Count.ShouldBe(1);
+            record.Items[0].PercentRoutes[0].Percent.ShouldBe("100");
+            record.Items[0].PercentRoutes[0].Route.Count.ShouldBe(1);
+            record.Items[0].PercentRoutes[0].Route[0].SymbolIn.ShouldBe(TokenUsdtSymbol);
+            record.Items[0].PercentRoutes[0].Route[0].SymbolOut.ShouldBe(TokenEthSymbol);
+            record.Items[0].PercentRoutes[0].Route[0].AmountIn.ShouldBe(NumberFormatter.WithDecimals(100, 6));
+            record.Items[0].PercentRoutes[0].Route[0].AmountOut.ShouldBe(NumberFormatter.WithDecimals(10, 8));
         }
         
         [Fact]
@@ -471,6 +478,7 @@ namespace AwakenServer.Trade
             });
             record.Items.Count.ShouldBe(1);
             record.Items[0].TradePair.Id.ShouldBe(Guid.Empty);
+            record.Items[0].Side.ShouldBe(TradeSide.Swap);
             record.Items[0].TradePair.Token0.Symbol.ShouldBe("USDT");
             record.Items[0].TradePair.Token0.Decimals.ShouldBe(6);
             record.Items[0].TradePair.Token1.Symbol.ShouldBe("ETH");
