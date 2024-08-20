@@ -536,7 +536,7 @@ namespace AwakenServer.Trade
                 return true;
             }
             
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
+            // await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
 
             var pair = await GetAsync(dto.ChainId, dto.PairAddress);
             if (pair == null)
@@ -676,7 +676,7 @@ namespace AwakenServer.Trade
                 return true;
             }
             
-            await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
+            // await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
             
             dto.SwapRecords.AddFirst(new Dtos.SwapRecord()
             {
