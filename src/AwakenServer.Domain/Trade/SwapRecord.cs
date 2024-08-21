@@ -15,4 +15,5 @@ public class SwapRecord
     [Keyword] public string SymbolOut { get; set; }
     [Keyword] public string SymbolIn { get; set; }
     [Keyword] public string Channel { get; set; }
+    public bool IsLimitOrder { get; set; }
 }

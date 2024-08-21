@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using Awaken.Contracts.Hooks;
 using AwakenServer.Chains;
 using AwakenServer.CMS;
 using AwakenServer.Common;
@@ -11,9 +12,11 @@ using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
+using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using AwakenServer.Worker;
+using Google.Protobuf;
 using MassTransit;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
@@ -49,6 +52,7 @@ namespace AwakenServer.Trade
         private readonly IRevertProvider _revertProvider;
         private readonly KLinePeriodOptions _kLinePeriodOptions;
         private readonly INESTRepository<Index.KLine, Guid> _kLineIndexRepository;
+        private readonly ITokenAppService _tokenAppService;
 
 
         private const string ASC = "asc";
@@ -60,6 +64,8 @@ namespace AwakenServer.Trade
         
         private const string ExactInMethodName= "SwapExactTokensForTokens";
         private const string ExactOutMethodName= "SwapTokensForExactTokens";
+        
+        public int FeeRateMax = 10000;
         
         public TradeRecordAppService(INESTRepository<Index.TradeRecord, Guid> tradeRecordIndexRepository,
             INESTRepository<Index.UserTradeSummary, Guid> userTradeSummaryIndexRepository,
@@ -73,7 +79,8 @@ namespace AwakenServer.Trade
             IBus bus,
             IRevertProvider revertProvider,
             IOptionsSnapshot<KLinePeriodOptions> kLinePeriodOptions,
-            INESTRepository<Index.KLine, Guid> kLineIndexRepository)
+            INESTRepository<Index.KLine, Guid> kLineIndexRepository,
+            ITokenAppService tokenAppService)
         {
             _tradeRecordIndexRepository = tradeRecordIndexRepository;
             _userTradeSummaryIndexRepository = userTradeSummaryIndexRepository;
@@ -88,7 +95,7 @@ namespace AwakenServer.Trade
             _revertProvider = revertProvider;
             _kLinePeriodOptions = kLinePeriodOptions.Value;
             _kLineIndexRepository = kLineIndexRepository;
-
+            _tokenAppService = tokenAppService;
         }
         
 
@@ -201,23 +208,33 @@ namespace AwakenServer.Trade
                 {
                     tradeRecord.Price = 1 / tradeRecord.Price;
                 
+                    var totalPercent = tradeRecord.PercentRoutes.Sum(r => int.Parse(r.Percent));
+                    if (totalPercent < 100 && tradeRecord.PercentRoutes.Count > 0)
+                    {
+                        var difference = 100 - totalPercent;
+                        tradeRecord.PercentRoutes[0].Percent = (int.Parse(tradeRecord.PercentRoutes[0].Percent) + difference).ToString();
+                    }
+                    
                     if (tradeRecord.PercentRoutes == null || tradeRecord.PercentRoutes.Count <= 0)
                     {
-                        var percentSwapRecords = new List<SwapRecord>();
-                        foreach (var swapRecord in tradeRecord.SwapRecords)
+                        if (tradeRecord.SwapRecords.Count > 0)
                         {
-                            swapRecord.TradePair = await GetAsync(tradeRecord.ChainId, swapRecord.PairAddress);
-                            // Adding reference to the same swapRecord
-                            percentSwapRecords.Add(swapRecord);
-                        }
-                        tradeRecord.PercentRoutes = new List<PercentRoute>()
-                        {
-                            new PercentRoute()
+                            var percentSwapRecords = new List<SwapRecord>();
+                            foreach (var swapRecord in tradeRecord.SwapRecords)
                             {
-                                Percent = "100",
-                                Route = percentSwapRecords
+                                swapRecord.TradePair = await GetAsync(tradeRecord.ChainId, swapRecord.PairAddress);
+                                // Adding reference to the same swapRecord
+                                percentSwapRecords.Add(swapRecord);
                             }
-                        };
+                            tradeRecord.PercentRoutes = new List<PercentRoute>()
+                            {
+                                new PercentRoute()
+                                {
+                                    Percent = "100",
+                                    Route = percentSwapRecords
+                                }
+                            };
+                        }
                     }
                 }
             }
@@ -524,7 +541,7 @@ namespace AwakenServer.Trade
         
         public async Task<bool> CreateAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
-            if (!dto.SwapRecords.IsNullOrEmpty())
+            if (!dto.SwapRecords.IsNullOrEmpty() || dto.IsLimitOrder)
             {
                 return await CreateMultiSwapAsync(currentConfirmedHeight, dto);
             }
@@ -592,7 +609,7 @@ namespace AwakenServer.Trade
             return true;
         }
 
-        public Tuple<double, double, double, long, long> GetDistributionsSum(List<List<SwapRecord>> indexSwapRecordDistributions, List<Index.TradePair> pairList)
+        public Tuple<double, double, double, long, long> GetDistributionsSum(List<List<SwapRecord>> indexSwapRecordDistributions, List<Index.TradePair> pairList, Dictionary<string, TokenDto> tokenMap)
         {
             double amount0 = 0;
             double amount1 = 0;
@@ -608,26 +625,45 @@ namespace AwakenServer.Trade
 
                 var firstSwapRecord = swapRecords.First();
                 var lastSwapRecord = swapRecords.Last();
-                var firstTradePair = pairList.First(t => t.Id == firstSwapRecord.TradePairId);
-                var lastTradePair = pairList.First(t => t.Id == lastSwapRecord.TradePairId);
-                var firstIsSell = firstTradePair.Token0.Symbol == firstSwapRecord.SymbolIn;
-                var lastIsSell = lastTradePair.Token0.Symbol == lastSwapRecord.SymbolIn;
-                var currentAmount0 = firstIsSell
-                    ? firstSwapRecord.AmountIn.ToDecimalsString(firstTradePair.Token0.Decimals)
-                    : firstSwapRecord.AmountIn.ToDecimalsString(firstTradePair.Token1.Decimals);
-                var currentAmount1 = lastIsSell
-                    ? lastSwapRecord.AmountOut.ToDecimalsString(lastTradePair.Token1.Decimals)
-                    : lastSwapRecord.AmountOut.ToDecimalsString(lastTradePair.Token0.Decimals);
+                
+                var tokenInDecimal = new int();
+                var tokenOutDecimal = new int();
+                if (firstSwapRecord.IsLimitOrder)
+                {
+                    tokenInDecimal = tokenMap[firstSwapRecord.SymbolIn].Decimals;
+                }
+                else
+                {
+                    var firstTradePair = pairList.First(t => t.Id == firstSwapRecord.TradePairId);
+                    var firstIsSell = firstTradePair.Token0.Symbol == firstSwapRecord.SymbolIn;
+                    tokenInDecimal = firstIsSell ? firstTradePair.Token0.Decimals : firstTradePair.Token1.Decimals;
+                }
+
+                if (lastSwapRecord.IsLimitOrder)
+                {
+                    tokenOutDecimal = tokenMap[lastSwapRecord.SymbolOut].Decimals;
+                }
+                else
+                {
+                    var lastTradePair = pairList.First(t => t.Id == lastSwapRecord.TradePairId);
+                    var lastIsSell = lastTradePair.Token0.Symbol == lastSwapRecord.SymbolIn;
+                    tokenOutDecimal = lastIsSell ? lastTradePair.Token1.Decimals : lastTradePair.Token0.Decimals;
+                }
+                
+                var currentAmount0 = firstSwapRecord.AmountIn.ToDecimalsString(tokenInDecimal);
+                var currentAmount1 = lastSwapRecord.AmountOut.ToDecimalsString(tokenOutDecimal);
                 
                 var feeRateRest = 1d;
                 foreach (var swapRecord in swapRecords)
                 {
-                    var tradePair = pairList.First(t => t.Id == swapRecord.TradePairId);
-                    feeRateRest *= 1 - tradePair.FeeRate;
+                    var tradePair = pairList.FirstOrDefault(t => t.Id == swapRecord.TradePairId);
+                    if (tradePair != null)
+                    {
+                        feeRateRest *= 1 - tradePair.FeeRate;
+                    }
                 }
                 
-                var currentTotalFee = firstSwapRecord.AmountIn / Math.Pow(10,
-                                          firstIsSell ? firstTradePair.Token0.Decimals : firstTradePair.Token1.Decimals)
+                var currentTotalFee = firstSwapRecord.AmountIn / Math.Pow(10, tokenInDecimal)
                                       * (1 - feeRateRest);
                 
                 amount0 += double.Parse(currentAmount0);
@@ -661,13 +697,198 @@ namespace AwakenServer.Trade
                     Route = swapRecords
                 });
             }
-
+            
             return result;
+        }
+
+        private async Task<List<List<SwapRecord>>> RebuildSwapAsync(SwapRecordDto dto, List<Index.TradePair> pairList, List<SwapRecord> swapRecords)
+        {
+            _logger.LogInformation($"RebuildSwapAsync, dto: {JsonConvert.SerializeObject(dto)}");
+            
+            var indexSwapRecordDistributions = new List<List<SwapRecord>>();
+            var paths = new List<List<string>>();
+            var feeRates = new List<List<long>>();
+            bool isExactInMethod = false;
+            var exactAmounts = new List<long>();
+            
+            if (string.IsNullOrEmpty(dto.InputArgs))
+            {
+                indexSwapRecordDistributions.Add(swapRecords);
+                return indexSwapRecordDistributions;
+            }
+            
+            if (dto.MethodName == ExactOutMethodName)
+            {
+                var swapTokens = SwapTokensForExactTokensInput
+                    .Parser.ParseFrom(ByteString.FromBase64(dto.InputArgs)).SwapTokens;
+                foreach (var swapToken in swapTokens)
+                {
+                    paths.Add(swapToken.Path.ToList());
+                    feeRates.Add(swapToken.FeeRates.ToList());
+                    exactAmounts.Add(swapToken.AmountOut);
+                }
+            }
+            else
+            {
+                isExactInMethod = true;
+                var swapTokens = SwapExactTokensForTokensInput
+                    .Parser.ParseFrom(ByteString.FromBase64(dto.InputArgs)).SwapTokens;
+                foreach (var swapToken in swapTokens)
+                {
+                    paths.Add(swapToken.Path.ToList());
+                    feeRates.Add(swapToken.FeeRates.ToList());
+                    exactAmounts.Add(swapToken.AmountIn);
+                }
+            }
+
+            if (paths.Count != feeRates.Count)
+            {
+                _logger.LogError($"RebuildSwapAsync, paths count: {paths.Count}, feeRates count: {feeRates.Count}");
+                return indexSwapRecordDistributions;
+            }
+
+            for (int i = 0; i < paths.Count; i++)
+            {
+                var path = paths[i];
+                var pathFee = feeRates[i];
+                var recordPath = new List<SwapRecord>();
+                if (path.Count != pathFee.Count + 1)
+                {
+                    _logger.LogError($"RebuildSwapAsync, path count: {path.Count}, pathFee count: {pathFee.Count}");
+                    return indexSwapRecordDistributions;
+                }
+                for (int j = 0; j < path.Count-1; j++)
+                {
+                    var tokenA = path[j];
+                    var tokenB = path[j + 1];
+                    var fee = pathFee[j];
+                    var normalSwapRecord = swapRecords.FirstOrDefault(record =>
+                        record.SymbolIn == tokenA &&
+                        record.SymbolOut == tokenB &&
+                        record.IsLimitOrder == false &&
+                        (record.TradePair != null && record.TradePair.FeeRate * FeeRateMax == fee)
+                    );
+                    recordPath.Add(normalSwapRecord == null ? new SwapRecord()
+                    {
+                        SymbolIn = tokenA,
+                        SymbolOut = tokenB,
+                        IsLimitOrder = true
+                    } : normalSwapRecord);
+                }
+                indexSwapRecordDistributions.Add(recordPath);
+            }
+            
+            var limitOrders = swapRecords.Where(x => x.IsLimitOrder).ToList();
+            if (limitOrders.Count <= 0)
+            {
+                return indexSwapRecordDistributions;
+            }
+            
+            if (isExactInMethod)
+            {
+                var limitIndex = 0;
+                for (int i = 0; i < indexSwapRecordDistributions.Count; i++)
+                {
+                    var fullPath = indexSwapRecordDistributions[i];
+                    var curExactAmount = exactAmounts[i];
+                    for (int j = 0; j < fullPath.Count; j++)
+                    {
+                        var poolRecord = fullPath[j];
+                        if (poolRecord.AmountIn != curExactAmount)
+                        {
+                            if (limitIndex >= limitOrders.Count)
+                            {
+                                break;
+                            }
+                            var limitRecord = limitOrders[limitIndex];
+                            if (poolRecord.SymbolIn == limitRecord.SymbolIn
+                                && poolRecord.SymbolOut == limitRecord.SymbolOut)
+                            {
+                                var mergedSwapRecord = new SwapRecord()
+                                {
+                                    AmountIn = poolRecord.AmountIn,
+                                    AmountOut = poolRecord.AmountOut,
+                                    Channel = poolRecord.Channel,
+                                    IsLimitOrder = poolRecord.IsLimitOrder,
+                                    PairAddress = poolRecord.PairAddress,
+                                    SymbolIn = poolRecord.SymbolIn,
+                                    SymbolOut = poolRecord.SymbolOut,
+                                    TotalFee = poolRecord.TotalFee,
+                                    TradePairId = poolRecord.TradePairId,
+                                    TradePair = poolRecord.TradePair
+                                };
+                                mergedSwapRecord.AmountIn += limitRecord.AmountIn;
+                                mergedSwapRecord.AmountOut += limitRecord.AmountOut;
+                                limitIndex++;
+                                fullPath[j] = mergedSwapRecord;
+                                curExactAmount = mergedSwapRecord.AmountOut;
+                            }
+                            else
+                            {
+                                _logger.LogError($"RebuildSwapAsync, limit records not match. " +
+                                                 $"full path: {JsonConvert.SerializeObject(fullPath)}, " +
+                                                 $"record: {JsonConvert.SerializeObject(limitRecord)}");
+                            }
+                        }
+                        
+                    }
+                }
+            }
+            else
+            {
+                var limitIndex = limitOrders.Count - 1;
+                for (int i = indexSwapRecordDistributions.Count - 1; i >= 0; i--)
+                {
+                    var fullPath = indexSwapRecordDistributions[i];
+                    var curExactAmount = exactAmounts[i];
+                    for (int j = fullPath.Count - 1; j >= 0; j--)
+                    {
+                        var poolRecord = fullPath[j];
+                        if (poolRecord.AmountOut != curExactAmount)
+                        {
+                            if (limitIndex < 0)
+                            {
+                                break;
+                            }
+                            var limitRecord = limitOrders[limitIndex];
+                            if (poolRecord.SymbolIn == limitRecord.SymbolIn
+                                && poolRecord.SymbolOut == limitRecord.SymbolOut)
+                            {
+                                var mergedSwapRecord = new SwapRecord()
+                                {
+                                    AmountIn = poolRecord.AmountIn,
+                                    AmountOut = poolRecord.AmountOut,
+                                    Channel = poolRecord.Channel,
+                                    IsLimitOrder = poolRecord.IsLimitOrder,
+                                    PairAddress = poolRecord.PairAddress,
+                                    SymbolIn = poolRecord.SymbolIn,
+                                    SymbolOut = poolRecord.SymbolOut,
+                                    TotalFee = poolRecord.TotalFee,
+                                    TradePairId = poolRecord.TradePairId,
+                                    TradePair = poolRecord.TradePair
+                                };
+                                mergedSwapRecord.AmountIn += limitRecord.AmountIn;
+                                mergedSwapRecord.AmountOut += limitRecord.AmountOut;
+                                limitIndex--;
+                                fullPath[j] = mergedSwapRecord;
+                                curExactAmount = mergedSwapRecord.AmountIn;
+                            }
+                            else
+                            {
+                                _logger.LogError($"RebuildSwapAsync, limit records not match. " +
+                                                 $"full path: {JsonConvert.SerializeObject(fullPath)}, " +
+                                                 $"record: {JsonConvert.SerializeObject(limitRecord)}");
+                            }
+                        }
+                    }
+                }
+            }
+            return indexSwapRecordDistributions;
         }
         
         public async Task<bool> CreateMultiSwapAsync(long currentConfirmedHeight, SwapRecordDto dto)
         {
-            _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}, method name: {dto.MethodName}");
+            _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, method name: {dto.MethodName}, input args: {dto.InputArgs}");
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
@@ -677,7 +898,12 @@ namespace AwakenServer.Trade
             }
             
             // await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.SwapEvent, dto.ChainId, dto.BlockHeight, dto.TransactionHash);
-            
+
+            if (dto.SwapRecords == null)
+            {
+                dto.SwapRecords = new List<Dtos.SwapRecord>();
+            }
+
             dto.SwapRecords.AddFirst(new Dtos.SwapRecord()
             {
                 PairAddress = dto.PairAddress,
@@ -686,42 +912,61 @@ namespace AwakenServer.Trade
                 SymbolIn = dto.SymbolIn,
                 SymbolOut = dto.SymbolOut,
                 TotalFee = dto.TotalFee,
-                Channel = dto.Channel
+                Channel = dto.Channel,
+                IsLimitOrder = dto.IsLimitOrder
             });
+            
+            _logger.LogInformation($"creare multi swap, txn id: {dto.TransactionHash}, swap records: {JsonConvert.SerializeObject(dto.SwapRecords)}");
+            
             var pairList = new List<Index.TradePair>();
             var indexSwapRecords = new List<SwapRecord>();
-            var currentIndexSwapRecords = new List<SwapRecord>();
-            var indexSwapRecordDistributions = new List<List<SwapRecord>>();
-            var symbolInSet = new HashSet<string>() {dto.SwapRecords[0].SymbolIn};
+            var tokenMap = new Dictionary<string, TokenDto>();
             for (var i = 0; i < dto.SwapRecords.Count; i++)
             {
                 var swapRecord = dto.SwapRecords[i];
-                var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
-                if (tradePair == null)
+                if (swapRecord.IsLimitOrder)
                 {
-                    _logger.LogInformation("creare multi swap records can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
-                        swapRecord.PairAddress);
-                    return false;
-                } 
-                pairList.Add(tradePair);
-                var indexSwapRecord = new SwapRecord();
-                ObjectMapper.Map(swapRecord, indexSwapRecord);
-                indexSwapRecord.TradePairId = tradePair.Id;
-                indexSwapRecord.TradePair = tradePair;
-                indexSwapRecords.Add(indexSwapRecord);
-                if (symbolInSet.Contains(swapRecord.SymbolIn) && i > 0)
-                {
-                    indexSwapRecordDistributions.Add(currentIndexSwapRecords);
-                    currentIndexSwapRecords = new List<SwapRecord>() { indexSwapRecord };
+                    var indexSwapRecord = new SwapRecord();
+                    ObjectMapper.Map(swapRecord, indexSwapRecord);
+                    indexSwapRecords.Add(indexSwapRecord);
+                    if (!tokenMap.ContainsKey(indexSwapRecord.SymbolIn))
+                    {
+                        tokenMap[indexSwapRecord.SymbolIn] = await _tokenAppService.GetAsync(new GetTokenInput()
+                        {
+                            Symbol = indexSwapRecord.SymbolIn
+                        });
+                    }
+                    if (!tokenMap.ContainsKey(indexSwapRecord.SymbolOut))
+                    {
+                        tokenMap[indexSwapRecord.SymbolOut] = await _tokenAppService.GetAsync(new GetTokenInput()
+                        {
+                            Symbol = indexSwapRecord.SymbolOut
+                        });
+                    }
                 }
                 else
                 {
-                    currentIndexSwapRecords.Add(indexSwapRecord);
+                    var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
+                    if (tradePair == null)
+                    {
+                        _logger.LogInformation("creare multi swap records can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                            swapRecord.PairAddress);
+                        return false;
+                    } 
+                    pairList.Add(tradePair);
+                    var indexSwapRecord = new SwapRecord();
+                    ObjectMapper.Map(swapRecord, indexSwapRecord);
+                    indexSwapRecord.TradePairId = tradePair.Id;
+                    indexSwapRecord.TradePair = tradePair;
+                    indexSwapRecords.Add(indexSwapRecord);
                 }
             }
-            indexSwapRecordDistributions.Add(currentIndexSwapRecords);
             
-            var (amount0, amount1, totalFee, amountInSum, amountOutSum) = GetDistributionsSum(indexSwapRecordDistributions, pairList);
+            _logger.LogInformation($"creare multi swap, txn id: {dto.TransactionHash}, index swap records: {JsonConvert.SerializeObject(indexSwapRecords)}");
+
+            var indexSwapRecordDistributions = await RebuildSwapAsync(dto, pairList, indexSwapRecords);
+            
+            var (amount0, amount1, totalFee, amountInSum, amountOutSum) = GetDistributionsSum(indexSwapRecordDistributions, pairList, tokenMap);
             
             var record = new TradeRecordCreateDto
             {
@@ -737,7 +982,8 @@ namespace AwakenServer.Trade
                 Channel = dto.Channel,
                 Sender = dto.Sender,
                 BlockHeight = dto.BlockHeight,
-                MethodName = dto.MethodName
+                MethodName = dto.MethodName,
+                InputArgs = dto.InputArgs
             };
 
             _logger.LogInformation(
@@ -764,6 +1010,10 @@ namespace AwakenServer.Trade
 
             foreach (var indexSwapRecord in indexSwapRecords)
             {
+                if (indexSwapRecord.IsLimitOrder)
+                {
+                    continue;
+                }
                 record.TradePairId = indexSwapRecord.TradePairId;
                 await CreateUserTradeSummary(record);
 

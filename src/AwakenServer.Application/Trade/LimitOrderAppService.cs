@@ -91,6 +91,16 @@ namespace AwakenServer.Trade
             foreach (var limitOrder in queryResult.Data)
             {
                 var limitOrderIndexDto = _objectMapper.Map<LimitOrderDto, LimitOrderIndexDto>(limitOrder);
+                
+                if (limitOrderIndexDto.LimitOrderStatus == LimitOrderStatus.Committed
+                    || limitOrderIndexDto.LimitOrderStatus == LimitOrderStatus.PartiallyFilling)
+                {
+                    if (limitOrderIndexDto.Deadline < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
+                    {
+                        limitOrderIndexDto.LimitOrderStatus = LimitOrderStatus.Expired;
+                    }   
+                }
+                
                 var token0 = tokenMap[limitOrderIndexDto.SymbolIn].Token;
                 var token1 = tokenMap[limitOrderIndexDto.SymbolOut].Token;
                 
@@ -122,7 +132,7 @@ namespace AwakenServer.Trade
                     limitOrder.AmountOutFilled.ToDecimalsString(tokenMap[limitOrderIndexDto.SymbolOut].Token.Decimals);
                 limitOrderIndexDto.AmountOutFilledUSD =
                     (Double.Parse(limitOrderIndexDto.AmountOutFilled) * token1Price).ToString();
-
+                
                 var totalFee = 0d;
                 var networkFee = double.Parse(limitOrder.TransactionFee.ToDecimalsString(8));
                 
@@ -134,6 +144,16 @@ namespace AwakenServer.Trade
 
                 limitOrderIndexDto.TotalFee = totalFee.ToString();
                 limitOrderIndexDto.NetworkFee = networkFee.ToString();
+                
+                _logger.LogInformation($"Limit order list, " +
+                                       $"input: {JsonConvert.SerializeObject(input.MakerAddress)}, " +
+                                       $"index: {JsonConvert.SerializeObject(limitOrder)}, " +
+                                       $"token0 decimal: {tokenMap[limitOrderIndexDto.SymbolIn].Token.Decimals}, " +
+                                       $"token1 decimal: {tokenMap[limitOrderIndexDto.SymbolOut].Token.Decimals}, " +
+                                       $"amountIn: {limitOrderIndexDto.AmountIn}, " +
+                                       $"amountOut: {limitOrderIndexDto.AmountOut}, " +
+                                       $"TotalFee: {limitOrderIndexDto.TotalFee}, " +
+                                       $"NetworkFee: {limitOrderIndexDto.NetworkFee}");
                 
                 dataList.Add(limitOrderIndexDto);
             }
@@ -152,7 +172,9 @@ namespace AwakenServer.Trade
                 OrderId = input.OrderId
             });
 
-            if (queryResult.Data.Count != 1)
+            _logger.LogInformation($"Query limit order detail: {input.OrderId}, result count: {queryResult.TotalCount}");
+            
+            if (queryResult.Data == null || queryResult.Data.Count <= 0)
             {
                 return new PagedResultDto<LimitOrderFillRecordIndexDto>();
             }
