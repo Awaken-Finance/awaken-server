@@ -29,7 +29,8 @@ namespace AwakenServer.Chains
         private readonly ILogger<AElfClientProvider> _logger;
         private const string FTImageUriKey = "__ft_image_uri";
         private const string NFTImageUriKey = "__nft_image_uri";
-        
+        private const string NFTImageUrlKey = "__nft_image_url";
+
         public AElfClientProvider(IBlockchainClientFactory<AElfClient> blockchainClientFactory,
             ILogger<AElfClientProvider> logger)
         {
@@ -72,7 +73,7 @@ namespace AwakenServer.Chains
                         ImageUri = externalInfo.Value[FTImageUriKey]
                     };
                 }
-                else if (externalInfo.Value.ContainsKey(NFTImageUriKey))
+                if (externalInfo.Value.ContainsKey(NFTImageUriKey))
                 {
                     return new TokenDto
                     {
@@ -80,6 +81,16 @@ namespace AwakenServer.Chains
                         Decimals = token.Decimals,
                         Symbol = token.Symbol,
                         ImageUri = externalInfo.Value[NFTImageUriKey]
+                    };
+                }
+                if (externalInfo.Value.ContainsKey(NFTImageUrlKey))
+                {
+                    return new TokenDto
+                    {
+                        Address = address,
+                        Decimals = token.Decimals,
+                        Symbol = token.Symbol,
+                        ImageUri = externalInfo.Value[NFTImageUrlKey]
                     };
                 }
             }
