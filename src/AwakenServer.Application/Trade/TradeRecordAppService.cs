@@ -97,8 +97,68 @@ namespace AwakenServer.Trade
             _kLineIndexRepository = kLineIndexRepository;
             _tokenAppService = tokenAppService;
         }
-        
 
+        private async Task ProcessSwapRecords(List<Index.TradeRecord> swapRecords)
+        {
+            foreach (var tradeRecord in swapRecords.Where(t => t.Side == TradeSide.Swap))
+            {
+                tradeRecord.Price = 1 / tradeRecord.Price;
+                
+                var totalPercent = tradeRecord.PercentRoutes.Sum(r => int.Parse(r.Percent));
+                if (totalPercent < 100 && tradeRecord.PercentRoutes.Count > 0)
+                {
+                    var difference = 100 - totalPercent;
+                    tradeRecord.PercentRoutes[0].Percent = (int.Parse(tradeRecord.PercentRoutes[0].Percent) + difference).ToString();
+                }
+
+                foreach (var percentRoute in tradeRecord.PercentRoutes)
+                {
+                    foreach (var record in percentRoute.Route)
+                    {
+                        if (record.TradePair == null)
+                        {
+                            var tokenIn = await _tokenAppService.GetAsync(new GetTokenInput()
+                            {
+                                Symbol = record.SymbolIn
+                            });
+                            var tokenOut = await _tokenAppService.GetAsync(new GetTokenInput()
+                            {
+                                Symbol = record.SymbolOut
+                            });
+                            record.TradePair = new Index.TradePair()
+                            {
+                                ChainId = tradeRecord.ChainId,
+                                Token0 = _objectMapper.Map<TokenDto, Tokens.Token>(tokenIn),
+                                Token1 = _objectMapper.Map<TokenDto, Tokens.Token>(tokenOut),
+                            };
+                        }
+                    }    
+                }
+                
+                if (tradeRecord.PercentRoutes == null || tradeRecord.PercentRoutes.Count <= 0)
+                {
+                    if (tradeRecord.SwapRecords.Count > 0)
+                    {
+                        var percentSwapRecords = new List<SwapRecord>();
+                        foreach (var swapRecord in tradeRecord.SwapRecords)
+                        {
+                            swapRecord.TradePair = await GetAsync(tradeRecord.ChainId, swapRecord.PairAddress);
+                            // Adding reference to the same swapRecord
+                            percentSwapRecords.Add(swapRecord);
+                        }
+                        tradeRecord.PercentRoutes = new List<PercentRoute>()
+                        {
+                            new PercentRoute()
+                            {
+                                Percent = "100",
+                                Route = percentSwapRecords
+                            }
+                        };
+                    }
+                }
+            }
+        }
+        
         public async Task<PagedResultDto<TradeRecordIndexDto>> GetListAsync(GetTradeRecordsInput input)
         {
             var mustQuery = new List<Func<QueryContainerDescriptor<Index.TradeRecord>, QueryContainer>>();
@@ -204,39 +264,7 @@ namespace AwakenServer.Trade
 
             try
             {
-                foreach (var tradeRecord in item2.Where(t => t.Side == TradeSide.Swap))
-                {
-                    tradeRecord.Price = 1 / tradeRecord.Price;
-                
-                    var totalPercent = tradeRecord.PercentRoutes.Sum(r => int.Parse(r.Percent));
-                    if (totalPercent < 100 && tradeRecord.PercentRoutes.Count > 0)
-                    {
-                        var difference = 100 - totalPercent;
-                        tradeRecord.PercentRoutes[0].Percent = (int.Parse(tradeRecord.PercentRoutes[0].Percent) + difference).ToString();
-                    }
-                    
-                    if (tradeRecord.PercentRoutes == null || tradeRecord.PercentRoutes.Count <= 0)
-                    {
-                        if (tradeRecord.SwapRecords.Count > 0)
-                        {
-                            var percentSwapRecords = new List<SwapRecord>();
-                            foreach (var swapRecord in tradeRecord.SwapRecords)
-                            {
-                                swapRecord.TradePair = await GetAsync(tradeRecord.ChainId, swapRecord.PairAddress);
-                                // Adding reference to the same swapRecord
-                                percentSwapRecords.Add(swapRecord);
-                            }
-                            tradeRecord.PercentRoutes = new List<PercentRoute>()
-                            {
-                                new PercentRoute()
-                                {
-                                    Percent = "100",
-                                    Route = percentSwapRecords
-                                }
-                            };
-                        }
-                    }
-                }
+                await ProcessSwapRecords(item2);
             }
             catch (Exception e)
             {
