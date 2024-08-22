@@ -48,48 +48,25 @@ namespace AwakenServer.EntityHandler.Trade
         public async Task HandleEventAsync(EntityCreatedEto<TradeRecordEto> eventData)
         {
             var index = ObjectMapper.Map<TradeRecordEto, TradeRecord>(eventData.Entity);
-            if (!index.IsLimitOrder)
+            index.TradePair = await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
+            index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
+            index.TransactionFee =
+                await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
+                Math.Pow(10, 8);
+            
+            await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
+            
+            await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
             {
-                index.TradePair = await GetTradePariWithTokenAsync(eventData.Entity.TradePairId);
-                index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
-                index.TransactionFee =
-                    await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
-                    Math.Pow(10, 8);
-            
-                await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
-            
-                await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
-                {
-                    Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(index)
-                });
-                
-                _logger.LogInformation(
-                    $"publish normal swap record, " +
-                    $"address:{index.Address} " +
-                    $"tradePairId:{index.TradePair.Id} " +
-                    $"chainId:{index.ChainId} " +
-                    $"txId:{index.TransactionHash}");
-            }
-            else
-            {
-                index.TradePair = await GetTradePariWithSymbolAsync(index.Channel, index.SymbolIn, index.SymbolOut);
-                index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
-                index.TransactionFee =
-                    await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
-                    Math.Pow(10, 8);
-            
-                await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
-                
-                _logger.LogInformation(
-                    $"publish single limit order swap record, " +
-                    $"address:{index.Address} " +
-                    $"tradePairId:{index.TradePair.Id} " +
-                    $"chainId:{index.ChainId} " +
-                    $"txId:{index.TransactionHash}, " +
-                    $"token0:{index.TradePair.Token0.Symbol}, " +
-                    $"token1:{index.TradePair.Token1.Symbol}, " +
-                    $"total value:{index.TotalPriceInUsd}");
-            }
+                Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(index)
+            });
+
+            _logger.LogInformation(
+                $"publish normal swap record, " +
+                $"address:{index.Address} " +
+                $"tradePairId:{index.TradePair.Id} " +
+                $"chainId:{index.ChainId} " +
+                $"txId:{index.TransactionHash}");
         }
         
         public async Task HandleEventAsync(EntityCreatedEto<MultiTradeRecordEto> eventData)
@@ -173,23 +150,6 @@ namespace AwakenServer.EntityHandler.Trade
             pairWithToken.Token1 = ObjectMapper.Map<TokenDto, Token>(token1);
             pairWithToken.FeeRate = firstTradePair.FeeRate;
             pairWithToken.ChainId = firstTradePair.ChainId;
-            return pairWithToken;
-        }
-
-        protected async Task<TradePairWithToken> GetTradePariWithSymbolAsync(string chainId, string symbolIn, string symbolOut)
-        {
-            var pairWithToken = new TradePairWithToken();
-            var token0 = await TokenAppService.GetAsync(new GetTokenInput
-            {
-                Symbol = symbolIn
-            });
-            var token1 = await TokenAppService.GetAsync(new GetTokenInput
-            {
-                Symbol = symbolOut
-            });
-            pairWithToken.Token0 = ObjectMapper.Map<TokenDto, Token>(token0);
-            pairWithToken.Token1 = ObjectMapper.Map<TokenDto, Token>(token1);
-            pairWithToken.ChainId = chainId;
             return pairWithToken;
         }
             
