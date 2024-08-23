@@ -159,11 +159,15 @@ namespace AwakenServer.Chains
                     Value = AElf.Types.Address.FromBase58(address).Value
                 }
             };
+
+            var from = client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey);
+            _logger.LogInformation($"GenerateTransactionAsync, key: {ChainsInitOptions.PrivateKey}, from: {from}, to: {contractAddress}");
             var transactionGetBalance =
-                await client.GenerateTransactionAsync(client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey),
+                await client.GenerateTransactionAsync(from,
                     contractAddress,
                     "GetBalance",
                     paramGetBalance);
+            _logger.LogInformation($"transactionGetBalance: {transactionGetBalance}");
             var txWithSignGetBalance = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetBalance);
             var transactionGetTokenResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
             {

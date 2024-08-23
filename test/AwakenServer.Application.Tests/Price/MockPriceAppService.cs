@@ -45,6 +45,11 @@ namespace AwakenServer.Applications.GameOfTrust
                     {
                         Symbol = "EOS",
                         PriceInUsd = 1
+                    },
+                    new TokenPriceDataDto()
+                    {
+                        Symbol = "ETH",
+                        PriceInUsd = 1
                     }
                 }.Where(o => symbols.Contains(o.Symbol)).ToList()
             };

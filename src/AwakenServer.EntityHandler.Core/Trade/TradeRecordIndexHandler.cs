@@ -71,8 +71,14 @@ namespace AwakenServer.EntityHandler.Trade
         
         public async Task HandleEventAsync(EntityCreatedEto<MultiTradeRecordEto> eventData)
         {
+            if (eventData.Entity.PercentRoutes.Count <= 0)
+            {
+                _logger.LogError($"creare multi swap records handle entity create event faild. percent routes empty.");
+                return;
+            }
+            
             var index = ObjectMapper.Map<MultiTradeRecordEto, TradeRecord>(eventData.Entity);
-            index.TradePair = await GetTradePariWithSwapRecordsAsync(eventData.Entity.SwapRecords);
+            index.TradePair = await GetTradePariWithSwapRecordsAsync(eventData.Entity.PercentRoutes[0].Route);
             index.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(index);
             index.TransactionFee =
                 await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
@@ -85,6 +91,10 @@ namespace AwakenServer.EntityHandler.Trade
             
             foreach (var record in eventData.Entity.SwapRecords)
             {
+                if (record.IsLimitOrder)
+                {
+                    continue;
+                }
                 var pair = await GetTradePariWithTokenAsync(record.TradePairId);
                 var isSell = pair.Token0.Symbol == record.SymbolIn;
                 
@@ -142,7 +152,7 @@ namespace AwakenServer.EntityHandler.Trade
             pairWithToken.ChainId = firstTradePair.ChainId;
             return pairWithToken;
         }
-
+            
         private async Task<double> GetHistoryPriceInUsdAsync(TradeRecord index)
         {
             try

@@ -81,7 +81,7 @@ namespace AwakenServer.Trade
             priceUsdt.ShouldBe(1);
             
             var priceEth = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenEthSymbol);
-            priceEth.ShouldBe(0);
+            priceEth.ShouldBe(1);
             
             var priceBtc = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenBtcSymbol);
             priceBtc.ShouldBe(1);
@@ -94,7 +94,7 @@ namespace AwakenServer.Trade
 
             await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenEthId, TokenUsdtId, 10);
             priceEth = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenEthSymbol);
-            priceEth.ShouldBe(0);
+            priceEth.ShouldBe(1);
             
             await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenBtcId, TokenEthId, 100);
             priceBtc = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenBtcSymbol);
@@ -114,7 +114,7 @@ namespace AwakenServer.Trade
             
             await _tokenPriceProvider.UpdatePriceAsync(ChainId,  TokenUsdtId, TokenEthId,0.5);
             priceEth = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenEthSymbol);
-            priceEth.ShouldBe(0);
+            priceEth.ShouldBe(1);
             
             var tokenUSDC = await CreateTokenAsync(ChainId, "USDC");
             var tokenUNI = await CreateTokenAsync(ChainId, "UNI");
@@ -152,7 +152,7 @@ namespace AwakenServer.Trade
             });
 
             var price = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenEthSymbol);
-            price.ShouldBe(0);
+            price.ShouldBe(1);
         }
         
         [Fact]
@@ -186,7 +186,7 @@ namespace AwakenServer.Trade
             });
 
             var price = await _tokenPriceProvider.GetTokenUSDPriceAsync(ChainId, TokenEthSymbol);
-            price.ShouldBe(0);
+            price.ShouldBe(1);
         }
 
         private async Task<Guid> CreateTokenAsync(string chainId, string symbol)
