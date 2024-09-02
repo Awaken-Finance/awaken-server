@@ -32,6 +32,8 @@ namespace AwakenServer.Trade
         public string SymbolIn { get; set; }
         public string SymbolOut { get; set; }
         public string InputArgs { get; set; }
+        public double LabsFee { get; set; }
+        public string LabsFeeSymbol { get; set; }
         protected UserRecordBase()
         {
         }
