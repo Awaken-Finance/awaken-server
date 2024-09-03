@@ -76,4 +76,11 @@ public class AssetController : AbpController
     {
         return await _assetAppService.GetDefaultTokenAsync(input);
     }
+    
+    [HttpGet]
+    [Route("get-user-liquidity")]
+    public virtual async Task<CurrentUserLiquidityDto> GetCurrentUserLiquidityAsync(GetCurrentUserLiquidityDto input)
+    {
+        return await _myPortfolioAppService.GetCurrentUserLiquidityAsync(input);
+    }
 }
