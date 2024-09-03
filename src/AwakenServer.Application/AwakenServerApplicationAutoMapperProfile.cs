@@ -159,6 +159,7 @@ namespace AwakenServer
             CreateMap<GetTokenPathsInput, GetTokenPathGrainDto>();
 
             CreateMap<CurrentUserLiquidityEto, CurrentUserLiquidityIndex>();
+            CreateMap<CurrentUserLiquidityIndex, CurrentUserLiquidityDto>();
             CreateMap<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>();
             
             CreateMap<LimitOrderDto, LimitOrderIndexDto>()
