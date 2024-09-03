@@ -623,7 +623,13 @@ namespace AwakenServer.Trade
             var tradeRecord = ObjectMapper.Map<TradeRecordCreateDto, TradeRecord>(record);
             tradeRecord.Price = double.Parse(tradeRecord.Token1Amount) / double.Parse(tradeRecord.Token0Amount);
             tradeRecord.Id = Guid.NewGuid();
-
+            var labsFeeToken = await _tokenAppService.GetAsync(new GetTokenInput()
+            {
+                Symbol = dto.LabsFeeSymbol
+            });
+            tradeRecord.LabsFee = dto.LabsFee / Math.Pow(10, labsFeeToken.Decimals);
+            tradeRecord.LabsFeeSymbol = dto.LabsFeeSymbol;
+            
             await tradeRecordGrain.InsertAsync(ObjectMapper.Map<TradeRecord, TradeRecordGrainDto>(tradeRecord));
 
             await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradeRecordEto>(
@@ -1026,6 +1032,12 @@ namespace AwakenServer.Trade
             tradeRecord.Id = Guid.NewGuid();
             tradeRecord.SwapRecords = indexSwapRecords;
             tradeRecord.PercentRoutes = GetPercentRoutes(record.MethodName, indexSwapRecordDistributions, amountInSum, amountOutSum);
+            var labsFeeToken = await _tokenAppService.GetAsync(new GetTokenInput()
+            {
+                Symbol = dto.LabsFeeSymbol
+            });
+            tradeRecord.LabsFee = dto.LabsFee / Math.Pow(10, labsFeeToken.Decimals);
+            tradeRecord.LabsFeeSymbol = dto.LabsFeeSymbol;
             
             _logger.LogInformation($"creare multi swap records, transactionHash: {dto.TransactionHash}, " +
                                    $"MethodName: {record.MethodName}, " +
