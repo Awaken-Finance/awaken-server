@@ -104,37 +104,6 @@ namespace AwakenServer.Trade
             {
                 tradeRecord.Price = 1 / tradeRecord.Price;
                 
-                var totalPercent = tradeRecord.PercentRoutes.Sum(r => int.Parse(r.Percent));
-                if (totalPercent < 100 && tradeRecord.PercentRoutes.Count > 0)
-                {
-                    var difference = 100 - totalPercent;
-                    tradeRecord.PercentRoutes[0].Percent = (int.Parse(tradeRecord.PercentRoutes[0].Percent) + difference).ToString();
-                }
-
-                foreach (var percentRoute in tradeRecord.PercentRoutes)
-                {
-                    foreach (var record in percentRoute.Route)
-                    {
-                        if (record.TradePair == null)
-                        {
-                            var tokenIn = await _tokenAppService.GetAsync(new GetTokenInput()
-                            {
-                                Symbol = record.SymbolIn
-                            });
-                            var tokenOut = await _tokenAppService.GetAsync(new GetTokenInput()
-                            {
-                                Symbol = record.SymbolOut
-                            });
-                            record.TradePair = new Index.TradePair()
-                            {
-                                ChainId = tradeRecord.ChainId,
-                                Token0 = _objectMapper.Map<TokenDto, Tokens.Token>(tokenIn),
-                                Token1 = _objectMapper.Map<TokenDto, Tokens.Token>(tokenOut),
-                            };
-                        }
-                    }    
-                }
-                
                 if (tradeRecord.PercentRoutes == null || tradeRecord.PercentRoutes.Count <= 0)
                 {
                     if (tradeRecord.SwapRecords.Count > 0)
@@ -154,6 +123,40 @@ namespace AwakenServer.Trade
                                 Route = percentSwapRecords
                             }
                         };
+                    }
+                }
+
+                if (tradeRecord.PercentRoutes != null)
+                {
+                    var totalPercent = tradeRecord.PercentRoutes.Sum(r => int.Parse(r.Percent));
+                    if (totalPercent < 100 && tradeRecord.PercentRoutes.Count > 0)
+                    {
+                        var difference = 100 - totalPercent;
+                        tradeRecord.PercentRoutes[0].Percent = (int.Parse(tradeRecord.PercentRoutes[0].Percent) + difference).ToString();
+                    }
+
+                    foreach (var percentRoute in tradeRecord.PercentRoutes)
+                    {
+                        foreach (var record in percentRoute.Route)
+                        {
+                            if (record.TradePair == null)
+                            {
+                                var tokenIn = await _tokenAppService.GetAsync(new GetTokenInput()
+                                {
+                                    Symbol = record.SymbolIn
+                                });
+                                var tokenOut = await _tokenAppService.GetAsync(new GetTokenInput()
+                                {
+                                    Symbol = record.SymbolOut
+                                });
+                                record.TradePair = new Index.TradePair()
+                                {
+                                    ChainId = tradeRecord.ChainId,
+                                    Token0 = _objectMapper.Map<TokenDto, Tokens.Token>(tokenIn),
+                                    Token1 = _objectMapper.Map<TokenDto, Tokens.Token>(tokenOut),
+                                };
+                            }
+                        }    
                     }
                 }
             }
