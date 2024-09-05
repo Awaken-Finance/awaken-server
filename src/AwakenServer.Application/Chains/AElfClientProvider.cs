@@ -167,7 +167,7 @@ namespace AwakenServer.Chains
                     contractAddress,
                     "GetBalance",
                     paramGetBalance);
-            _logger.LogInformation($"transactionGetBalance: {transactionGetBalance}");
+            _logger.LogInformation($"transactionGetBalance: {transactionGetBalance}, from: {from}, to: {contractAddress}");
             var txWithSignGetBalance = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetBalance);
             var transactionGetTokenResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
             {
