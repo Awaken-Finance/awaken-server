@@ -200,7 +200,7 @@ namespace AwakenServer.Trade
                 fillRecordDto.AmountOutFilledUSD = (Double.Parse(fillRecordDto.AmountOutFilled) * token1Price).ToString();
                 
                 fillRecordDto.NetworkFee = fillRecord.TransactionFee.ToDecimalsString(8);
-                fillRecordDto.TotalFee = fillRecord.TotalFee.ToDecimalsString(tokenMap[orderLimit.SymbolIn].Token.Decimals);
+                fillRecordDto.TotalFee = fillRecord.TotalFee.ToDecimalsString(tokenMap[orderLimit.SymbolOut].Token.Decimals);
                 
                 resultData.Add(fillRecordDto);
             }
