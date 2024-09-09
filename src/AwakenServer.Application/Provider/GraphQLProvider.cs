@@ -28,6 +28,8 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     private readonly IClusterClient _clusterClient;
     private readonly ILogger<GraphQLProvider> _logger;
     private readonly ITokenAppService _tokenAppService;
+    private readonly HttpClient _httpClient;
+    public const int HttpDefaultTimeOutSeconds = 5;
     
     public GraphQLProvider(ILogger<GraphQLProvider> logger, IClusterClient clusterClient,
         ITokenAppService tokenAppService,
@@ -38,6 +40,10 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         _graphQLOptions = graphQLOptions.Value;
         _graphQLClient = new GraphQLHttpClient(_graphQLOptions.Configuration, new NewtonsoftJsonSerializer());
         _tokenAppService = tokenAppService;
+        _httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(HttpDefaultTimeOutSeconds)
+        };
     }
 
     public async Task<TradePairInfoDtoPageResultDto> GetTradePairInfoListAsync(GetTradePairsInfoInput input)
@@ -509,10 +515,9 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
 
     public async Task<long> GetIndexBlockHeightAsync(string chainId)
     {
-        using HttpClient client = new HttpClient();
         try
         {
-            string jsonResponse = await client.GetStringAsync(_graphQLOptions.SyncStateUrl);
+            string jsonResponse = await _httpClient.GetStringAsync(_graphQLOptions.SyncStateUrl);
             
             var versionInfo = JsonConvert.DeserializeObject<SyncStateResponse>(jsonResponse);
             
