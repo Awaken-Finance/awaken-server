@@ -21,5 +21,7 @@ namespace AwakenServer.Trade.Dtos
         public string Channel { get; set; }
         public string Sender { get; set; }
         public List<PercentRouteDto> PercentRoutes { get; set; }
+        public double LabsFee { get; set; }
+        public string LabsFeeSymbol { get; set; }
     }
 }

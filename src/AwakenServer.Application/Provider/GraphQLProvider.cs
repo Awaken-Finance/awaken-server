@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using AwakenServer.Asset;
 using AwakenServer.Common;
 using AwakenServer.ContractEventHandler.Application;
+using AwakenServer.Dtos.GraphQL;
 using AwakenServer.Grains.Grain.ApplicationHandler;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
@@ -13,6 +15,7 @@ using GraphQL.Client.Http;
 using GraphQL.Client.Serializer.Newtonsoft;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using Orleans;
 using Volo.Abp.DependencyInjection;
 
@@ -25,7 +28,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     private readonly IClusterClient _clusterClient;
     private readonly ILogger<GraphQLProvider> _logger;
     private readonly ITokenAppService _tokenAppService;
-
+    
     public GraphQLProvider(ILogger<GraphQLProvider> logger, IClusterClient clusterClient,
         ITokenAppService tokenAppService,
         IOptions<GraphQLOptions> graphQLOptions)
@@ -221,7 +224,9 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 },
                 methodName,
                 inputArgs,
-                isLimitOrder
+                isLimitOrder,
+                labsFee,
+                labsFeeSymbol
             }}",
             Variables = new
             {
@@ -504,21 +509,31 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
 
     public async Task<long> GetIndexBlockHeightAsync(string chainId)
     {
-        var graphQLResponse = await _graphQLClient.SendQueryAsync<ConfirmedBlockHeightRecord>(new GraphQLRequest
+        using HttpClient client = new HttpClient();
+        try
         {
-            Query = @"
-			    query($chainId:String,$filterType:BlockFilterType!) {
-                    syncState(dto: {chainId:$chainId,filterType:$filterType}){
-                        confirmedBlockHeight}
-                    }",
-            Variables = new
+            string jsonResponse = await client.GetStringAsync(_graphQLOptions.SyncStateUrl);
+            
+            var versionInfo = JsonConvert.DeserializeObject<SyncStateResponse>(jsonResponse);
+            
+            if (versionInfo?.CurrentVersion?.Items != null)
             {
-                chainId,
-                filterType = BlockFilterType.LOG_EVENT
+                foreach (var item in versionInfo.CurrentVersion.Items)
+                {
+                    if (item.ChainId == chainId) 
+                    {
+                        _logger.LogInformation($"GetIndexBlockHeightAsync, ChainId: {item.ChainId}, LastIrreversibleBlockHeight: {item.LastIrreversibleBlockHeight}");
+                        return item.LastIrreversibleBlockHeight;
+                    }
+                }
             }
-        });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetIndexBlockHeightAsync failed.");
+        }
 
-        return graphQLResponse.Data.SyncState.ConfirmedBlockHeight;
+        return 0;
     }
 
     public async Task<long> GetLastEndHeightAsync(string chainId, WorkerBusinessType type)
