@@ -71,15 +71,15 @@ namespace AwakenServer.Trade
                 },
             };
             await _tradePairIndexRepository.AddAsync(tradePair);
-            await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
             _graphQlProvider.AddSwapRecord(swapRecordDto);
             var swapList = _graphQlProvider.GetSwapRecordsAsync(ChainId, 0 , 100, 0, 10000);
             swapList.Result.Count.ShouldBe(1);
-            var ret = await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            var ret = await _tradeRecordAppService.CreateAsync(swapRecordDto);
             ret.ShouldBe(true);
             await _tradePairIndexRepository.DeleteAsync(tradePair.Id);
             swapRecordDto.TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d36";
-            ret = await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            ret = await _tradeRecordAppService.CreateAsync(swapRecordDto);
             ret.ShouldBe(false);
         }
         
@@ -158,11 +158,11 @@ namespace AwakenServer.Trade
             };
             await _tradePairIndexRepository.AddAsync(tradePair);
             await _tradePairIndexRepository.AddAsync(tradePairSGR);
-            var ret = await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            var ret = await _tradeRecordAppService.CreateAsync(swapRecordDto);
             ret.ShouldBe(true);
             await _tradePairIndexRepository.DeleteAsync(tradePair.Id);
             swapRecordDto.TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d36";
-            ret = await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            ret = await _tradeRecordAppService.CreateAsync(swapRecordDto);
             ret.ShouldBe(false);
         }
         
@@ -207,7 +207,7 @@ namespace AwakenServer.Trade
                 IsLimitOrder = false
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -251,7 +251,7 @@ namespace AwakenServer.Trade
                 LabsFeeSymbol = TokenEthSymbol
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -303,7 +303,7 @@ namespace AwakenServer.Trade
                 LabsFeeSymbol = TokenBtcSymbol
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -353,7 +353,7 @@ namespace AwakenServer.Trade
                 InputArgs = swapInput.ToByteString().ToBase64(),
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -423,7 +423,7 @@ namespace AwakenServer.Trade
                 InputArgs = swapInput.ToByteString().ToBase64(),
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -483,7 +483,7 @@ namespace AwakenServer.Trade
                 InputArgs = swapInput.ToByteString().ToBase64(),
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -552,7 +552,7 @@ namespace AwakenServer.Trade
                 InputArgs = swapInput.ToByteString().ToBase64(),
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -641,7 +641,7 @@ namespace AwakenServer.Trade
                 InputArgs = swapInput.ToByteString().ToBase64(),
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -724,7 +724,7 @@ namespace AwakenServer.Trade
                 InputArgs = swapInput.ToByteString().ToBase64(),
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -798,7 +798,7 @@ namespace AwakenServer.Trade
                 InputArgs = swapInput.ToByteString().ToBase64(),
             };
             
-            await _tradeRecordAppService.CreateAsync(0, swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
 
             var record = await _tradeRecordAppService.GetListAsync(new GetTradeRecordsInput()
             {
@@ -1271,7 +1271,7 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task RevertTest()
         {
-            await _tradeRecordAppService.CreateAsync(0, new SwapRecordDto
+            await _tradeRecordAppService.CreateAsync(new SwapRecordDto
             {
                 ChainId = ChainId,
                 PairAddress = TradePairEthUsdtAddress,

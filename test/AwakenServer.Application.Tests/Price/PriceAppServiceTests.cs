@@ -124,7 +124,7 @@ namespace AwakenServer.Price
                 Channel = "test",
                 BlockHeight = 99
             };
-            await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
             
             result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "CPU", "USDT", "ETH", "READ", "SHIWN-1", "SHIWN-88" });
             result.Items.Count.ShouldBe(6);
@@ -149,7 +149,7 @@ namespace AwakenServer.Price
                 Channel = "test",
                 BlockHeight = 99
             };
-            await _tradeRecordAppService.CreateAsync(0,swapRecordDto);
+            await _tradeRecordAppService.CreateAsync(swapRecordDto);
         }
 
         [Fact]

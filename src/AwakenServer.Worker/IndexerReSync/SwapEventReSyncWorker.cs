@@ -27,19 +27,19 @@ public class SwapEventReSyncWorker : AwakenServerWorkerBase
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
-        IOptions<ChainsInitOptions> chainsOption)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
+        IOptions<ChainsInitOptions> chainsOption,
+        ISyncStateProvider syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
         _tradeRecordAppService = tradeRecordAppService;
     }
 
-    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
     {
         long blockHeight = -1;
         
-        var currentConfirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Id);
         var queryList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
         foreach (var queryDto in queryList)

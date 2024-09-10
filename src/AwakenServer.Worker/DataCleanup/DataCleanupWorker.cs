@@ -27,8 +27,9 @@ public class DataCleanupWorker : AwakenServerWorkerBase
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
-        IMyPortfolioAppService portfolioAppService)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
+        IMyPortfolioAppService portfolioAppService,
+        ISyncStateProvider syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
     {
         _portfolioAppService = portfolioAppService;
         _options = cleanupOptionsMonitor.CurrentValue;
@@ -44,7 +45,7 @@ public class DataCleanupWorker : AwakenServerWorkerBase
         });
     }
 
-    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
     {
         var userLiquidityIndexName = typeof(CurrentUserLiquidityIndex).Name.ToLower();
         var userLiquiditySnapshotIndexName = typeof(UserLiquiditySnapshotIndex).Name.ToLower();

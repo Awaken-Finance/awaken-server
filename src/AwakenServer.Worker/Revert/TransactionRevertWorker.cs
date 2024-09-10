@@ -31,8 +31,9 @@ namespace AwakenServer.Worker
             ILogger<AwakenServerWorkerBase> logger,
             ILiquidityAppService liquidityService,
             ITradeRecordAppService tradeRecordAppService,
-            IOptions<ChainsInitOptions> chainsOption)
-            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
+            IOptions<ChainsInitOptions> chainsOption,
+            ISyncStateProvider syncStateProvider)
+            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
         {
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;
@@ -41,7 +42,7 @@ namespace AwakenServer.Worker
             _tradeRecordAppService = tradeRecordAppService;
         }
 
-        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
         {
             await _tradeRecordAppService.RevertTradeRecordAsync(chain.Id);
             await _liquidityService.RevertLiquidityAsync(chain.Id);

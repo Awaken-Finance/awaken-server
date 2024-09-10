@@ -375,7 +375,7 @@ namespace AwakenServer.Trade
             }
         }
         
-        public async Task<bool> CreateAsync(long currentConfirmedHeight, LiquidityRecordDto input)
+        public async Task<bool> CreateAsync(LiquidityRecordDto input)
         {
             var grain = _clusterClient.GetGrain<ILiquidityRecordGrain>(
                 GrainIdHelper.GenerateGrainId(input.ChainId, input.TransactionHash));
