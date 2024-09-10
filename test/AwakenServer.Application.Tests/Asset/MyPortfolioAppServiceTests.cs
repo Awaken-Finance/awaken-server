@@ -13,6 +13,7 @@ using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Shouldly;
+using Volo.Abp.Identity.Settings;
 using Xunit;
 using TradePairMarketDataSnapshot = AwakenServer.Trade.TradePairMarketDataSnapshot;
 
@@ -498,6 +499,17 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         result.Items[0].ImpermanentLossInUSD.ShouldBe("0.041499");
         result.Items[0].EstimatedAPR[2].Type.ShouldBe(EstimatedAprType.All);
         // result.Items[0].EstimatedAPR[2].Percent.Substring(0, 5).ShouldBe("0.180");
+
+        var currentUserLiquidityDto = await _myPortfolioAppService.GetCurrentUserLiquidityAsync(new GetCurrentUserLiquidityDto
+        {
+            ChainId = ChainName,
+            Address = UserAddress,
+            TradePairId = TradePairBtcUsdtId 
+        });
+        currentUserLiquidityDto.LpTokenAmount.ShouldBe(50000);
+        currentUserLiquidityDto.Token0UnReceivedFee.ShouldBe(500000);
+        currentUserLiquidityDto.Token1UnReceivedFee.ShouldBe(2500);
+        currentUserLiquidityDto.TradePair.Address.ShouldBe(TradePairBtcUsdtAddress);
     }
     
     [Fact]
