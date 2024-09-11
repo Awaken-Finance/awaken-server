@@ -16,5 +16,4 @@ public interface IMyPortfolioAppService
     Task<List<string>> GetAllUserAddressesAsync(string dataVersion);
     Task<bool> CleanupUserLiquidityDataAsync(string dataVersion, bool executeDeletion);
     Task<bool> CleanupUserLiquiditySnapshotsDataAsync(string dataVersion, bool executeDeletion);
-    Task<CurrentUserLiquidityDto> GetCurrentUserLiquidityAsync(GetCurrentUserLiquidityDto input);
 }

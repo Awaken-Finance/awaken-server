@@ -303,7 +303,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         QueryContainer Filter(QueryContainerDescriptor<TradePair> f) => f.Bool(b => b.Must(mustQuery));
         return await _tradePairIndexRepository.GetAsync(Filter);
     }
-
+    
     public async Task<List<CurrentUserLiquidityIndex>> GetCurrentUserLiquidityIndexListAsync(Guid tradePairId, string dataVersion)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
@@ -325,18 +325,6 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
         var result = await _currentUserLiquidityIndexRepository.GetListAsync(Filter, skip: 0, limit: 10000);
         return result.Item2;
-    }
-    
-    public async Task<CurrentUserLiquidityIndex> GetCurrentUserLiquidityIndexAsync(Guid tradePairId, string address, string dataVersion)
-    {
-        var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
-        mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
-        mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(address)));
-        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(dataVersion)));
-
-        QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
-        var result = await _currentUserLiquidityIndexRepository.GetListAsync(Filter, skip: 0, limit: 1);
-        return result.Item2.IsNullOrEmpty() ? new CurrentUserLiquidityIndex() : result.Item2[0];
     }
 
     private List<TradePairPortfolioDto> MergeAndProcess(List<TradePairPortfolioDto> rawList, int showCount, double total)
@@ -1084,16 +1072,5 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         _logger.LogInformation($"Data cleanup, index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, filter data count: {affectedCount}");
         return true;
     }
-
-    public async Task<CurrentUserLiquidityDto> GetCurrentUserLiquidityAsync(GetCurrentUserLiquidityDto input)
-    {
-        var currentUserLiquidityIndex = await GetCurrentUserLiquidityIndexAsync(input.TradePairId, input.Address, _portfolioOptions.Value.DataVersion);
-        var currentUserLiquidityDto =  _objectMapper.Map<CurrentUserLiquidityIndex, CurrentUserLiquidityDto>(currentUserLiquidityIndex);
-        if (currentUserLiquidityDto.TradePairId != Guid.Empty)
-        {
-            var tradePairIndex = await _tradePairIndexRepository.GetAsync(currentUserLiquidityDto.TradePairId);
-            currentUserLiquidityDto.TradePair = _objectMapper.Map<TradePair, TradePairWithTokenDto>(tradePairIndex);
-        }
-        return currentUserLiquidityDto;
-    }
+    
 }
