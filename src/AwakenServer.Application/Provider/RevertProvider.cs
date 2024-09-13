@@ -27,18 +27,21 @@ public class RevertProvider : IRevertProvider
     private readonly IClusterClient _clusterClient;
     private readonly ILogger<RevertProvider> _logger;
     private readonly IGraphQLProvider _graphQlProvider;
+    private readonly ISyncStateProvider _syncStateProvider;
     private readonly TradeRecordRevertWorkerSettings _revertOptions;
 
     
     public RevertProvider(ILogger<RevertProvider> logger, 
         IClusterClient clusterClient,
         IGraphQLProvider graphQLProvider,
-        IOptionsSnapshot<TradeRecordRevertWorkerSettings> tradeRecordOptions)
+        IOptionsSnapshot<TradeRecordRevertWorkerSettings> tradeRecordOptions,
+        ISyncStateProvider syncStateProvider)
     {
         _logger = logger;
         _clusterClient = clusterClient;
         _graphQlProvider = graphQLProvider;
         _revertOptions = tradeRecordOptions.Value;
+        _syncStateProvider = syncStateProvider;
     }
     
     public async Task CheckOrAddUnconfirmedTransaction(long currentConfirmedHeight, EventType eventType, string chainId, long blockHeight,
@@ -59,7 +62,7 @@ public class RevertProvider : IRevertProvider
     public async Task<List<string>> GetNeedDeleteTransactionsAsync(EventType eventType, string chainId)
     {
         var unconfirmedTransactionsGrain = _clusterClient.GetGrain<IUnconfirmedTransactionsGrain>(GrainIdHelper.GenerateGrainId(chainId, eventType));
-        var confirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chainId);
+        var confirmedHeight = await _syncStateProvider.GetLastIrreversibleBlockHeightAsync(chainId);
         var startBlockHeight = await unconfirmedTransactionsGrain.GetMinUnconfirmedHeightAsync();
         
         var unconfirmedTransactions = await GetUnConfirmedTransactionsAsync(eventType, chainId,

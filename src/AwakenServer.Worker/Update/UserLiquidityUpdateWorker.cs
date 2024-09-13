@@ -30,8 +30,9 @@ namespace AwakenServer.Worker
             IOptionsMonitor<WorkerOptions> optionsMonitor,
             ILogger<AwakenServerWorkerBase> logger,
             IOptions<ChainsInitOptions> chainsOption,
-            IOptionsSnapshot<PortfolioOptions> portfolioOptions)
-            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
+            IOptionsSnapshot<PortfolioOptions> portfolioOptions,
+            ISyncStateProvider syncStateProvider)
+            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
         {
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;
@@ -39,7 +40,7 @@ namespace AwakenServer.Worker
 
         }
 
-        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
         {
             var addresses = await _myPortfolioAppService.GetAllUserAddressesAsync(_workerOptions.DataVersion);
             foreach (var address in addresses)

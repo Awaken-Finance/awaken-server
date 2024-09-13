@@ -26,15 +26,16 @@ namespace AwakenServer.Worker
             IGraphQLProvider graphQlProvider,
             IOptionsMonitor<WorkerOptions> optionsMonitor,
             ILogger<AwakenServerWorkerBase> logger,
-            IOptions<ChainsInitOptions> chainsOption)
-            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
+            IOptions<ChainsInitOptions> chainsOption,
+            ISyncStateProvider syncStateProvider)
+            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
         {
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;
             _tradePairAppService = tradePairAppService;
         }
 
-        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
         {
             var pairs = await _tradePairAppService.GetListAsync(new GetTradePairsInput
             {

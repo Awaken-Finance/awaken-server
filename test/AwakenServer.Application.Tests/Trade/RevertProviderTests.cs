@@ -82,7 +82,7 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task TestRevertData()
         {
-            await _tradeRecordAppService.CreateAsync(0,new SwapRecordDto
+            await _tradeRecordAppService.CreateAsync(new SwapRecordDto
             {
                 ChainId = ChainId,
                 Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.Now),

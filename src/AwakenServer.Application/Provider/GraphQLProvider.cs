@@ -28,8 +28,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     private readonly IClusterClient _clusterClient;
     private readonly ILogger<GraphQLProvider> _logger;
     private readonly ITokenAppService _tokenAppService;
-    private readonly HttpClient _httpClient;
-    public const int HttpDefaultTimeOutSeconds = 5;
+    
     
     public GraphQLProvider(ILogger<GraphQLProvider> logger, IClusterClient clusterClient,
         ITokenAppService tokenAppService,
@@ -40,10 +39,6 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         _graphQLOptions = graphQLOptions.Value;
         _graphQLClient = new GraphQLHttpClient(_graphQLOptions.Configuration, new NewtonsoftJsonSerializer());
         _tokenAppService = tokenAppService;
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(HttpDefaultTimeOutSeconds)
-        };
     }
 
     public async Task<TradePairInfoDtoPageResultDto> GetTradePairInfoListAsync(GetTradePairsInfoInput input)
@@ -512,35 +507,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         });
         return graphQLResponse.Data.GetUserTokens;
     }
-
-    public async Task<long> GetIndexBlockHeightAsync(string chainId)
-    {
-        try
-        {
-            string jsonResponse = await _httpClient.GetStringAsync(_graphQLOptions.SyncStateUrl);
-            
-            var versionInfo = JsonConvert.DeserializeObject<SyncStateResponse>(jsonResponse);
-            
-            if (versionInfo?.CurrentVersion?.Items != null)
-            {
-                foreach (var item in versionInfo.CurrentVersion.Items)
-                {
-                    if (item.ChainId == chainId) 
-                    {
-                        _logger.LogInformation($"GetIndexBlockHeightAsync, ChainId: {item.ChainId}, LastIrreversibleBlockHeight: {item.LastIrreversibleBlockHeight}");
-                        return item.LastIrreversibleBlockHeight;
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "GetIndexBlockHeightAsync failed.");
-        }
-
-        return 0;
-    }
-
+    
     public async Task<long> GetLastEndHeightAsync(string chainId, WorkerBusinessType type)
     {
         try

@@ -570,11 +570,11 @@ namespace AwakenServer.Trade
             return true;
         }
         
-        public async Task<bool> CreateAsync(long currentConfirmedHeight, SwapRecordDto dto)
+        public async Task<bool> CreateAsync(SwapRecordDto dto)
         {
             if (!dto.SwapRecords.IsNullOrEmpty() || dto.IsLimitOrder)
             {
-                return await CreateMultiSwapAsync(currentConfirmedHeight, dto);
+                return await CreateMultiSwapAsync(dto);
             }
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
@@ -923,7 +923,7 @@ namespace AwakenServer.Trade
             return indexSwapRecordDistributions;
         }
         
-        public async Task<bool> CreateMultiSwapAsync(long currentConfirmedHeight, SwapRecordDto dto)
+        public async Task<bool> CreateMultiSwapAsync(SwapRecordDto dto)
         {
             _logger.LogInformation($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, method name: {dto.MethodName}, input args: {dto.InputArgs}");
             var tradeRecordGrain =

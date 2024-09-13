@@ -33,17 +33,18 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
-        IMyPortfolioAppService portfolioAppService)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
+        IMyPortfolioAppService portfolioAppService,
+        ISyncStateProvider syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
         _portfolioAppService = portfolioAppService;
     }
 
-    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
     {
-        var currentConfirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Id);
+        var currentConfirmedHeight = await _syncStateProvider.GetLastIrreversibleBlockHeightAsync(chain.Name);
         
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, currentConfirmedHeight, 0, _workerOptions.QueryOnceLimit);
         var maxBlockHeight = currentConfirmedHeight;

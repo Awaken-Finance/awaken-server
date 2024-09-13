@@ -25,6 +25,7 @@ public class AwakenServerApplicationTestModule : AbpModule
         context.Services.AddSingleton<TradePairTestHelper>();
         context.Services.AddSingleton(sp => sp.GetService<ClusterFixture>().Cluster.Client);
         context.Services.AddSingleton<IAElfClientProvider, MockAelfClientProvider>();
+        context.Services.AddSingleton<ISyncStateProvider, MockSyncStateProvider>();
         context.Services.AddMassTransitTestHarness(cfg => { });
         context.Services.Configure<PortfolioOptions>(o =>
         {
