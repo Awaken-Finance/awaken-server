@@ -44,10 +44,8 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
 
     public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
     {
-        var currentConfirmedHeight = await _syncStateProvider.GetLastIrreversibleBlockHeightAsync(chain.Name);
-        
-        var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, currentConfirmedHeight, 0, _workerOptions.QueryOnceLimit);
-        var maxBlockHeight = currentConfirmedHeight;
+        var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
+        var maxBlockHeight = 0L;
         if (swapRecordList.Count >= _workerOptions.QueryOnceLimit)
         {
             maxBlockHeight = swapRecordList[_workerOptions.QueryOnceLimit - 1].BlockHeight;
