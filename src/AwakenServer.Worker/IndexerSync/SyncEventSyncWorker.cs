@@ -28,15 +28,16 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
-        IOptions<ChainsInitOptions> chainsOption)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
+        IOptions<ChainsInitOptions> chainsOption,
+        ISyncStateProvider syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
         _tradePairAppService = tradePairAppService;
     }
 
-    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
     {
         long blockHeight = -1;
         
@@ -54,7 +55,7 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "sync event fail. Exception: {e}");
+            _logger.LogError(e, "sync event fail.");
         }
 
         return blockHeight;

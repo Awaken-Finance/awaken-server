@@ -1122,7 +1122,7 @@ namespace AwakenServer.Trade
                 {
                     await _tradePairAppService.SyncTokenAsync(pair.ChainId, pair.Token0Symbol, chain);
                     await _tradePairAppService.SyncTokenAsync(pair.ChainId, pair.Token1Symbol, chain);
-                    await _tradePairAppService.SyncPairAsync(0,pair, chain);
+                    await _tradePairAppService.SyncPairAsync(pair, chain);
                 }
 
                 // token需要有2个，tradePair需要有1个
@@ -1184,7 +1184,7 @@ namespace AwakenServer.Trade
                 Address = "rCdkUKwrcUPm4F7Ek71pzJ8xoWRQ1YRdLo9i7wJ1XutSY5pjG"
             };
             
-            await _tradePairAppService.SyncPairAsync(0,TradePairInfoDto, new ChainDto()
+            await _tradePairAppService.SyncPairAsync(TradePairInfoDto, new ChainDto()
             {
                 Id = ChainId,
                 Name = ChainName
@@ -1230,7 +1230,7 @@ namespace AwakenServer.Trade
                 Id = Guid.NewGuid().ToString(),
                 Address = "0x2"
             };
-            await _tradePairAppService.SyncPairAsync(0, newPairDto, new ChainDto
+            await _tradePairAppService.SyncPairAsync(newPairDto, new ChainDto
             {
                 Name = ChainId,
                 Id = ChainId

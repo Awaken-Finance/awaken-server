@@ -507,7 +507,7 @@ namespace AwakenServer.Trade
             return tokenDto;
         }
 
-        public async Task<bool> SyncPairAsync(long currentConfirmedHeight, TradePairInfoDto pair, ChainDto chain)
+        public async Task<bool> SyncPairAsync(TradePairInfoDto pair, ChainDto chain)
         {
             if (!Guid.TryParse(pair.Id, out var pairId))
             {

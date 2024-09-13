@@ -21,6 +21,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
     protected readonly ILogger<AwakenServerWorkerBase> _logger;
     protected readonly IChainAppService _chainAppService;
     protected readonly IGraphQLProvider _graphQlProvider;
+    protected readonly ISyncStateProvider _syncStateProvider;
     protected readonly Dictionary<string, bool> _chainHasResetBlockHeight = new();
 
     protected AwakenServerWorkerBase(AbpAsyncTimer timer, 
@@ -29,12 +30,14 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         ILogger<AwakenServerWorkerBase> logger,
-        IOptions<ChainsInitOptions> chainsOption) : base(timer, serviceScopeFactory)
+        IOptions<ChainsInitOptions> chainsOption,
+        ISyncStateProvider syncStateProvider) : base(timer, serviceScopeFactory)
     {
         _logger = logger;
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
-        
+        _syncStateProvider = syncStateProvider;
+
         timer.Period = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).TimePeriod;
         
         _workerOptions.OpenSwitch = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
@@ -104,7 +107,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         });
     }
     
-    public abstract Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight);
+    public abstract Task<long> SyncDataAsync(ChainDto chain, long startHeight);
 
     private async Task ResetBlockHeight(ChainDto chain)
     {
@@ -139,19 +142,17 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
             try
             {
                 var lastEndHeight = await _graphQlProvider.GetLastEndHeightAsync(chain.Name, _businessType);
-                var newIndexHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Name);
                 
                 _logger.LogInformation(
                     $"Start deal data for businessType: {_businessType} " +
                     $"chainId: {chain.Name}, " +
                     $"lastEndHeight: {lastEndHeight}, " +
-                    $"newIndexHeight: {newIndexHeight}, " +
                     $"ResetBlockHeightFlag: {_workerOptions.ResetBlockHeightFlag}, " +
                     $"ResetBlockHeight: {_workerOptions.ResetBlockHeight}, " +
                     $"QueryStartBlockHeightOffset: {_workerOptions.QueryStartBlockHeightOffset}, " +
                     $"startHeight: {lastEndHeight + _workerOptions.QueryStartBlockHeightOffset}");
                 
-                var blockHeight = await SyncDataAsync(chain, lastEndHeight + _workerOptions.QueryStartBlockHeightOffset, newIndexHeight);
+                var blockHeight = await SyncDataAsync(chain, lastEndHeight + _workerOptions.QueryStartBlockHeightOffset);
 
                 if (blockHeight > 0)
                 {

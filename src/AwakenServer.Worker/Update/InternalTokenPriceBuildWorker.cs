@@ -29,8 +29,9 @@ namespace AwakenServer.Worker
             IOptionsMonitor<WorkerOptions> optionsMonitor,
             ILogger<AwakenServerWorkerBase> logger,
             IOptions<ChainsInitOptions> chainsOption,
-            IPriceAppService priceAppService)
-            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
+            IPriceAppService priceAppService,
+            ISyncStateProvider syncStateProvider)
+            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
         {
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;
@@ -38,7 +39,7 @@ namespace AwakenServer.Worker
             _priceAppService = priceAppService;
         }
 
-        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+        public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
         {
             await _priceAppService.RebuildPricingMapAsync(chain.Name);
             return 0;

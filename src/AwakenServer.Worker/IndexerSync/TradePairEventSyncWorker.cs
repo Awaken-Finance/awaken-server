@@ -29,19 +29,19 @@ public class TradePairEventSyncWorker : AwakenServerWorkerBase
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
-        IOptions<ChainsInitOptions> chainsOption)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption)
+        IOptions<ChainsInitOptions> chainsOption,
+        ISyncStateProvider syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
         _tradePairAppService = tradePairAppService;
     }
 
-    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight, long newIndexHeight)
+    public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
     {
         long blockHeight = -1;
         
-        var currentConfirmedHeight = await _graphQlProvider.GetIndexBlockHeightAsync(chain.Id);
         var result = await _graphQlProvider.GetTradePairInfoListAsync(new GetTradePairsInfoInput
         {
             ChainId = chain.Id,
@@ -62,7 +62,7 @@ public class TradePairEventSyncWorker : AwakenServerWorkerBase
             var token1 = await _tradePairAppService.SyncTokenAsync(pair.ChainId, pair.Token1Symbol, chain);
             pair.Token0Id = token0.Id;
             pair.Token1Id = token1.Id;
-            if (await _tradePairAppService.SyncPairAsync(currentConfirmedHeight, pair, chain))
+            if (await _tradePairAppService.SyncPairAsync(pair, chain))
             {
                 _logger.LogInformation("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol} done",
                     pair.Id, pair.Address, chain, pair.Token0Symbol, pair.Token1Symbol);

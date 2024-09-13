@@ -1,4 +1,5 @@
 ﻿using AElf.Client.Service;
+using Awaken.Common.HttpClient;
 using AwakenServer.Asset;
 using AwakenServer.Chains;
 using AwakenServer.CMS;
@@ -49,6 +50,7 @@ namespace AwakenServer
             Configure<AssetShowOptions>(configuration.GetSection("AssetShow"));
             Configure<ApiOptions>(configuration.GetSection("Api"));
             Configure<GraphQLOptions>(configuration.GetSection("GraphQL"));
+            Configure<SyncStateOptions>(configuration.GetSection("SyncStateOptions"));
             Configure<CmsOptions>(configuration.GetSection("Cms"));
             Configure<AssetWhenNoTransactionOptions>(configuration.GetSection("AssetWhenNoTransaction"));
             Configure<ContractsTokenOptions>(configuration.GetSection("ContractsTokenOptions"));
@@ -61,6 +63,9 @@ namespace AwakenServer
             context.Services.AddSingleton<IHttpService>(provider => { return new HttpService(3); });
             context.Services.AddSingleton<ITradePairMarketDataProvider, TradePairMarketDataProvider>();
             context.Services.AddSingleton<IRevertProvider, RevertProvider>();
+            context.Services.AddSingleton<ISyncStateProvider, SyncStateProvider>();
+            context.Services.AddSingleton<IHttpProvider, HttpProvider>();
+
         }
 
         public override void OnPreApplicationInitialization(ApplicationInitializationContext context)
