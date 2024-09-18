@@ -7,8 +7,10 @@ public class PoolStatInfo
 {
     public TradePairWithToken TradePair;
     public double Tvl;
-    public double TotalVolumeInUsd;
+    public double ValueLocked0;
+    public double ValueLocked1;
+    public double VolumeInUsd24h;
+    public double VolumeInUsd7d;
     public double Price;
-    public double TotalLpFeeInUsd;
     public DateTime LastUpdateTime;
 }
