@@ -63,7 +63,7 @@ namespace AwakenServer.StatInfo
                 Timestamp = timestamp
             });
 
-            var result = await _statInfoAppService.GetPriceListAsync(new GetStatHistoryInput()
+            var result = await _statInfoAppService.GetPoolPriceListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
@@ -74,18 +74,20 @@ namespace AwakenServer.StatInfo
             result.Items[0].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(hourSnapshotTime));
             result.Items[0].PriceInUsd.ShouldBe(10);
             
-            result = await _statInfoAppService.GetPriceListAsync(new GetStatHistoryInput()
+            result = await _statInfoAppService.GetPoolPriceListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Week,
                 PairAddress = TradePairBtcEthAddress
             });
+            result.TradePair.Token0.Symbol.ShouldBe("BTC");
+            result.TradePair.Token1.Symbol.ShouldBe("ETH");
             result.Items.Count.ShouldBe(1);
             var sixHourSnapshotTime = new DateTime(_baseTime.Year, _baseTime.Month, _baseTime.Day, 4, 0, 0);
             result.Items[0].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(sixHourSnapshotTime));
             result.Items[0].PriceInUsd.ShouldBe(10);
             
-            var volResult = await _statInfoAppService.GetVolumeListAsync(new GetStatHistoryInput()
+            var volResult = await _statInfoAppService.GetPoolVolumeListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
@@ -111,7 +113,7 @@ namespace AwakenServer.StatInfo
                 Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(_baseTime.AddHours(2))
             });
             
-            result = await _statInfoAppService.GetPriceListAsync(new GetStatHistoryInput()
+            result = await _statInfoAppService.GetPoolPriceListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
@@ -121,7 +123,7 @@ namespace AwakenServer.StatInfo
             result.Items[0].PriceInUsd.ShouldBe(10);
             result.Items[1].PriceInUsd.ShouldBe(15);
             
-            volResult = await _statInfoAppService.GetVolumeListAsync(new GetStatHistoryInput()
+            volResult = await _statInfoAppService.GetPoolVolumeListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
@@ -131,7 +133,7 @@ namespace AwakenServer.StatInfo
             volResult.Items[0].VolumeInUsd.ShouldBe(1);
             volResult.Items[1].VolumeInUsd.ShouldBe(2);
             
-            result = await _statInfoAppService.GetPriceListAsync(new GetStatHistoryInput()
+            result = await _statInfoAppService.GetPoolPriceListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Week,
@@ -140,7 +142,7 @@ namespace AwakenServer.StatInfo
             result.Items.Count.ShouldBe(1);
             result.Items[0].PriceInUsd.ShouldBe(15);
             
-            volResult = await _statInfoAppService.GetVolumeListAsync(new GetStatHistoryInput()
+            volResult = await _statInfoAppService.GetPoolVolumeListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Week,
@@ -235,16 +237,16 @@ namespace AwakenServer.StatInfo
             volResult.Items[0].VolumeInUsd.ShouldBe(22);
             
             // token
-            result = await _statInfoAppService.GetTvlListAsync(new GetStatHistoryInput()
+            var tokenResult = await _statInfoAppService.GetTokenTvlListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
                 Symbol = "BTC"
             });
-            result.Items.Count.ShouldBe(1);
-            result.Items[0].Tvl.ShouldBe(13);
+            tokenResult.Items.Count.ShouldBe(1);
+            tokenResult.Items[0].Tvl.ShouldBe(13);
             
-            var priceResult = await _statInfoAppService.GetPriceListAsync(new GetStatHistoryInput()
+            var priceResult = await _statInfoAppService.GetTokenPriceListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
@@ -253,42 +255,42 @@ namespace AwakenServer.StatInfo
             priceResult.Items.Count.ShouldBe(1);
             priceResult.Items[0].PriceInUsd.ShouldBe(10);
             
-            volResult = await _statInfoAppService.GetVolumeListAsync(new GetStatHistoryInput()
+            var tokenVolResult = await _statInfoAppService.GetTokenVolumeListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
                 Symbol = "BTC"
             });
-            volResult.Items.Count.ShouldBe(1);
-            volResult.Items[0].VolumeInUsd.ShouldBe(1);
+            tokenVolResult.Items.Count.ShouldBe(1);
+            tokenVolResult.Items[0].VolumeInUsd.ShouldBe(1);
             
             // pool
-            result = await _statInfoAppService.GetTvlListAsync(new GetStatHistoryInput()
+            var poolResult = await _statInfoAppService.GetPoolTvlListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
                 PairAddress = TradePairBtcEthAddress
             });
-            result.Items.Count.ShouldBe(1);
-            result.Items[0].Tvl.ShouldBe(6);
+            poolResult.Items.Count.ShouldBe(1);
+            poolResult.Items[0].Tvl.ShouldBe(6);
             
-            priceResult = await _statInfoAppService.GetPriceListAsync(new GetStatHistoryInput()
+            var poolPriceResult = await _statInfoAppService.GetPoolPriceListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
                 PairAddress = TradePairBtcEthAddress
             });
-            priceResult.Items.Count.ShouldBe(1);
-            priceResult.Items[0].PriceInUsd.ShouldBe(20);
+            poolPriceResult.Items.Count.ShouldBe(1);
+            poolPriceResult.Items[0].PriceInUsd.ShouldBe(20);
             
-            volResult = await _statInfoAppService.GetVolumeListAsync(new GetStatHistoryInput()
+            var poolVolResult = await _statInfoAppService.GetPoolVolumeListAsync(new GetStatHistoryInput()
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
                 PairAddress = TradePairBtcEthAddress
             });
-            volResult.Items.Count.ShouldBe(1);
-            volResult.Items[0].VolumeInUsd.ShouldBe(3);
+            poolVolResult.Items.Count.ShouldBe(1);
+            poolVolResult.Items[0].VolumeInUsd.ShouldBe(3);
             
         }
     }

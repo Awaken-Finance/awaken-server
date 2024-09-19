@@ -19,7 +19,6 @@ namespace AwakenServer.Worker.IndexerSync;
 public class LiquidityEventSyncWorker : AwakenServerWorkerBase
 {
     protected override WorkerBusinessType _businessType => WorkerBusinessType.LiquidityEvent;
- 
     protected readonly IChainAppService _chainAppService;
     protected readonly IGraphQLProvider _graphQlProvider;
     private readonly ILiquidityAppService _liquidityService;
