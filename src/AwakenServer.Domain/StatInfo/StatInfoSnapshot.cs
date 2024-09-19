@@ -11,8 +11,8 @@ public class StatInfoSnapshot : MultiChainEntity<Guid>
     [Keyword] public string PairAddress { get; set; } // for StatType= 2
     public double Tvl { get; set; }
     public double VolumeInUsd { get; set; }
-    public double Price { get; set; }
-    public double PriceInUsd { get; set; }
+    public double Price { get; set; } // for StatType = 2
+    public double PriceInUsd { get; set; } // for StatType = 1
     public double LpFeeInUsd { get; set; }// for StatType= 2
     public long Period { get; set; }
     public long Timestamp { get; set; }
