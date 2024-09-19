@@ -44,6 +44,21 @@ public class StatInfoSnapshotGrain : Grain<StatInfoSnapshotState>, IStatInfoSnap
         }
         else
         {
+            if (dto.Tvl == 0)
+            {
+                dto.Tvl = State.Tvl;
+            }
+
+            if (dto.Price == 0)
+            {
+                dto.Price = State.Price;
+            }
+
+            if (dto.PriceInUsd == 0)
+            {
+                dto.PriceInUsd = State.PriceInUsd;
+            }
+            
             State = _objectMapper.Map<StatInfoSnapshotGrainDto, StatInfoSnapshotState>(dto);
             State.Id = Guid.NewGuid();
         }

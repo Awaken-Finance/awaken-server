@@ -181,6 +181,11 @@ namespace AwakenServer
             CreateMapForFavorite();
 
             CreateMap<StatInfoSnapshotIndex, StatInfoPriceDto>();
+            CreateMap<StatInfoSnapshotIndex, StatInfoVolumeDto>();
+            CreateMap<StatInfoSnapshotIndex, StatInfoTvlDto>();
+            CreateMap<TransactionHistoryIndex, TransactionHistoryDto>();
+            CreateMap<PoolStatInfoIndex, PoolStatInfoDto>();
+            CreateMap<TokenStatInfoIndex, TokenStatInfoDto>();
         }
 
         private void CreateMapForFavorite()

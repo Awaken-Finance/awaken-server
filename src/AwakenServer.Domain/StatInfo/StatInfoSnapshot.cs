@@ -18,3 +18,4 @@ public class StatInfoSnapshot : MultiChainEntity<Guid>
     public long Period { get; set; }
     public long Timestamp { get; set; }
 }
+

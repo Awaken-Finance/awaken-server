@@ -86,7 +86,7 @@ namespace AwakenServer.StatInfo.Handlers
                     var tradePair = await _tradePairAppService.GetTradePairAsync(eventData.ChainId, eventData.PairAddress);
                     if (tradePair == null)
                     {
-                        _logger.LogError($"handle StatInfoSnapshotEto, get pair: {eventData.PairAddress} failed");
+                        _logger.LogError($"handle StatInfoSnapshotEto, chain: {eventData.ChainId}, get pair: {eventData.PairAddress} failed");
                         return;
                     }
                     var symbol1PriceInUsd = await _priceAppService.GetTokenPriceAsync(tradePair.Token1.Symbol);
