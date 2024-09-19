@@ -31,12 +31,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         _statInfoOptions = statInfoPeriodOptions.Value;
     }
 
-    public async Task<ListResultDto<StatInfoTvlDto>> GetTvlListAsync(GetStatHistoryInput input)
-    {
-        return null;
-    }
-
-    public async Task<ListResultDto<StatInfoPriceDto>> GetPriceListAsync(GetStatHistoryInput input)
+    private async Task<Tuple<long,List<StatInfoSnapshotIndex>>> GetStatInfoSnapshotIndexes(GetStatHistoryInput input)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<StatInfoSnapshotIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(input.ChainId)));
@@ -64,6 +59,21 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         
         QueryContainer Filter(QueryContainerDescriptor<StatInfoSnapshotIndex> f) => f.Bool(b => b.Must(mustQuery));
         var list = await _statInfoSnapshotIndexRepository.GetListAsync(Filter, sortExp: k => k.Timestamp);
+        return list;
+    }
+    
+    public async Task<ListResultDto<StatInfoTvlDto>> GetTvlListAsync(GetStatHistoryInput input)
+    {
+        var list = await GetStatInfoSnapshotIndexes(input);
+        return new ListResultDto<StatInfoTvlDto>
+        {
+            Items = _objectMapper.Map<List<StatInfoSnapshotIndex>, List<StatInfoTvlDto>>(list.Item2)
+        };
+    }
+
+    public async Task<ListResultDto<StatInfoPriceDto>> GetPriceListAsync(GetStatHistoryInput input)
+    {
+        var list = await GetStatInfoSnapshotIndexes(input);
         return new ListResultDto<StatInfoPriceDto>
         {
             Items = _objectMapper.Map<List<StatInfoSnapshotIndex>, List<StatInfoPriceDto>>(list.Item2)
@@ -72,6 +82,10 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
 
     public async Task<ListResultDto<StatInfoVolumeDto>> GetVolumeListAsync(GetStatHistoryInput input)
     {
-        return null;
+        var list = await GetStatInfoSnapshotIndexes(input);
+        return new ListResultDto<StatInfoVolumeDto>
+        {
+            Items = _objectMapper.Map<List<StatInfoSnapshotIndex>, List<StatInfoVolumeDto>>(list.Item2)
+        };
     }
 }
