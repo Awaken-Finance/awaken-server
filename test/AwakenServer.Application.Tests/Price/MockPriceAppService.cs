@@ -25,6 +25,16 @@ namespace AwakenServer.Applications.GameOfTrust
             return Task.FromResult("0");
         }
 
+        public Task<double> GetTokenPriceAsync(string symbol)
+        {
+            switch (symbol)
+            {
+                case "ETH": return Task.FromResult(1.0);
+            }
+
+            return Task.FromResult(0.0);
+        }
+
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols)
         {
             return new ListResultDto<TokenPriceDataDto>()

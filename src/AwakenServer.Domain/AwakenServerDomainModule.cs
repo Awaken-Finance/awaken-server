@@ -2,6 +2,8 @@
 using AwakenServer.Trade;
 using AwakenServer.Trade.Etos;
 using AElf.Indexing.Elasticsearch;
+using AwakenServer.StatInfo;
+using AwakenServer.StatInfo.Etos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Volo.Abp.AuditLogging;
@@ -55,6 +57,8 @@ namespace AwakenServer
                 options.AutoEventSelectors.Add<KLine>();
                 options.EtoMappings.Add<KLine, KLineEto>();
                 
+                options.AutoEventSelectors.Add<StatInfoSnapshot>();
+                options.EtoMappings.Add<StatInfoSnapshot, StatInfoSnapshotEto>();
             });
         }
     }

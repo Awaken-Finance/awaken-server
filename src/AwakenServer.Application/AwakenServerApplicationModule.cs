@@ -7,6 +7,7 @@ using AwakenServer.ContractEventHandler.Application;
 using AwakenServer.Grains;
 using AwakenServer.Price;
 using AwakenServer.Provider;
+using AwakenServer.StatInfo;
 using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp;
@@ -47,6 +48,7 @@ namespace AwakenServer
             Configure<StableCoinOptions>(configuration.GetSection("StableCoin"));
             Configure<MainCoinOptions>(configuration.GetSection("MainCoin"));
             Configure<KLinePeriodOptions>(configuration.GetSection("KLinePeriods"));
+            Configure<StatInfoOptions>(configuration.GetSection("StatInfoOptions"));
             Configure<AssetShowOptions>(configuration.GetSection("AssetShow"));
             Configure<ApiOptions>(configuration.GetSection("Api"));
             Configure<GraphQLOptions>(configuration.GetSection("GraphQL"));
