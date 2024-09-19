@@ -6,6 +6,7 @@ namespace AwakenServer.StatInfo;
 
 public class StatInfoSnapshot : MultiChainEntity<Guid>
 {
+    [Keyword] public string Version { get; set; }
     public int StatType { get; set; } // 0 all 1 token 2 pool
     [Keyword] public string Symbol { get; set; }// for StatType= 1
     [Keyword] public string PairAddress { get; set; } // for StatType= 2

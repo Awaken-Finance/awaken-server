@@ -11,5 +11,5 @@ public class TokenStatInfoState
     public double PricePercentChange24h { get; set; }
     public long TransactionCount { get; set; }
     public long PoolCount { get; set; }
-    public DateTime LastUpdateTime { get; set; }
+    public long LastUpdateTime { get; set; }
 }

@@ -12,9 +12,9 @@ public class TokenStatInfo : MultiChainEntity<Guid>
     public double ValueLocked { get; set; }
     public double Tvl { get; set; }
     public double VolumeInUsd24h { get; set; }
-    public double Price { get; set; }
+    public double PriceInUsd { get; set; }
     public double PricePercentChange24h { get; set; }
     public long TransactionCount { get; set; }
     public long PoolCount { get; set; }
-    public DateTime LastUpdateTime { get; set; }
+    public long LastUpdateTime { get; set; }
 }
