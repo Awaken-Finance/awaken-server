@@ -5,6 +5,7 @@ using AwakenServer.Chains;
 using AwakenServer.CMS;
 using AwakenServer.Price;
 using AwakenServer.Provider;
+using AwakenServer.StatInfo;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Worker;
@@ -100,6 +101,24 @@ namespace AwakenServer.Trade
                     14400,
                     86400,
                     604800
+                };
+            });
+            
+            context.Services.Configure<StatInfoOptions>(o =>
+            {
+                o.Periods = new List<int>
+                {
+                    3600,
+                    21600,
+                    86400,
+                    604800
+                };
+                o.TypePeriodMapping = new Dictionary<string, long>()
+                {
+                    { "Day", 3600 },
+                    { "Week", 21600 },
+                    { "Month", 86400 },
+                    { "Year", 604800 }
                 };
             });
 

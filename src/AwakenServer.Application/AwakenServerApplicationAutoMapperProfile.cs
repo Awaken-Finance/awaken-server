@@ -8,9 +8,13 @@ using AwakenServer.Grains.Grain.Tokens;
 using AwakenServer.Grains.Grain.Favorite;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
+using AwakenServer.Grains.Grain.StatInfo;
 using AwakenServer.Grains.Grain.SwapTokenPath;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.State.Tokens;
+using AwakenServer.StatInfo.Dtos;
+using AwakenServer.StatInfo.Etos;
+using AwakenServer.StatInfo.Index;
 using AwakenServer.SwapTokenPath.Dtos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade;
@@ -143,6 +147,7 @@ namespace AwakenServer
             CreateMap<KLineEto, KLine>();
             CreateMap<Trade.Index.KLine, KLineDto>();
             CreateMap<KLineGrainDto, KLineEto>();
+            CreateMap<StatInfoSnapshotGrainDto, StatInfoSnapshotIndexEto>();
             CreateMap<NewTradeRecordEvent, TradeRecordDto>();
             CreateMap<Trade.Dtos.SwapRecord, Trade.SwapRecord>().ReverseMap();
             CreateMap<Trade.Dtos.SwapRecord, SwapRecordDto>();
@@ -161,6 +166,7 @@ namespace AwakenServer
             CreateMap<CurrentUserLiquidityEto, CurrentUserLiquidityIndex>();
             CreateMap<CurrentUserLiquidityIndex, CurrentUserLiquidityDto>();
             CreateMap<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>();
+            CreateMap<StatInfoSnapshotIndexEto, StatInfoSnapshotIndex>();
             
             CreateMap<LimitOrderDto, LimitOrderIndexDto>()
                 .ForMember(dest => dest.AmountIn, opt => opt.Ignore())
@@ -173,6 +179,8 @@ namespace AwakenServer
             
             //Favorite
             CreateMapForFavorite();
+
+            CreateMap<StatInfoSnapshotIndex, StatInfoPriceDto>();
         }
 
         private void CreateMapForFavorite()

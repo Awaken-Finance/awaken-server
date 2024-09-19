@@ -64,6 +64,14 @@ namespace AwakenServer.Price
             else return result.Items[0].PriceInUsd.ToString();
         }
 
+        public async Task<double> GetTokenPriceAsync(string symbol)
+        {
+            if (string.IsNullOrWhiteSpace(symbol)) return 0;
+            var result = await GetTokenPriceListAsync(new List<string>{ symbol });
+            if (result.Items.Count == 0) return 0;
+            return (double)result.Items[0].PriceInUsd;
+        }
+        
         private async Task<decimal> GetApiUsdtPriceAsync(string time)
         {
             if (String.IsNullOrEmpty(time))
