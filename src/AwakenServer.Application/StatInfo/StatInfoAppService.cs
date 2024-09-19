@@ -226,8 +226,8 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
             var poolStatInfoDto = _objectMapper.Map<PoolStatInfoIndex, PoolStatInfoDto>(poolStatInfoIndex);
             poolStatInfoDto.Volume24hInUsd = poolStatInfoIndex.VolumeInUsd24h;
             poolStatInfoDto.Volume7dInUsd = poolStatInfoIndex.VolumeInUsd7d;
-            poolStatInfoDto.ValueLocked0 = poolStatInfoIndex.ReserveA;// todo decimal
-            poolStatInfoDto.ValueLocked1 = poolStatInfoIndex.ReserveB;// todo decimal
+            poolStatInfoDto.ValueLocked0 = poolStatInfoIndex.ValueLocked0;// todo decimal
+            poolStatInfoDto.ValueLocked1 = poolStatInfoIndex.ValueLocked1;// todo decimal
             poolStatInfoDto.Apr7d = 0;// todo
             poolStatInfoDtoList.Add(poolStatInfoDto);
         }
