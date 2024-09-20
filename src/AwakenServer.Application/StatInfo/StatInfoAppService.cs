@@ -50,6 +50,8 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         var mustQuery = new List<Func<QueryContainerDescriptor<StatInfoSnapshotIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(input.ChainId)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.StatType).Value((int)statType)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
+        
         if (statType == StatType.Token)
         {
             mustQuery.Add(q => q.Term(i => i.Field(f => f.Symbol).Value(input.Symbol)));
@@ -57,9 +59,22 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         else if (statType == StatType.Pool)
         {
             mustQuery.Add(q => q.Term(i => i.Field(f => f.PairAddress).Value(input.PairAddress)));
-
         }
 
+        if (input.TimestampMin > 0)
+        {
+            mustQuery.Add(q => q.Range(i =>
+                i.Field(f => f.Timestamp)
+                    .GreaterThanOrEquals(input.TimestampMin)));
+        }
+
+        if (input.TimestampMax > 0)
+        {
+            mustQuery.Add(q => q.Range(i =>
+                i.Field(f => f.Timestamp)
+                    .LessThanOrEquals(input.TimestampMax)));
+        }
+        
         // todo get time range by period type
         
         var periodType = (PeriodType)input.PeriodType;
@@ -174,6 +189,8 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
     public async Task<ListResultDto<TokenStatInfoDto>> GetTokenStatInfoListAsync(GetTokenStatInfoListInput input)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<TokenStatInfoIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
+
         if (!string.IsNullOrEmpty(input.Symbol))
         {
             mustQuery.Add(q => q.Term(i => i.Field(f => f.Symbol).Value(input.Symbol)));
@@ -202,6 +219,8 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
     public async Task<ListResultDto<PoolStatInfoDto>> GetPoolStatInfoListAsync(GetPoolStatInfoListInput input)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<PoolStatInfoIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
+
         if (!string.IsNullOrEmpty(input.PairAddress))
         {
             mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePair.Address).Value(input.PairAddress)));
@@ -241,6 +260,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
     public async Task<ListResultDto<TransactionHistoryDto>> GetTransactionStatInfoListAsync(GetTransactionStatInfoListInput input)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<TransactionHistoryIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.TransactionType).Value(input.TransactionType)));
         
         QueryContainer Filter(QueryContainerDescriptor<TransactionHistoryIndex> f) => f.Bool(b => b.Must(mustQuery));
