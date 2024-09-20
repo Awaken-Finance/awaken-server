@@ -120,6 +120,7 @@ namespace AwakenServer.Trade
                     { "Month", 86400 },
                     { "Year", 604800 }
                 };
+                o.DataVersion = "v1";
             });
 
             context.Services.Configure<MainCoinOptions>(o =>

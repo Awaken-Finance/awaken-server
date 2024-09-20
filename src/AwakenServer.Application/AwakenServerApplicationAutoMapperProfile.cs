@@ -180,7 +180,7 @@ namespace AwakenServer
             //Favorite
             CreateMapForFavorite();
 
-            // data stat info
+            CreateMap<StatInfoSnapshotEto,StatInfoSnapshotGrainDto>();
             CreateMap<StatInfoSnapshotIndex, StatInfoPriceDto>();
             CreateMap<StatInfoSnapshotIndex, StatInfoVolumeDto>();
             CreateMap<StatInfoSnapshotIndex, StatInfoTvlDto>();

@@ -7,4 +7,5 @@ public class StatInfoOptions
     public List<int> Periods { get; set; }
     public Dictionary<string, long> TypePeriodMapping { get; set; }
     public List<string> StableCoinPriority { set; get; } 
+    public string DataVersion { get; set; }
 }

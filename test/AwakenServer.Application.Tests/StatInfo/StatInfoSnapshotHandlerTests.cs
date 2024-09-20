@@ -23,6 +23,7 @@ namespace AwakenServer.StatInfo
         private readonly INESTRepository<StatInfoSnapshotIndex, Guid> _statInfoSnapshotIndexRepository;
         private readonly IStatInfoAppService _statInfoAppService;
         private readonly DateTime _baseTime;
+        protected const string DataVersion = "v1";
         
         public StatInfoSnapshotHandlerTests()
         {
@@ -48,6 +49,7 @@ namespace AwakenServer.StatInfo
             var timestamp = DateTimeHelper.ToUnixTimeMilliseconds(_baseTime);
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -56,6 +58,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -98,6 +101,7 @@ namespace AwakenServer.StatInfo
             
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -106,6 +110,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -158,6 +163,7 @@ namespace AwakenServer.StatInfo
             var timestamp = DateTimeHelper.ToUnixTimeMilliseconds(_baseTime);
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 0,
                 Tvl = 11,
@@ -165,6 +171,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 0,
                 VolumeInUsd = 22,
@@ -172,14 +179,16 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 1,
                 Symbol = "BTC",
-                PriceInUsd = 10,
+                Price = 10,
                 Timestamp = timestamp
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 1,
                 Symbol = "BTC",
@@ -188,6 +197,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 1,
                 Symbol = "BTC",
@@ -196,6 +206,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -204,6 +215,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -212,6 +224,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
+                Version = DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -291,6 +304,33 @@ namespace AwakenServer.StatInfo
             });
             poolVolResult.Items.Count.ShouldBe(1);
             poolVolResult.Items[0].VolumeInUsd.ShouldBe(3);
+            
+        }
+        
+        [Fact]
+        public async Task DataVersionTest()
+        {
+            var timestamp = DateTimeHelper.ToUnixTimeMilliseconds(_baseTime);
+            await _eventBus.PublishAsync(new StatInfoSnapshotEto
+            {
+                Version = DataVersion,
+                ChainId = ChainId,
+                StatType = 2,
+                PairAddress = TradePairBtcEthAddress,
+                Price = 10,
+                Timestamp = timestamp
+            });
+
+            var result = await _statInfoAppService.GetPoolPriceListAsync(new GetStatHistoryInput()
+            {
+                ChainId = ChainId,
+                PeriodType = (int)PeriodType.Day,
+                PairAddress = TradePairBtcEthAddress
+            });
+            result.Items.Count.ShouldBe(1);
+            var hourSnapshotTime = new DateTime(_baseTime.Year, _baseTime.Month, _baseTime.Day, _baseTime.Hour, 0, 0);
+            result.Items[0].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(hourSnapshotTime));
+            result.Items[0].PriceInUsd.ShouldBe(10);
             
         }
     }

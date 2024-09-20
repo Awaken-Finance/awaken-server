@@ -28,7 +28,7 @@ namespace AwakenServer.StatInfo.Handlers
         private readonly ILogger<StatInfoSnapshotHandler> _logger;
         private readonly ITradePairAppService _tradePairAppService;
         private readonly IPriceAppService _priceAppService;
-        
+
         public IDistributedEventBus _distributedEventBus { get; set; }
 
         public StatInfoSnapshotHandler(IClusterClient clusterClient,
@@ -55,23 +55,25 @@ namespace AwakenServer.StatInfo.Handlers
                 //all
                 case 0:
                 {
-                    return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, period);
+                    return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, period, eventData.Version);
                 }
                 //token
                 case 1:
                 {
-                    return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, eventData.Symbol, period);
+                    return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, eventData.Symbol,
+                        period, eventData.Version);
                 }
                 //pool
                 case 2:
                 {
-                    return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, eventData.PairAddress, period);
+                    return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, eventData.PairAddress,
+                        period, eventData.Version);
                 }
             }
 
             return null;
         }
-        
+
         public async Task HandleEventAsync(StatInfoSnapshotEto eventData)
         {
             foreach (var period in _statInfoOptions.Periods)
@@ -81,37 +83,35 @@ namespace AwakenServer.StatInfo.Handlers
                 var grain = _clusterClient.GetGrain<IStatInfoSnapshotGrain>(id);
 
                 var priceInUsd = eventData.PriceInUsd;
-                if (eventData.StatType == 2)
+                if (eventData.StatType == (int)StatType.Token)
                 {
-                    var tradePair = await _tradePairAppService.GetTradePairAsync(eventData.ChainId, eventData.PairAddress);
+                    priceInUsd = eventData.Price;
+                }
+                else if (eventData.StatType == (int)StatType.Pool)
+                {
+                    var tradePair =
+                        await _tradePairAppService.GetTradePairAsync(eventData.ChainId, eventData.PairAddress);
                     if (tradePair == null)
                     {
-                        _logger.LogError($"handle StatInfoSnapshotEto, chain: {eventData.ChainId}, get pair: {eventData.PairAddress} failed");
+                        _logger.LogError(
+                            $"handle StatInfoSnapshotEto, chain: {eventData.ChainId}, get pair: {eventData.PairAddress} failed");
                         return;
                     }
+
                     var symbol1PriceInUsd = await _priceAppService.GetTokenPriceAsync(tradePair.Token1.Symbol);
                     priceInUsd = eventData.Price * symbol1PriceInUsd;
                 }
                 
-                var statInfoSnapshotGrainDto = new StatInfoSnapshotGrainDto
-                {
-                    ChainId = eventData.ChainId,
-                    Period = period,
-                    Timestamp = periodTimestamp,
-                    StatType = eventData.StatType,
-                    Symbol = eventData.Symbol,
-                    PairAddress = eventData.PairAddress,
-                    Tvl = eventData.Tvl,
-                    VolumeInUsd = eventData.VolumeInUsd,
-                    Price = eventData.Price,
-                    PriceInUsd = priceInUsd,
-                    LpFeeInUsd = eventData.LpFeeInUsd,
-                };
-                
+                var statInfoSnapshotGrainDto = _objectMapper.Map<StatInfoSnapshotEto,StatInfoSnapshotGrainDto>(eventData);
+                statInfoSnapshotGrainDto.PriceInUsd = priceInUsd;
+                statInfoSnapshotGrainDto.Period = period;
+                statInfoSnapshotGrainDto.Timestamp = periodTimestamp;
+
                 var result = await grain.AddOrUpdateAsync(statInfoSnapshotGrainDto);
                 if (result.Success)
                 {
-                    await _distributedEventBus.PublishAsync(_objectMapper.Map<StatInfoSnapshotGrainDto, StatInfoSnapshotIndexEto>(result.Data));
+                    await _distributedEventBus.PublishAsync(
+                        _objectMapper.Map<StatInfoSnapshotGrainDto, StatInfoSnapshotIndexEto>(result.Data));
                 }
             }
         }
