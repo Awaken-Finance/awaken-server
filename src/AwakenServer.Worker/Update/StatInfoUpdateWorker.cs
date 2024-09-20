@@ -47,6 +47,8 @@ public class StatInfoUpdateWorker : AwakenServerWorkerBase
         if (_options.ExecuteRefreshTvl)
         {
             await _statInfoInternalAppService.RefreshTvlAsync(chain.Name, _options.DataVersion);
+            await _statInfoInternalAppService.RefreshPoolStatInfoAsync(chain.Name, _options.DataVersion);
+            await _statInfoInternalAppService.RefreshTokenStatInfoAsync(chain.Name, _options.DataVersion);
         }
 
         await _statInfoInternalAppService.ClearOldTransactionHistoryAsync(chain.Name, _options.DataVersion);

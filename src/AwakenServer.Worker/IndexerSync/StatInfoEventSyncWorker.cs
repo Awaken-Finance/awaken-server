@@ -15,9 +15,8 @@ namespace AwakenServer.Worker.IndexerSync;
 
 public class StatInfoEventSyncWorker : AwakenServerWorkerBase
 {
-    protected override WorkerBusinessType _businessType => WorkerBusinessType.PortfolioEvent;
+    protected override WorkerBusinessType _businessType => WorkerBusinessType.StatInfoIndexEvent;
  
-    protected readonly IGraphQLProvider _graphQlProvider;
     private readonly IStatInfoInternalAppService _statInfoInternalAppService;
 
     public StatInfoEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory, 
@@ -26,7 +25,6 @@ public class StatInfoEventSyncWorker : AwakenServerWorkerBase
         StatInfoInternalAppService statInfoInternalAppService) : 
         base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
     {
-        _graphQlProvider = graphQlProvider;
         _statInfoInternalAppService = statInfoInternalAppService;
     }
 

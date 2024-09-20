@@ -9,6 +9,8 @@ public interface IStatInfoInternalAppService
     Task<bool> CreateSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion);
     Task<bool> CreateSyncRecordAsync(SyncRecordDto syncRecordDto, string dataVersion);
     Task RefreshTvlAsync(string chainId, string dataVersion);
+    Task RefreshTokenStatInfoAsync(string chainId, string dataVersion);
+    Task RefreshPoolStatInfoAsync(string chainId, string dataVersion);
     Task UpdateTokenFollowPairAsync(string chainId, string dataVersion);
     Task ClearOldTransactionHistoryAsync(string chainId, string dataVersion);
 }

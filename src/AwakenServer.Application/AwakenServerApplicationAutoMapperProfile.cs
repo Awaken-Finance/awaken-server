@@ -180,12 +180,17 @@ namespace AwakenServer
             //Favorite
             CreateMapForFavorite();
 
+            // data stat info
             CreateMap<StatInfoSnapshotIndex, StatInfoPriceDto>();
             CreateMap<StatInfoSnapshotIndex, StatInfoVolumeDto>();
             CreateMap<StatInfoSnapshotIndex, StatInfoTvlDto>();
             CreateMap<TransactionHistoryIndex, TransactionHistoryDto>();
             CreateMap<PoolStatInfoIndex, PoolStatInfoDto>();
             CreateMap<TokenStatInfoIndex, TokenStatInfoDto>();
+
+            CreateMap<TokenStatInfoEto, TokenStatInfoIndex>();
+            CreateMap<PoolStatInfoEto, PoolStatInfoIndex>();
+            CreateMap<TransactionHistoryEto, TransactionHistoryIndex>();
         }
 
         private void CreateMapForFavorite()

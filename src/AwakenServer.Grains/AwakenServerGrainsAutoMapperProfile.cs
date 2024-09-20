@@ -58,5 +58,8 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
         CreateMap<CurrentUserLiquidityState, CurrentUserLiquidityGrainDto>().ReverseMap();
         CreateMap<UserLiquiditySnapshotState, UserLiquiditySnapshotGrainDto>().ReverseMap();
         CreateMap<StatInfoSnapshotState, StatInfoSnapshotGrainDto>().ReverseMap();
+        CreateMap<GlobalStatInfoState, GlobalStatInfoGrainDto>().ReverseMap();
+        CreateMap<PoolStatInfoState, PoolStatInfoGrainDto>().ReverseMap();
+        CreateMap<TokenStatInfoState, TokenStatInfoGrainDto>().ReverseMap();
     }
 }
