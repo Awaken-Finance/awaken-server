@@ -120,6 +120,10 @@ namespace AwakenServer.Trade
                     { "Month", 86400 },
                     { "Year", 604800 }
                 };
+                o.StableCoinPriority = new List<string>()
+                {
+                    "USDT", "ELF"
+                };
                 o.DataVersion = "v1";
             });
 
