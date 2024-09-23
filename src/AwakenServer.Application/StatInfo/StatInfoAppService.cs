@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.StatInfo.Dtos;
@@ -9,6 +11,7 @@ using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MongoDB.Driver.Linq;
 using Nest;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -44,10 +47,11 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         _tradePairAppService = tradePairAppService;
         _tokenAppService = tokenAppService;
     }
-
-    private async Task<Tuple<long,List<StatInfoSnapshotIndex>>> GetStatInfoSnapshotIndexes(StatType statType, GetStatHistoryInput input)
+    
+    public async Task<Tuple<long,List<StatInfoSnapshotIndex>>> GetLatestPeriodStatInfoSnapshotIndexAsync(StatType statType, long period, GetStatHistoryInput input, long timestampMax)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<StatInfoSnapshotIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Period).Value(period)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(input.ChainId)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.StatType).Value((int)statType)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
@@ -60,33 +64,86 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         {
             mustQuery.Add(q => q.Term(i => i.Field(f => f.PairAddress).Value(input.PairAddress)));
         }
-
-        if (input.TimestampMin > 0)
-        {
-            mustQuery.Add(q => q.Range(i =>
-                i.Field(f => f.Timestamp)
-                    .GreaterThanOrEquals(input.TimestampMin)));
-        }
-
-        if (input.TimestampMax > 0)
-        {
-            mustQuery.Add(q => q.Range(i =>
-                i.Field(f => f.Timestamp)
-                    .LessThanOrEquals(input.TimestampMax)));
-        }
         
-        // todo get time range by period type
-        
-        var periodType = (PeriodType)input.PeriodType;
-        var period = _statInfoOptions.TypePeriodMapping[periodType.ToString()];
-        mustQuery.Add(q => q.Term(i => i.Field(f => f.Period).Value(period)));
-        
-        QueryContainer Filter(QueryContainerDescriptor<StatInfoSnapshotIndex> f) => f.Bool(b => b.Must(mustQuery));
-        var list = await _statInfoSnapshotIndexRepository.GetListAsync(Filter, sortExp: k => k.Timestamp);
+        mustQuery.Add(q => q.Range(i =>
+            i.Field(f => f.Timestamp)
+                .LessThan(timestampMax)));
+        QueryContainer Filter(QueryContainerDescriptor<StatInfoSnapshotIndex> f) =>
+            f.Bool(b => b.Must(mustQuery));
+        var list = await _statInfoSnapshotIndexRepository.GetListAsync(Filter, 
+            sortExp:k=>k.Timestamp, sortType:SortOrder.Descending, skip:0, limit: 1);
         return list;
     }
     
-    public async Task<ListResultDto<StatInfoTvlDto>> GetTvlListAsync(GetStatHistoryInput input)
+    private async Task<Tuple<long,List<StatInfoSnapshotIndex>>> GetStatInfoSnapshotIndexes(StatType statType, GetStatHistoryInput input)
+    {
+        var periodType = (PeriodType)input.PeriodType;
+        var period = _statInfoOptions.TypePeriodMapping[periodType.ToString()];
+        var mustQuery = new List<Func<QueryContainerDescriptor<StatInfoSnapshotIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Period).Value(period)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(input.ChainId)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.StatType).Value((int)statType)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
+        
+        if (statType == StatType.Token)
+        {
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.Symbol).Value(input.Symbol)));
+        }
+        else if (statType == StatType.Pool)
+        {
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.PairAddress).Value(input.PairAddress)));
+        }
+        
+        var baseTime = DateTime.UtcNow;
+        if (input.BaseTimestamp > 0)
+        {
+            baseTime = DateTimeHelper.FromUnixTimeMilliseconds(input.BaseTimestamp);
+        }
+
+        var timestampDateMin = baseTime.AddDays(-1);
+        var timestampDateMax = baseTime;
+        
+        switch ((PeriodType)input.PeriodType)
+        {
+            case PeriodType.Week:
+            {
+                timestampDateMin = baseTime.AddDays(-7);
+                break;
+            }
+            case PeriodType.Month:
+            {
+                timestampDateMin = baseTime.AddMonths(-1);
+                break;
+            }
+            case PeriodType.Year:
+            {
+                timestampDateMin = baseTime.AddYears(-1);
+                break;
+            }
+        }
+        
+        var timestampMin = DateTimeHelper.ToUnixTimeMilliseconds(timestampDateMin);
+        var timestampMax = DateTimeHelper.ToUnixTimeMilliseconds(timestampDateMax);
+        
+        mustQuery.Add(q => q.Range(i =>
+            i.Field(f => f.Timestamp)
+                .GreaterThan(timestampMin)));
+        mustQuery.Add(q => q.Range(i =>
+            i.Field(f => f.Timestamp)
+                .LessThanOrEquals(timestampMax)));
+        
+        QueryContainer Filter(QueryContainerDescriptor<StatInfoSnapshotIndex> f) => f.Bool(b => b.Must(mustQuery));
+        var list = await _statInfoSnapshotIndexRepository.GetListAsync(Filter, sortExp: k => k.Timestamp);
+        
+        if (list.Item2.Count == 0)
+        {
+            return await GetLatestPeriodStatInfoSnapshotIndexAsync(statType, period, input, timestampMax);
+        }
+        
+        return list;
+    }
+    
+    public async Task<ListResultDto<StatInfoTvlDto>> GetTvlHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.All, input);
         return new ListResultDto<StatInfoTvlDto>
@@ -95,7 +152,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         };
     }
 
-    public async Task<TokenTvlDto> GetTokenTvlListAsync(GetStatHistoryInput input)
+    public async Task<TokenTvlDto> GetTokenTvlHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.Token, input);
         var tokenDto = await GetTokenDto(input.Symbol);
@@ -106,7 +163,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         };
     }
 
-    public async Task<PoolTvlDto> GetPoolTvlListAsync(GetStatHistoryInput input)
+    public async Task<PoolTvlDto> GetPoolTvlHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.Pool, input);
         var tradePairDto = await GetTradePairDto(input.ChainId, input.PairAddress);
@@ -118,16 +175,18 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         };
     }
     
-    public async Task<ListResultDto<StatInfoVolumeDto>> GetVolumeListAsync(GetStatHistoryInput input)
+    public async Task<TotalVolumeDto> GetVolumeHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.All, input);
-        return new ListResultDto<StatInfoVolumeDto>
+        var totalVolumeInUsd = list.Item2.Select(t => t.VolumeInUsd).Sum();
+        return new TotalVolumeDto
         {
+            TotalVolumeInUsd = totalVolumeInUsd,
             Items = _objectMapper.Map<List<StatInfoSnapshotIndex>, List<StatInfoVolumeDto>>(list.Item2)
         };
     }
     
-    public async Task<TokenPriceDto> GetTokenPriceListAsync(GetStatHistoryInput input)
+    public async Task<TokenPriceDto> GetTokenPriceHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.Token, input);
         var tokenDto = await GetTokenDto(input.Symbol);
@@ -152,7 +211,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         });
     }
     
-    public async Task<PoolPriceDto> GetPoolPriceListAsync(GetStatHistoryInput input)
+    public async Task<PoolPriceDto> GetPoolPriceHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.Pool, input);
         var tradePairDto = await GetTradePairDto(input.ChainId, input.PairAddress);
@@ -162,29 +221,46 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
             Items = _objectMapper.Map<List<StatInfoSnapshotIndex>, List<StatInfoPriceDto>>(list.Item2)
         };
     }
-    public async Task<TokenVolumeDto> GetTokenVolumeListAsync(GetStatHistoryInput input)
+    public async Task<TokenVolumeDto> GetTokenVolumeHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.Token, input);
         var tokenDto = await GetTokenDto(input.Symbol);
+        var totalVolumeInUsd = list.Item2.Select(t => t.VolumeInUsd).Sum();
         return new TokenVolumeDto()
         {
+            TotalVolumeInUsd = totalVolumeInUsd,
             Token = tokenDto,
             Items = _objectMapper.Map<List<StatInfoSnapshotIndex>, List<StatInfoVolumeDto>>(list.Item2)
         };
     }
     
-    public async Task<PoolVolumeDto> GetPoolVolumeListAsync(GetStatHistoryInput input)
+    public async Task<PoolVolumeDto> GetPoolVolumeHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.Pool, input);
         var tradePairDto = await GetTradePairDto(input.ChainId, input.PairAddress);
-
+        var totalVolumeInUsd = list.Item2.Select(t => t.VolumeInUsd).Sum();
         return new PoolVolumeDto()
         {
+            TotalVolumeInUsd = totalVolumeInUsd,
             TradePair = tradePairDto,
             Items = _objectMapper.Map<List<StatInfoSnapshotIndex>, List<StatInfoVolumeDto>>(list.Item2)
         };
     }
-    
+
+    private async Task<long> GetTokenPairCountAsync(string symbol)
+    {
+        var mustQuery = new List<Func<QueryContainerDescriptor<PoolStatInfoIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
+        
+        mustQuery.Add(q => q.Bool(i => i.Should(
+            s => s.Wildcard(w =>
+                w.Field(f => f.TradePair.Token0.Symbol).Value($"*{symbol.ToUpper()}*")),
+            s => s.Wildcard(w =>
+                w.Field(f => f.TradePair.Token1.Symbol).Value($"*{symbol.ToUpper()}*")))));
+        
+        QueryContainer Filter(QueryContainerDescriptor<PoolStatInfoIndex> f) => f.Bool(b => b.Must(mustQuery));
+        return (await _poolStatInfoIndexRepository.CountAsync(Filter)).Count;
+    } 
     
     public async Task<ListResultDto<TokenStatInfoDto>> GetTokenStatInfoListAsync(GetTokenStatInfoListInput input)
     {
@@ -195,7 +271,9 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         {
             mustQuery.Add(q => q.Term(i => i.Field(f => f.Symbol).Value(input.Symbol)));
         }
+        
         QueryContainer Filter(QueryContainerDescriptor<TokenStatInfoIndex> f) => f.Bool(b => b.Must(mustQuery));
+        
         var list = await _tokenStatInfoIndexRepository.GetListAsync(Filter,
             limit:DataSize,
             sortExp: k => k.Tvl, 
@@ -205,7 +283,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         {
             var tokenStatInfoDto = _objectMapper.Map<TokenStatInfoIndex, TokenStatInfoDto>(tokenStatInfoIndex);
             tokenStatInfoDto.Volume24hInUsd = tokenStatInfoIndex.VolumeInUsd24h;
-            tokenStatInfoDto.PairCount = 0;//todo
+            tokenStatInfoDto.PairCount = await GetTokenPairCountAsync(input.Symbol);
             tokenStatInfoDto.Token = await GetTokenDto(tokenStatInfoIndex.Symbol);
             tokenStatInfoDtoList.Add(tokenStatInfoDto);
         }
@@ -214,6 +292,119 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         {
             Items = tokenStatInfoDtoList
         };
+    }
+    
+    public async Task<StatInfoSnapshotIndex> GetLatestStatInfoSnapshotIndexAsync(string pairAddress, long timestampMax)
+    {
+        var mustQuery =
+            new List<Func<QueryContainerDescriptor<StatInfoSnapshotIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.PairAddress).Value(pairAddress)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.StatType).Value((int)StatType.Pool)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Period).Value(86400)));
+        mustQuery.Add(q => q.Range(i =>
+            i.Field(f => f.Timestamp)
+                .LessThan(timestampMax)));
+        QueryContainer Filter(QueryContainerDescriptor<StatInfoSnapshotIndex> f) =>
+            f.Bool(b => b.Must(mustQuery));
+        var list = await _statInfoSnapshotIndexRepository.GetListAsync(Filter, 
+            sortExp:k=>k.Timestamp, sortType:SortOrder.Descending, skip:0, limit: 1);
+        return list.Item1 > 0 ? list.Item2[0] : null;
+    }
+    
+    public async Task<List<StatInfoSnapshotIndex>> GetSnapshotIndexListAsync(string pairAddress)
+    {
+        var periodInDays = 7;
+        var mustQuery = new List<Func<QueryContainerDescriptor<StatInfoSnapshotIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.PairAddress).Value(pairAddress)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.StatType).Value((int)StatType.Pool)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Period).Value(86400)));
+
+        var timestampDateMin = DateTime.UtcNow.AddDays(-periodInDays).Date;
+        var timestampDateMax = DateTime.UtcNow.AddDays(-1).Date;
+        var timestampMin = DateTimeHelper.ToUnixTimeMilliseconds(timestampDateMin);
+        var timestampMax = DateTimeHelper.ToUnixTimeMilliseconds(timestampDateMax);
+        mustQuery.Add(q => q.Range(i =>
+            i.Field(f => f.Timestamp)
+                .GreaterThanOrEquals(timestampMin)));
+        mustQuery.Add(q => q.Range(i =>
+            i.Field(f => f.Timestamp)
+                .LessThanOrEquals(timestampMax)));
+            
+        QueryContainer Filter(QueryContainerDescriptor<StatInfoSnapshotIndex> f) => f.Bool(b => b.Must(mustQuery));
+        var list = await _statInfoSnapshotIndexRepository.GetListAsync(Filter, sortExp: k => k.Timestamp);
+        
+        if (list.Item1 == periodInDays || list.Item1 == 0)
+        {
+            return list.Item2;
+        }
+
+        var latestSnapshotIndex = await GetLatestStatInfoSnapshotIndexAsync(pairAddress, timestampMin);
+        var latestLpFeeInUsd = latestSnapshotIndex?.LpFeeInUsd ?? 0;
+        var latestTvl = latestSnapshotIndex?.Tvl ?? 0;
+        for (var day = 0; day < periodInDays; day++)
+        {
+            var snapshotTime = DateTimeHelper.ToUnixTimeMilliseconds(timestampDateMin.AddDays(day));
+            var snapshotIndex = list.Item2.FirstOrDefault(t => t.Timestamp == snapshotTime);
+            if (snapshotIndex == null)
+            {
+                list.Item2.Add(new StatInfoSnapshotIndex
+                {
+                    PairAddress = pairAddress,
+                    LpFeeInUsd = latestLpFeeInUsd,
+                    Tvl = latestTvl
+                });
+            }
+            else
+            {
+                latestLpFeeInUsd = snapshotIndex.LpFeeInUsd;
+                latestTvl = snapshotIndex.Tvl;
+            }
+        }
+
+        return list.Item2;
+    }
+    
+    public async Task<double> CalculateApr7dAsync(string pairAddress)
+    {
+        var daySnapshots = await GetSnapshotIndexListAsync(pairAddress);
+
+        _logger.LogInformation($"CalculateApr7dAsync, pairAddress: {pairAddress}, " +
+                               $"get snapshots from es begin, " +
+                               $"snapshot count: {daySnapshots.Count}");
+        
+        if (daySnapshots.Count == 0)
+        {
+            return 0.0;
+        }
+
+        var sumLpFee7d = 0d;
+        var sumTvl7d = 0d;
+        var actualSnapshotCount = 0;
+        foreach (var snapshot in daySnapshots)
+        {
+            ++actualSnapshotCount;
+            sumTvl7d += snapshot.Tvl;
+            sumLpFee7d += snapshot.LpFeeInUsd;
+        }
+
+        if (actualSnapshotCount == 0)
+        {
+            return 0.0;
+        }
+
+        var avgTvl = sumTvl7d / actualSnapshotCount;
+        var apr7d = avgTvl > 0 ? (sumLpFee7d / avgTvl) * (360 / actualSnapshotCount) * 100 : 0;
+        
+        _logger.LogInformation($"CalculateApr7dAsync, pairAddress: {pairAddress}, " +
+                               $"sumLpFee7d: {sumLpFee7d}," +
+                               $"actualSnapshotCount: {actualSnapshotCount}," +
+                               $"sumTvl7d: {sumTvl7d}," +
+                               $"avgTvl: {avgTvl}, " +
+                               $"apr7d: {apr7d}");
+
+        return apr7d;
     }
     
     public async Task<ListResultDto<PoolStatInfoDto>> GetPoolStatInfoListAsync(GetPoolStatInfoListInput input)
@@ -245,9 +436,9 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
             var poolStatInfoDto = _objectMapper.Map<PoolStatInfoIndex, PoolStatInfoDto>(poolStatInfoIndex);
             poolStatInfoDto.Volume24hInUsd = poolStatInfoIndex.VolumeInUsd24h;
             poolStatInfoDto.Volume7dInUsd = poolStatInfoIndex.VolumeInUsd7d;
-            poolStatInfoDto.ValueLocked0 = poolStatInfoIndex.ValueLocked0;// todo decimal
-            poolStatInfoDto.ValueLocked1 = poolStatInfoIndex.ValueLocked1;// todo decimal
-            poolStatInfoDto.Apr7d = 0;// todo
+            poolStatInfoDto.ValueLocked0 = poolStatInfoIndex.ValueLocked0;
+            poolStatInfoDto.ValueLocked1 = poolStatInfoIndex.ValueLocked1;
+            poolStatInfoDto.Apr7d = await CalculateApr7dAsync(poolStatInfoIndex.PairAddress);
             poolStatInfoDtoList.Add(poolStatInfoDto);
         }
 
