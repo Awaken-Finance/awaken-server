@@ -27,7 +27,6 @@ public class PoolStatInfoIndexHandler : TradeIndexHandlerBase, IDistributedEvent
     {
         var poolStatInfoIndex = ObjectMapper.Map<PoolStatInfoEto, PoolStatInfoIndex>(eventData);
         var existedIndex = await _repository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.ChainId).Value(eventData.ChainId)) &&
             q.Term(i => i.Field(f => f.Version).Value(eventData.Version)) &&
             q.Term(i => i.Field(f => f.PairAddress).Value(eventData.PairAddress)));
         poolStatInfoIndex.Id = existedIndex switch
@@ -35,6 +34,7 @@ public class PoolStatInfoIndexHandler : TradeIndexHandlerBase, IDistributedEvent
             null => Guid.NewGuid(),
             _ => existedIndex.Id
         };
+        poolStatInfoIndex.TradePair = await GetTradePariWithTokenAsync(poolStatInfoIndex.PairAddress);
         await _repository.AddOrUpdateAsync(poolStatInfoIndex);
     }
 }

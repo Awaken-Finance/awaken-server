@@ -2,6 +2,7 @@ namespace AwakenServer.Grains.State.StatInfo;
 
 public class TokenStatInfoState
 {
+    public string ChainId { get; set; }
     public string Symbol { get; set; }
     public string FollowPairAddress { get; set; }
     public double ValueLocked { get; set; }

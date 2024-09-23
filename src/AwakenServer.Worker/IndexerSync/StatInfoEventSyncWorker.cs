@@ -2,7 +2,6 @@ using System;
 using System.Threading.Tasks;
 using AwakenServer.Chains;
 using AwakenServer.Common;
-using AwakenServer.DataInfo;
 using AwakenServer.Provider;
 using AwakenServer.StatInfo;
 using Microsoft.Extensions.DependencyInjection;

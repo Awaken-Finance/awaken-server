@@ -4,9 +4,9 @@ namespace AwakenServer.Grains.State.StatInfo;
 
 public class PoolStatInfoState
 {
+    public string ChainId { get; set; }
     public string PairAddress { get; set; }
     public double Tvl { get; set; }
-    
     public double Price { get; set; }
     public double ValueLocked0 { get; set; }
     public double ValueLocked1 { get; set; }

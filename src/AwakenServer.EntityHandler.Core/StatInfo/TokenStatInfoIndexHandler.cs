@@ -27,7 +27,6 @@ public class TokenStatInfoIndexHandler : TradeIndexHandlerBase, IDistributedEven
     {
         var tokenStatInfoIndex = ObjectMapper.Map<TokenStatInfoEto, TokenStatInfoIndex>(eventData);
         var existedIndex = await _repository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.ChainId).Value(eventData.ChainId)) &&
             q.Term(i => i.Field(f => f.Version).Value(eventData.Version)) &&
             q.Term(i => i.Field(f => f.Symbol).Value(eventData.Symbol)));
         tokenStatInfoIndex.Id = existedIndex switch

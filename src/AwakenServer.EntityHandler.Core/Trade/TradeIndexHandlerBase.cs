@@ -40,5 +40,22 @@ namespace AwakenServer.EntityHandler.Trade
             }
             return pairWithToken;
         }
+        
+        protected async Task<TradePairWithToken> GetTradePariWithTokenAsync(string tradePairAddress)
+        {
+            var pairWithToken = new TradePairWithToken();
+            var pairDto = await TradePairAppService.GetTradePairAsync("", tradePairAddress);
+            if (pairDto != null)
+            {
+                pairWithToken.Id = pairDto.Id;
+                pairWithToken.Address = pairDto.Address;
+                pairWithToken.FeeRate = pairDto.FeeRate;
+                pairWithToken.IsTokenReversed = pairDto.IsTokenReversed;
+                pairWithToken.ChainId = pairDto.ChainId;
+                pairWithToken.Token0 = ObjectMapper.Map<TokenDto, Token>(pairDto.Token0);
+                pairWithToken.Token1 = ObjectMapper.Map<TokenDto, Token>(pairDto.Token1);
+            }
+            return pairWithToken;
+        }
     }
 }

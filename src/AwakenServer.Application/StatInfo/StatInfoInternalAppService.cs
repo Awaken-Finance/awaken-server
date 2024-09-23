@@ -7,7 +7,6 @@ using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.StatInfo;
 using AwakenServer.Price;
 using AwakenServer.Price.Dtos;
-using AwakenServer.StatInfo;
 using AwakenServer.StatInfo.Etos;
 using AwakenServer.StatInfo.Index;
 using AwakenServer.Trade;
@@ -16,6 +15,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using Nest;
 using Orleans;
+using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
 using Volo.Abp.EventBus.Distributed;
@@ -23,11 +23,12 @@ using ITokenPriceProvider = AwakenServer.Trade.ITokenPriceProvider;
 using SwapRecord = AwakenServer.Trade.SwapRecord;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 
-namespace AwakenServer.DataInfo;
+namespace AwakenServer.StatInfo;
 
+[RemoteService(false)]
 public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalAppService
 {
-    public const string SyncedTransactionCachePrefix = "StatInfoSynced";
+    private const string SyncedTransactionCachePrefix = "StatInfoSynced";
     private readonly ITradePairAppService _tradePairAppService;
     private readonly IClusterClient _clusterClient;
     private readonly IDistributedEventBus _distributedEventBus;
@@ -40,6 +41,32 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
     private readonly IPriceAppService _priceAppService;
     private readonly IDistributedCache<string> _syncedTransactionIdCache;
     private readonly IOptionsSnapshot<StatInfoOptions> _statInfoOptions;
+
+    public StatInfoInternalAppService(ITradePairAppService tradePairAppService, 
+        IClusterClient clusterClient, 
+        IDistributedEventBus distributedEventBus, 
+        INESTRepository<TradePair, Guid> tradePairIndexRepository, 
+        INESTRepository<TokenStatInfoIndex, Guid> tokenStatInfoIndexRepository, 
+        INESTRepository<PoolStatInfoIndex, Guid> poolStatInfoIndexRepository, 
+        INESTRepository<TransactionHistoryIndex, Guid> transactionIndexRepository, 
+        INESTRepository<StatInfoSnapshotIndex, Guid> statInfoSnapshotIndexRepository, 
+        ITokenPriceProvider tokenPriceProvider, IPriceAppService priceAppService, 
+        IDistributedCache<string> syncedTransactionIdCache, 
+        IOptionsSnapshot<StatInfoOptions> statInfoOptions)
+    {
+        _tradePairAppService = tradePairAppService;
+        _clusterClient = clusterClient;
+        _distributedEventBus = distributedEventBus;
+        _tradePairIndexRepository = tradePairIndexRepository;
+        _tokenStatInfoIndexRepository = tokenStatInfoIndexRepository;
+        _poolStatInfoIndexRepository = poolStatInfoIndexRepository;
+        _transactionIndexRepository = transactionIndexRepository;
+        _statInfoSnapshotIndexRepository = statInfoSnapshotIndexRepository;
+        _tokenPriceProvider = tokenPriceProvider;
+        _priceAppService = priceAppService;
+        _syncedTransactionIdCache = syncedTransactionIdCache;
+        _statInfoOptions = statInfoOptions;
+    }
 
     private string AddVersionToKey(string baseKey, string version)
     {
@@ -81,8 +108,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         await _distributedEventBus.PublishAsync(transactionHistory);
         
         // transaction count
-        await IncTransactionCount(tradePair.ChainId, tradePair.Address, tradePair.Token0.Symbol,
-            tradePair.Token1.Symbol, dataVersion);
+        await IncTransactionCount(tradePair, liquidityRecordDto.Timestamp, dataVersion);
         
         await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
         {
@@ -91,24 +117,28 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         return true;
     }
     
-    private async Task IncTransactionCount(string chainId, string pairAddress, string symbol0, string symbol1, string dataVersion)
+    private async Task IncTransactionCount(TradePair tradePair, long timestamp, string dataVersion)
     {
-        var poolStatInfoGrain = _clusterClient.GetGrain<IPoolStatInfoGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(chainId, pairAddress), dataVersion));
+        var poolStatInfoGrain = _clusterClient.GetGrain<IPoolStatInfoGrain>(AddVersionToKey(tradePair.Address, dataVersion));
         var poolStatInfoGrainDtoResult = await poolStatInfoGrain.GetAsync();
-        poolStatInfoGrainDtoResult.Data.PairAddress = pairAddress;
+        poolStatInfoGrainDtoResult.Data.ChainId = tradePair.ChainId;
+        poolStatInfoGrainDtoResult.Data.PairAddress = tradePair.Address;
         poolStatInfoGrainDtoResult.Data.TransactionCount++;
+        poolStatInfoGrainDtoResult.Data.LastUpdateTime = timestamp;
         poolStatInfoGrainDtoResult = await poolStatInfoGrain.AddOrUpdateAsync(poolStatInfoGrainDtoResult.Data);
         poolStatInfoGrainDtoResult.Data.Version = dataVersion;
         await _distributedEventBus.PublishAsync(ObjectMapper.Map<PoolStatInfo, PoolStatInfoEto>(poolStatInfoGrainDtoResult.Data));
         
-        await IncTokenTransactionCount(chainId, symbol0, dataVersion);
-        await IncTokenTransactionCount(chainId, symbol1, dataVersion);
+        await IncTokenTransactionCount(tradePair.ChainId, tradePair.Token0.Symbol, timestamp, dataVersion);
+        await IncTokenTransactionCount(tradePair.ChainId, tradePair.Token1.Symbol, timestamp, dataVersion);
     }
 
-    private async Task IncTokenTransactionCount(string chainId, string symbol, string dataVersion)
+    private async Task IncTokenTransactionCount(string chainId, string symbol, long timestamp, string dataVersion)
     {
-        var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(chainId, symbol), dataVersion));
+        var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(AddVersionToKey(symbol, dataVersion));
         var tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.GetAsync();
+        tokenStatInfoGrainDtoResult.Data.ChainId = chainId;
+        tokenStatInfoGrainDtoResult.Data.LastUpdateTime = timestamp;
         tokenStatInfoGrainDtoResult.Data.Symbol = symbol;
         tokenStatInfoGrainDtoResult.Data.TransactionCount++;
         tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.AddOrUpdateAsync(tokenStatInfoGrainDtoResult.Data);
@@ -171,8 +201,9 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         transactionHistory.Version = dataVersion;
         
         // pool lpFee/volume
-        var poolStatInfoGrain = _clusterClient.GetGrain<IPoolStatInfoGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(swapRecordDto.ChainId, swapRecordDto.PairAddress), dataVersion));
+        var poolStatInfoGrain = _clusterClient.GetGrain<IPoolStatInfoGrain>(AddVersionToKey(swapRecordDto.PairAddress, dataVersion));
         var poolStatInfoGrainDtoResult = await poolStatInfoGrain.GetAsync();
+        poolStatInfoGrainDtoResult.Data.ChainId = swapRecordDto.ChainId;
         poolStatInfoGrainDtoResult.Data.PairAddress = swapRecordDto.PairAddress;
 
         var statInfoSnapshot7Day = await GetLast7DaySnapshotListAsync(new StatInfoSnapshot
@@ -234,8 +265,9 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
     
     private async Task UpdateTokenVolumeAsync(string chainId, string symbol, double volumeInUsd, long timestamp, string dataVersion)
     {
-        var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(chainId, symbol), dataVersion));
+        var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(AddVersionToKey(symbol, dataVersion));
         var tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.GetAsync();
+        tokenStatInfoGrainDtoResult.Data.ChainId = chainId;
         tokenStatInfoGrainDtoResult.Data.Symbol = symbol;
         tokenStatInfoGrainDtoResult.Data.TransactionCount++;
         
@@ -287,12 +319,13 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             tradePair.Token0.Symbol, tradePair.Token1.Symbol);
         
         // pool tvl/price
-        var poolStateInfoGrain = _clusterClient.GetGrain<IPoolStatInfoGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(syncRecordDto.ChainId, syncRecordDto.PairAddress), dataVersion));
+        var poolStateInfoGrain = _clusterClient.GetGrain<IPoolStatInfoGrain>(AddVersionToKey(syncRecordDto.PairAddress, dataVersion));
         var poolStateInfoGrainDtoResult = await poolStateInfoGrain.GetAsync();
         var oldValueLocked0 = poolStateInfoGrainDtoResult.Data.ValueLocked0;
         var oldValueLocked1 = poolStateInfoGrainDtoResult.Data.ValueLocked1;
         var oldTvl = poolStateInfoGrainDtoResult.Data.Tvl;
-        
+
+        poolStateInfoGrainDtoResult.Data.ChainId = syncRecordDto.ChainId;
         poolStateInfoGrainDtoResult.Data.PairAddress = tradePair.Address;
         poolStateInfoGrainDtoResult.Data.ValueLocked0 = double.Parse(token0Amount);
         poolStateInfoGrainDtoResult.Data.ValueLocked1 = double.Parse(token1Amount);
@@ -345,8 +378,9 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         double addValueLocked, double curTokenPriceInUsd, double tradePairPrice, string dataVersion)
     {
         var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(
-            AddVersionToKey(GrainIdHelper.GenerateGrainId(syncRecordDto.ChainId, symbol), dataVersion));
+            AddVersionToKey(symbol, dataVersion));
         var tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.GetAsync();
+        tokenStatInfoGrainDtoResult.Data.ChainId = syncRecordDto.ChainId;
         tokenStatInfoGrainDtoResult.Data.Symbol = symbol;
         tokenStatInfoGrainDtoResult.Data.ValueLocked += addValueLocked;
         tokenStatInfoGrainDtoResult.Data.Tvl = tokenStatInfoGrainDtoResult.Data.ValueLocked * curTokenPriceInUsd;
@@ -369,6 +403,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
                 StatType = 1,
                 Symbol = tokenStatInfoGrainDtoResult.Data.Symbol,
                 Tvl = tokenStatInfoGrainDtoResult.Data.Tvl,
+                PriceInUsd = tokenStatInfoGrainDtoResult.Data.PriceInUsd,
                 Timestamp = syncRecordDto.Timestamp
             });
         }
@@ -448,7 +483,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         foreach (var tokenStatInfoIndex in result.Item2)
         {
             var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(
-                AddVersionToKey(GrainIdHelper.GenerateGrainId(chainId, tokenStatInfoIndex.Symbol), dataVersion));
+                AddVersionToKey(tokenStatInfoIndex.Symbol, dataVersion));
             var tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.GetAsync();
             tokenStatInfoGrainDtoResult.Data.LastUpdateTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             tokenStatInfoGrainDtoResult.Data.PoolCount = poolCountMap.GetValueOrDefault(tokenStatInfoIndex.Symbol);
@@ -493,7 +528,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         foreach (var poolStatInfoIndex in result.Item2)
         {
             var poolStatInfoGrain = _clusterClient.GetGrain<IPoolStatInfoGrain>(
-                AddVersionToKey(GrainIdHelper.GenerateGrainId(chainId, poolStatInfoIndex.PairAddress), dataVersion));
+                AddVersionToKey(poolStatInfoIndex.PairAddress, dataVersion));
             var poolStatInfoGrainDtoResult = await poolStatInfoGrain.GetAsync();
             var statInfoSnapshot7Day = await GetLast7DaySnapshotListAsync(new StatInfoSnapshot
             {
@@ -550,8 +585,9 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
                 continue;
             }
             var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(
-                AddVersionToKey(GrainIdHelper.GenerateGrainId(chainId, pricingNodePair.Key), dataVersion));
+                AddVersionToKey(pricingNodePair.Key, dataVersion));
             var tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.GetAsync();
+            tokenStatInfoGrainDtoResult.Data.ChainId = chainId;
             tokenStatInfoGrainDtoResult.Data.Symbol = pricingNodePair.Key;
             tokenStatInfoGrainDtoResult.Data.FollowPairAddress = pricingNodePair.Value.FromTradePairAddress;
             tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.AddOrUpdateAsync(tokenStatInfoGrainDtoResult.Data);

@@ -9,7 +9,6 @@ public class PoolStatInfo : MultiChainEntity<Guid>
 {
     [Keyword] public string Version { get; set; }
     [Keyword] public string PairAddress { get; set; }
-    public TradePairWithToken TradePair { get; set; }
     public double Tvl { get; set; }
     public double ValueLocked0 { get; set; }
     public double ValueLocked1 { get; set; }
