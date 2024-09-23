@@ -83,11 +83,7 @@ namespace AwakenServer.StatInfo.Handlers
                 var grain = _clusterClient.GetGrain<IStatInfoSnapshotGrain>(id);
 
                 var priceInUsd = eventData.PriceInUsd;
-                if (eventData.StatType == (int)StatType.Token)
-                {
-                    priceInUsd = eventData.Price;
-                }
-                else if (eventData.StatType == (int)StatType.Pool)
+                if (eventData.StatType == (int)StatType.Pool)
                 {
                     var tradePair =
                         await _tradePairAppService.GetTradePairAsync(eventData.ChainId, eventData.PairAddress);
