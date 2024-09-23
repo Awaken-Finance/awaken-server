@@ -199,6 +199,7 @@ namespace AwakenServer.Trade
             }));
             environmentProvider.TokenUsdtId = tokenUSDT.Id;
             environmentProvider.TokenUsdtSymbol = "USDT";
+            environmentProvider.TokenUsdtDecimal = tokenUSDT.Decimals;
 
             var tokenBTC = AsyncHelper.RunSync(async () => await tokenService.CreateAsync(new TokenCreateDto
             {
@@ -209,7 +210,8 @@ namespace AwakenServer.Trade
             }));
             environmentProvider.TokenBtcId = tokenBTC.Id;
             environmentProvider.TokenBtcSymbol = "BTC";
-
+            environmentProvider.TokenBtcDecimal = tokenBTC.Decimals;
+            
             var tradePairEthUsdt = AsyncHelper.RunSync(async () => await tradePairTestHelper.CreateAsync(
                 new TradePairCreateDto
                 {

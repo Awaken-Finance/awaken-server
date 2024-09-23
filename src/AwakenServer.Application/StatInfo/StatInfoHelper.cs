@@ -5,7 +5,7 @@ public class StatInfoHelper
     public static long GetSnapshotTimestamp(int period, long timestamp)
     {
         long periodTimestamp;
-        // Thursday
+        // Monday
         if (period == 3600 * 24 * 7)
         {
             var offset = 4 * 3600 * 24 * 1000;

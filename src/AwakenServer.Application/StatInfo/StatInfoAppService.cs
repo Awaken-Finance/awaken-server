@@ -38,7 +38,10 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         ILogger<StatInfoAppService> logger,
         IOptionsSnapshot<StatInfoOptions> statInfoPeriodOptions,
         ITradePairAppService tradePairAppService,
-        ITokenAppService tokenAppService)
+        ITokenAppService tokenAppService,
+        INESTRepository<TokenStatInfoIndex, Guid> tokenStatInfoIndexRepository,
+        INESTRepository<PoolStatInfoIndex, Guid> poolStatInfoIndexRepository,
+        INESTRepository<TransactionHistoryIndex, Guid> transactionHistoryIndexRepository)
     {
         _statInfoSnapshotIndexRepository = statInfoSnapshotIndexRepository;
         _logger = logger;
@@ -46,6 +49,9 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         _statInfoOptions = statInfoPeriodOptions.Value;
         _tradePairAppService = tradePairAppService;
         _tokenAppService = tokenAppService;
+        _tokenStatInfoIndexRepository = tokenStatInfoIndexRepository;
+        _poolStatInfoIndexRepository = poolStatInfoIndexRepository;
+        _transactionHistoryIndexRepository = transactionHistoryIndexRepository;
     }
     
     public async Task<Tuple<long,List<StatInfoSnapshotIndex>>> GetLatestPeriodStatInfoSnapshotIndexAsync(StatType statType, long period, GetStatHistoryInput input, long timestampMax)
@@ -283,7 +289,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         {
             var tokenStatInfoDto = _objectMapper.Map<TokenStatInfoIndex, TokenStatInfoDto>(tokenStatInfoIndex);
             tokenStatInfoDto.Volume24hInUsd = tokenStatInfoIndex.VolumeInUsd24h;
-            tokenStatInfoDto.PairCount = await GetTokenPairCountAsync(input.Symbol);
+            tokenStatInfoDto.PairCount = await GetTokenPairCountAsync(tokenStatInfoIndex.Symbol);
             tokenStatInfoDto.Token = await GetTokenDto(tokenStatInfoIndex.Symbol);
             tokenStatInfoDtoList.Add(tokenStatInfoDto);
         }

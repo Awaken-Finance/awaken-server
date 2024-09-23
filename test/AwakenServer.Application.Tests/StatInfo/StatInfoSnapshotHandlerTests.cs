@@ -1,20 +1,16 @@
 using System;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
-using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.Tests;
 using AwakenServer.StatInfo.Dtos;
 using AwakenServer.StatInfo.Etos;
 using AwakenServer.StatInfo.Index;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
-using MongoDB.Bson.IO;
-using Org.BouncyCastle.Crypto.Prng.Drbg;
+using Microsoft.Extensions.Options;
 using Shouldly;
 using Volo.Abp.EventBus.Local;
-using Volo.Abp.Validation;
 using Xunit;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 namespace AwakenServer.StatInfo
 {
@@ -24,13 +20,16 @@ namespace AwakenServer.StatInfo
         private readonly ILocalEventBus _eventBus;
         private readonly INESTRepository<StatInfoSnapshotIndex, Guid> _statInfoSnapshotIndexRepository;
         private readonly IStatInfoAppService _statInfoAppService;
-        protected const string DataVersion = "v1";
+        private readonly IStatInfoInternalAppService _statInfoInternalAppService;
+        private readonly IOptionsSnapshot<StatInfoOptions> _statInfoOptions;
         
         public StatInfoSnapshotHandlerTests()
         {
             _eventBus = GetRequiredService<ILocalEventBus>();
             _statInfoSnapshotIndexRepository = GetRequiredService<INESTRepository<StatInfoSnapshotIndex, Guid>>();
             _statInfoAppService = GetRequiredService<IStatInfoAppService>();
+            _statInfoInternalAppService = GetRequiredService<IStatInfoInternalAppService>();
+            _statInfoOptions = GetRequiredService<IOptionsSnapshot<StatInfoOptions>>();
         }
 
         [Fact]
@@ -42,6 +41,16 @@ namespace AwakenServer.StatInfo
             snapDate.Day.ShouldBe(1);
             snapDate.Hour.ShouldBe(22);
         }
+        
+        public static DateTime GetPreviousMonday(DateTime referenceDate)
+        {
+            int daysToMonday = (int)referenceDate.DayOfWeek - (int)DayOfWeek.Monday;
+            if (daysToMonday < 0)
+            {
+                daysToMonday += 7;
+            }
+            return referenceDate.Date.AddDays(-daysToMonday);
+        }
 
         [Fact]
         public async Task PeriodTest()
@@ -50,7 +59,7 @@ namespace AwakenServer.StatInfo
             var timestamp = DateTimeHelper.ToUnixTimeMilliseconds(baseTime);
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -59,7 +68,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -92,16 +101,46 @@ namespace AwakenServer.StatInfo
             var sixHourSnapshotTime = new DateTime(baseTime.Year, baseTime.Month, baseTime.Day, 4, 0, 0);
             result.Items[0].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(sixHourSnapshotTime));
             result.Items[0].PriceInUsd.ShouldBe(10);
+            
+            result = await _statInfoAppService.GetPoolPriceHistoryAsync(new GetStatHistoryInput()
+            {
+                ChainId = ChainId,
+                PeriodType = (int)PeriodType.Month,
+                PairAddress = TradePairBtcEthAddress,
+                BaseTimestamp = timestamp
+            });
+            result.TradePair.Token0.Symbol.ShouldBe("BTC");
+            result.TradePair.Token1.Symbol.ShouldBe("ETH");
+            result.Items.Count.ShouldBe(1);
+            var daySnapshotTime = new DateTime(baseTime.Year, baseTime.Month, baseTime.Day, 0, 0, 0);
+            result.Items[0].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(daySnapshotTime));
+            result.Items[0].PriceInUsd.ShouldBe(10);
+            
+            
+            result = await _statInfoAppService.GetPoolPriceHistoryAsync(new GetStatHistoryInput()
+            {
+                ChainId = ChainId,
+                PeriodType = (int)PeriodType.Year,
+                PairAddress = TradePairBtcEthAddress,
+                BaseTimestamp = timestamp
+            });
+            result.TradePair.Token0.Symbol.ShouldBe("BTC");
+            result.TradePair.Token1.Symbol.ShouldBe("ETH");
+            result.Items.Count.ShouldBe(1);
+            var lastMonday = GetPreviousMonday(baseTime);
+            result.Items[0].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(lastMonday));
+            result.Items[0].PriceInUsd.ShouldBe(10);
         }
+        
 
         [Fact]
         public async Task GetPoolPriceVolumeTest()
         {
-            var baseTime = DateTime.UtcNow;
+            var baseTime = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, 6, 5, 12);
             var timestamp = DateTimeHelper.ToUnixTimeMilliseconds(baseTime);
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -110,7 +149,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -122,14 +161,15 @@ namespace AwakenServer.StatInfo
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
-                PairAddress = TradePairBtcEthAddress
+                PairAddress = TradePairBtcEthAddress,
+                BaseTimestamp = timestamp
             });
             volResult.Items.Count.ShouldBe(1);
             volResult.Items[0].VolumeInUsd.ShouldBe(1);
             
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -138,7 +178,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -150,7 +190,8 @@ namespace AwakenServer.StatInfo
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
-                PairAddress = TradePairBtcEthAddress
+                PairAddress = TradePairBtcEthAddress,
+                BaseTimestamp = timestamp
             });
             result.Items.Count.ShouldBe(2);
             result.Items[0].PriceInUsd.ShouldBe(10);
@@ -160,7 +201,8 @@ namespace AwakenServer.StatInfo
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Day,
-                PairAddress = TradePairBtcEthAddress
+                PairAddress = TradePairBtcEthAddress,
+                BaseTimestamp = timestamp
             });
             volResult.TotalVolumeInUsd.ShouldBe(3);
             volResult.Items.Count.ShouldBe(2);
@@ -171,7 +213,8 @@ namespace AwakenServer.StatInfo
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Week,
-                PairAddress = TradePairBtcEthAddress
+                PairAddress = TradePairBtcEthAddress,
+                BaseTimestamp = timestamp
             });
             result.Items.Count.ShouldBe(1);
             result.Items[0].PriceInUsd.ShouldBe(15);
@@ -180,7 +223,8 @@ namespace AwakenServer.StatInfo
             {
                 ChainId = ChainId,
                 PeriodType = (int)PeriodType.Week,
-                PairAddress = TradePairBtcEthAddress
+                PairAddress = TradePairBtcEthAddress,
+                BaseTimestamp = timestamp
             });
             volResult.Items.Count.ShouldBe(1);
             volResult.Items[0].VolumeInUsd.ShouldBe(3);
@@ -193,7 +237,7 @@ namespace AwakenServer.StatInfo
             var timestamp = DateTimeHelper.ToUnixTimeMilliseconds(baseTime);
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 0,
                 Tvl = 11,
@@ -201,7 +245,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 0,
                 VolumeInUsd = 22,
@@ -209,16 +253,16 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 1,
                 Symbol = "BTC",
-                Price = 10,
+                PriceInUsd = 10,
                 Timestamp = timestamp
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 1,
                 Symbol = "BTC",
@@ -227,7 +271,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 1,
                 Symbol = "BTC",
@@ -236,7 +280,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -245,7 +289,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -254,7 +298,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -368,7 +412,7 @@ namespace AwakenServer.StatInfo
             var timestamp1 = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-8));
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -383,7 +427,7 @@ namespace AwakenServer.StatInfo
             var timestamp2 = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1));
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -393,7 +437,7 @@ namespace AwakenServer.StatInfo
             });
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
-                Version = DataVersion,
+                Version = _statInfoOptions.Value.DataVersion,
                 ChainId = ChainId,
                 StatType = 2,
                 PairAddress = TradePairBtcEthAddress,
@@ -404,6 +448,98 @@ namespace AwakenServer.StatInfo
 
             result = await _statInfoAppService.CalculateApr7dAsync(TradePairBtcEthAddress);
             result.ShouldBe(3.4680000000000004);
+        }
+
+        [Fact]
+        public async Task StatInfoListTest()
+        {
+            var syncResult = await _statInfoInternalAppService.CreateLiquidityRecordAsync(new LiquidityRecordDto()
+            {
+                ChainId = ChainName,
+                Pair = TradePairBtcUsdtAddress,
+                Address = "0x123456789",
+                Timestamp = 1000,
+                Token0Amount = NumberFormatter.WithDecimals(10, TokenBtcDecimal),
+                Token0 = "BTC",
+                Token1Amount = NumberFormatter.WithDecimals(100, TokenUsdtDecimal),
+                Token1 = "USDT",
+                LpTokenAmount = 50000,
+                Type = LiquidityType.Mint,
+                TransactionHash = "0xdab24d0f0c28a3be6b59332ab0cb0b4cd54f10f3c1b12cfc81d72e934d74b28f",
+                Channel = "TestChanel",
+                Sender = "0x123456789",
+                To = "0x123456789",
+                BlockHeight = 100
+            }, _statInfoOptions.Value.DataVersion);
+            syncResult.ShouldBeTrue();
+            
+            syncResult = await _statInfoInternalAppService.CreateSwapRecordAsync(new SwapRecordDto()
+            {
+                ChainId = ChainName,
+                PairAddress = TradePairBtcUsdtAddress,
+                Sender = "0x123456789",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                AmountOut = NumberFormatter.WithDecimals(100, TokenUsdtDecimal),
+                AmountIn = NumberFormatter.WithDecimals(10, TokenBtcDecimal),
+                SymbolOut = "USDT",
+                SymbolIn = "BTC",
+                Channel = "test",
+                BlockHeight = 99
+            }, _statInfoOptions.Value.DataVersion);
+            syncResult.ShouldBeTrue();
+            
+            syncResult = await _statInfoInternalAppService.CreateSyncRecordAsync(new SyncRecordDto()
+            {
+                ChainId = ChainId,
+                PairAddress = TradePairBtcUsdtAddress,
+                SymbolA = "BTC",
+                SymbolB = "USDT",
+                ReserveA = NumberFormatter.WithDecimals(10, TokenBtcDecimal),
+                ReserveB = NumberFormatter.WithDecimals(20, TokenUsdtDecimal),
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow)
+            }, _statInfoOptions.Value.DataVersion);
+            syncResult.ShouldBeTrue();
+
+            // all
+            var tokenList = await _statInfoAppService.GetTokenStatInfoListAsync(new GetTokenStatInfoListInput());
+            tokenList.Items.Count.ShouldBe(2);
+            
+            // filter by symbol
+            tokenList = await _statInfoAppService.GetTokenStatInfoListAsync(new GetTokenStatInfoListInput()
+            {
+                Symbol = "USDT"
+            });
+            tokenList.Items[0].Token.Symbol.ShouldBe("USDT");
+            
+            // all
+            var poolList = await _statInfoAppService.GetPoolStatInfoListAsync(new GetPoolStatInfoListInput());
+            poolList.Items.Count.ShouldBe(1);
+            poolList.Items[0].TradePair.Address.ShouldBe(TradePairBtcUsdtAddress);
+            
+            // filter by pair address
+            poolList = await _statInfoAppService.GetPoolStatInfoListAsync(new GetPoolStatInfoListInput()
+            {
+                PairAddress = TradePairBtcUsdtAddress
+            });
+            poolList.Items.Count.ShouldBe(1);
+            poolList.Items[0].TradePair.Address.ShouldBe(TradePairBtcUsdtAddress);
+            
+            // filter by symbol
+            poolList = await _statInfoAppService.GetPoolStatInfoListAsync(new GetPoolStatInfoListInput()
+            {
+                Symbol = "BTC"
+            });
+            poolList.Items.Count.ShouldBe(1);
+            poolList.Items[0].TradePair.Address.ShouldBe(TradePairBtcUsdtAddress);
+            
+            // filter by type
+            var txnList = await _statInfoAppService.GetTransactionStatInfoListAsync(new GetTransactionStatInfoListInput()
+            {
+                TransactionType = (int)TransactionType.Add
+            });
+            txnList.Items.Count.ShouldBe(1);
+            txnList.Items[0].TransactionId.ShouldBe("0xdab24d0f0c28a3be6b59332ab0cb0b4cd54f10f3c1b12cfc81d72e934d74b28f");
         }
     }
 }

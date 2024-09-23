@@ -18,9 +18,11 @@ namespace AwakenServer
         public Guid TradePariElfUsdtId { get; set; }
         public Guid TokenUsdtId { get; set; }
         public string TokenUsdtSymbol { get; set; }
+        public int TokenUsdtDecimal { get; set; }
         public Guid TokenEthId { get; set; }
         public string TokenEthSymbol { get; set; }
         public Guid TokenBtcId { get; set; }
         public string TokenBtcSymbol { get; set; }
+        public int TokenBtcDecimal { get; set; }
     }
 }
