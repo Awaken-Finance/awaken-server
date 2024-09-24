@@ -482,7 +482,7 @@ namespace AwakenServer.StatInfo
                 TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
                 Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
                 AmountOut = NumberFormatter.WithDecimals(100, TokenUsdtDecimal),
-                AmountIn = NumberFormatter.WithDecimals(10, TokenBtcDecimal),
+                AmountIn = NumberFormatter.WithDecimals(50, TokenBtcDecimal),
                 SymbolOut = "USDT",
                 SymbolIn = "BTC",
                 Channel = "test",
@@ -513,6 +513,10 @@ namespace AwakenServer.StatInfo
             });
             tokenList.Items[0].Token.Symbol.ShouldBe("USDT");
             tokenList.Items[0].PriceInUsd.ShouldBe(1);
+            tokenList.Items[0].Volume24hInUsd.ShouldBe(100);
+            tokenList.Items[0].Tvl.ShouldBe(20);
+            tokenList.Items[0].PairCount.ShouldBe(1);
+            tokenList.Items[0].TransactionCount.ShouldBe(2);
             
             tokenList = await _statInfoAppService.GetTokenStatInfoListAsync(new GetTokenStatInfoListInput()
             {
@@ -520,11 +524,22 @@ namespace AwakenServer.StatInfo
             });
             tokenList.Items[0].Token.Symbol.ShouldBe("BTC");
             tokenList.Items[0].PriceInUsd.ShouldBe(2);
+            tokenList.Items[0].Volume24hInUsd.ShouldBe(50);
+            tokenList.Items[0].Tvl.ShouldBe(10);
+            tokenList.Items[0].PairCount.ShouldBe(1);
+            tokenList.Items[0].TransactionCount.ShouldBe(2);
             
             // all
             var poolList = await _statInfoAppService.GetPoolStatInfoListAsync(new GetPoolStatInfoListInput());
             poolList.Items.Count.ShouldBe(1);
             poolList.Items[0].TradePair.Address.ShouldBe(TradePairBtcUsdtAddress);
+            poolList.Items[0].Tvl.ShouldBe(30);
+            poolList.Items[0].TransactionCount.ShouldBe(2);
+            poolList.Items[0].Volume24hInUsd.ShouldBe(50);
+            poolList.Items[0].Volume7dInUsd.ShouldBe(50);
+            poolList.Items[0].Apr7d.ShouldBe(0);
+            poolList.Items[0].ValueLocked0.ShouldBe(10);
+            poolList.Items[0].ValueLocked1.ShouldBe(20);
             
             // filter by pair address
             poolList = await _statInfoAppService.GetPoolStatInfoListAsync(new GetPoolStatInfoListInput()

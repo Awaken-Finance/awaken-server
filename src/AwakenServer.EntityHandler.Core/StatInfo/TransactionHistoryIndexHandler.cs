@@ -26,14 +26,7 @@ public class TransactionHistoryIndexHandler : TradeIndexHandlerBase, IDistribute
     public async Task HandleEventAsync(TransactionHistoryEto eventData)
     {
         var transactionHistoryIndex = ObjectMapper.Map<TransactionHistoryEto, TransactionHistoryIndex>(eventData);
-        var existedIndex = await _repository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.Version).Value(eventData.Version)) &&
-            q.Term(i => i.Field(f => f.TransactionHash).Value(eventData.TransactionHash)));
-        transactionHistoryIndex.Id = existedIndex switch
-        {
-            null => Guid.NewGuid(),
-            _ => existedIndex.Id
-        };
+        transactionHistoryIndex.Id = Guid.NewGuid();
         await _repository.AddOrUpdateAsync(transactionHistoryIndex);
     }
 }
