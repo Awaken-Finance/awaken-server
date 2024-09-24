@@ -68,7 +68,32 @@ namespace AwakenServer.Applications.GameOfTrust
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenHistoryPriceDataAsync(
             List<GetTokenHistoryPriceInput> inputs)
         {
-            return new ListResultDto<TokenPriceDataDto>();
+            return new ListResultDto<TokenPriceDataDto>()
+            {
+                Items = new List<TokenPriceDataDto>()
+                {
+                    new TokenPriceDataDto()
+                    {
+                        Symbol = "USDT",
+                        PriceInUsd = 1
+                    },
+                    new TokenPriceDataDto()
+                    {
+                        Symbol = "BTC",
+                        PriceInUsd = 1
+                    },
+                    new TokenPriceDataDto()
+                    {
+                        Symbol = "EOS",
+                        PriceInUsd = 1
+                    },
+                    new TokenPriceDataDto()
+                    {
+                        Symbol = "ETH",
+                        PriceInUsd = 1
+                    }
+                }.Where(o => inputs.Select(t=>t.Symbol).Contains(o.Symbol)).ToList()
+            };
         }
         
         public async Task RebuildPricingMapAsync(string chainId)

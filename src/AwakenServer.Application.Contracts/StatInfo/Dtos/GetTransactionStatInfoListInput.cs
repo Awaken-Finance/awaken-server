@@ -1,3 +1,5 @@
+using AwakenServer.Trade;
+
 namespace AwakenServer.StatInfo.Dtos;
 
 public class GetTransactionStatInfoListInput

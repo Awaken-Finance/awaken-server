@@ -453,6 +453,7 @@ namespace AwakenServer.StatInfo
         [Fact]
         public async Task StatInfoListTest()
         {
+            await _statInfoInternalAppService.UpdateTokenFollowPairAsync(ChainName, _statInfoOptions.Value.DataVersion);
             var syncResult = await _statInfoInternalAppService.CreateLiquidityRecordAsync(new LiquidityRecordDto()
             {
                 ChainId = ChainName,
@@ -503,7 +504,7 @@ namespace AwakenServer.StatInfo
 
             // all
             var tokenList = await _statInfoAppService.GetTokenStatInfoListAsync(new GetTokenStatInfoListInput());
-            tokenList.Items.Count.ShouldBe(2);
+            tokenList.Items.Count.ShouldBe(3);
             
             // filter by symbol
             tokenList = await _statInfoAppService.GetTokenStatInfoListAsync(new GetTokenStatInfoListInput()
@@ -511,6 +512,14 @@ namespace AwakenServer.StatInfo
                 Symbol = "USDT"
             });
             tokenList.Items[0].Token.Symbol.ShouldBe("USDT");
+            tokenList.Items[0].PriceInUsd.ShouldBe(1);
+            
+            tokenList = await _statInfoAppService.GetTokenStatInfoListAsync(new GetTokenStatInfoListInput()
+            {
+                Symbol = "BTC"
+            });
+            tokenList.Items[0].Token.Symbol.ShouldBe("BTC");
+            tokenList.Items[0].PriceInUsd.ShouldBe(2);
             
             // all
             var poolList = await _statInfoAppService.GetPoolStatInfoListAsync(new GetPoolStatInfoListInput());
@@ -540,6 +549,13 @@ namespace AwakenServer.StatInfo
             });
             txnList.Items.Count.ShouldBe(1);
             txnList.Items[0].TransactionId.ShouldBe("0xdab24d0f0c28a3be6b59332ab0cb0b4cd54f10f3c1b12cfc81d72e934d74b28f");
+            
+            txnList = await _statInfoAppService.GetTransactionStatInfoListAsync(new GetTransactionStatInfoListInput()
+            {
+                TransactionType = (int)TransactionType.Trade
+            });
+            txnList.Items.Count.ShouldBe(1);
+            txnList.Items[0].TransactionId.ShouldBe("6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37");
         }
     }
 }

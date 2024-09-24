@@ -463,7 +463,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         QueryContainer Filter(QueryContainerDescriptor<TransactionHistoryIndex> f) => f.Bool(b => b.Must(mustQuery));
         var list = await _transactionHistoryIndexRepository.GetListAsync(Filter,
             limit:DataSize,
-            sortExp: k => k.ValueInUsd, 
+            sortExp: k => k.ValueInUsd,
             sortType: SortOrder.Descending);
         var transactionHistoryDtoList = new List<TransactionHistoryDto>();
         foreach (var transactionHistoryIndex in list.Item2)
