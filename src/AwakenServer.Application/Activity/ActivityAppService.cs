@@ -103,12 +103,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         };
     }
 
-    public async Task<PagedResultDto<RankingInfoDto>> GetRankingListAsync(ActivityBaseDto input)
+    public async Task<RankingListDto> GetRankingListAsync(ActivityBaseDto input)
     {
         var rankingListSnapshotIndex = await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow);
         if (rankingListSnapshotIndex == null)
         {
-            return new PagedResultDto<RankingInfoDto>();
+            return new RankingListDto();
         }
 
         var lastHourRankingListSnapshotIndex = await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow.AddHours(-1));
@@ -136,7 +136,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             rankingInfoDto.RankingChange1H = lastHourRankingInfo.Ranking - rankingInfo.Ranking;
         }
 
-        return new PagedResultDto<RankingInfoDto>
+        return new RankingListDto
         {
             Items = rankingInfoDtoList
         };
