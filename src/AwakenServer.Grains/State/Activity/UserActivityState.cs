@@ -1,6 +1,6 @@
-namespace AwakenServer.Activity;
+namespace AwakenServer.Grains.State.Activity;
 
-public class UserActivityInfo : ActivityBase
+public class UserActivityState
 {
     public string Address { get; set; }
     public double TotalPoint { get; set; }

@@ -13,5 +13,6 @@ public enum WorkerBusinessType
     UserLiquidityUpdate,
     DataCleanup,
     NewVersionPortfolioEvent,
-    NewSwapEvent
+    NewSwapEvent,
+    ActivityEvent
 }

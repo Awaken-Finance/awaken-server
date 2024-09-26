@@ -1,5 +1,7 @@
 using System;
 using AutoMapper;
+using AwakenServer.Activity.Eto;
+using AwakenServer.Activity.Index;
 using AwakenServer.Asset;
 using AwakenServer.Chains;
 using AwakenServer.Favorite;
@@ -173,6 +175,9 @@ namespace AwakenServer
             
             //Favorite
             CreateMapForFavorite();
+
+            CreateMap<RankingListSnapshotEto, RankingListSnapshotIndex>();
+            CreateMap<UserActivityInfoEto, UserActivityInfoIndex>();
         }
 
         private void CreateMapForFavorite()

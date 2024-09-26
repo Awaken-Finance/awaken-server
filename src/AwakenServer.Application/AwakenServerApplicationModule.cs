@@ -1,5 +1,6 @@
 ﻿using AElf.Client.Service;
 using Awaken.Common.HttpClient;
+using AwakenServer.Activity;
 using AwakenServer.Asset;
 using AwakenServer.Chains;
 using AwakenServer.CMS;
@@ -56,6 +57,7 @@ namespace AwakenServer
             Configure<ContractsTokenOptions>(configuration.GetSection("ContractsTokenOptions"));
             Configure<TokenPriceOptions>(configuration.GetSection("TokenPriceOptions"));
             Configure<PortfolioOptions>(configuration.GetSection("PortfolioOptions"));
+            Configure<ActivityOptions>(configuration.GetSection("ActivityOptions"));
 
             context.Services.AddTransient<IBlockchainClientProvider, AElfClientProvider>();
             context.Services.AddTransient<IAElfClientProvider, AElfClientProvider>();
