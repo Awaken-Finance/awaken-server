@@ -132,11 +132,13 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 myRanking = index + 1;
             }
         }
-
+        
         return new MyRankingDto
         {
             Ranking = myRanking,
-            TotalPoint = userActivityInfoIndex?.TotalPoint ?? 0
+            TotalPoint = userActivityInfoIndex?.TotalPoint != null 
+                ? (long)userActivityInfoIndex.TotalPoint 
+                : 0
         };
     }
 
