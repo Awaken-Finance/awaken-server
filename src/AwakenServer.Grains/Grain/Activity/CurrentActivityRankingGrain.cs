@@ -1,7 +1,4 @@
 using AwakenServer.Grains.State.Activity;
-using AwakenServer.Grains.State.MyPortfolio;
-using AwakenServer.Trade.Dtos;
-using AwakenServer.Trade.Index;
 using Orleans;
 using Volo.Abp.ObjectMapping;
 
@@ -19,7 +16,8 @@ public class CurrentActivityRankingGrain : Grain<ActivityRankingSnapshotState>, 
         string userAddress,
         double totalPoint,
         long timestamp, 
-        int activityId)
+        int activityId,
+        bool isNewUser)
     {
         if (State.Id == Guid.Empty)
         {
@@ -28,8 +26,11 @@ public class CurrentActivityRankingGrain : Grain<ActivityRankingSnapshotState>, 
 
         State.Timestamp = timestamp;
         State.ActivityId = activityId;
-        // todo State.NumOfJoin
-        
+        if (isNewUser)
+        {
+            State.NumOfJoin++;
+        }
+
         var rankingItem = State.RankingList.Find(item => item.Address == userAddress);
 
         if (rankingItem != null)
@@ -44,7 +45,12 @@ public class CurrentActivityRankingGrain : Grain<ActivityRankingSnapshotState>, 
                 TotalPoint = totalPoint
             });
         }
-        
+        State.RankingList.Sort((r1, r2) => r1.TotalPoint.CompareTo(r2.TotalPoint));
+        if (State.RankingList.Count > 100)
+        {
+            State.RankingList.RemoveRange(100, State.RankingList.Count - 100);
+        }
+
         await WriteStateAsync();
         return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
         {

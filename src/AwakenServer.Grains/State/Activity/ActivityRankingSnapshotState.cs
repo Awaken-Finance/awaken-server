@@ -12,7 +12,6 @@ public class ActivityRankingSnapshotState
 
 public class RankingInfo
 {
-    public int Ranking { get; set; }
     public string Address { get; set; }
     public double TotalPoint { get; set; }
 }

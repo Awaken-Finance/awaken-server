@@ -29,4 +29,21 @@ public class UserActivityGrain : Grain<UserActivityState>, IUserActivityGrain
         };
     }
 
+    public async Task<GrainResultDto<UserActivityGrainDto>> GetAsync()
+    {
+        await ReadStateAsync();
+        if (string.IsNullOrEmpty(State.Address))
+        {
+            return new GrainResultDto<UserActivityGrainDto>
+            {
+                Success = false
+            };
+        }
+
+        return new GrainResultDto<UserActivityGrainDto>
+        {
+            Success = true,
+            Data = _objectMapper.Map<UserActivityState, UserActivityGrainDto>(State)
+        };
+    }
 }

@@ -20,7 +20,6 @@ public class ActivityRankingSnapshotGrain : Grain<ActivityRankingSnapshotState>,
     {
         if (State.Id == Guid.Empty)
         {
-            
             State.Id = Guid.NewGuid();
         }
         

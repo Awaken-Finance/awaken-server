@@ -60,7 +60,16 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     public async Task JoinAsync(JoinInput input)
     {
-        // check activity in progress
+        var activity = _activitOptions.ActivityList.Find(t => t.ActivityId == input.ActivityId);
+        if (activity == null)
+        {
+            throw new UserFriendlyException("Activity not existed");
+        }
+        if (activity.EndTime < DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow))
+        {
+            throw new UserFriendlyException("Activity has ended");
+        }
+
         var joinRecordExisted = await GetJoinRecordAsync(input.ActivityId, input.Address);
         if (joinRecordExisted != null)
         {
@@ -75,8 +84,20 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             throw new UserFriendlyException("Verify signature fail");
         }
 
-        // grain add join record
-        await _distributedEventBus.PublishAsync(new JoinRecordEto());
+        var joinRecordGrain = _clusterClient.GetGrain<IJoinRecordGrain>(GrainIdHelper.GenerateGrainId(input.ActivityId, input.Address));
+        var joinRecordGrainResult = await joinRecordGrain.AddOrUpdateAsync(new JoinRecordGrainDto
+        {
+            Address = input.Address,
+            ActivityId = input.ActivityId,
+            Signature = input.Signature,
+            Message = input.Message,
+            PublicKey = input.PublicKey
+        });
+        if (!joinRecordGrainResult.Success)
+        {
+            throw new UserFriendlyException("Join already");
+        }
+        await _distributedEventBus.PublishAsync(ObjectMapper.Map<JoinRecord, JoinRecordEto>(joinRecordGrainResult.Data));
     }
 
     public async Task<JoinRecordIndex> GetJoinRecordAsync(int activity, string address)
@@ -153,11 +174,13 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var lastHourRankingListSnapshotIndex =
             await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow.AddHours(-1));
         var rankingInfoDtoList = new List<RankingInfoDto>();
+        var ranking = 0;
         foreach (var rankingInfo in rankingListSnapshotIndex.RankingList)
         {
+            ranking++;
             var rankingInfoDto = new RankingInfoDto()
             {
-                Ranking = rankingInfo.Ranking,
+                Ranking = ranking,
                 Address = rankingInfo.Address,
                 TotalPoint = rankingInfo.TotalPoint,
             };
@@ -169,15 +192,14 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 continue;
             }
 
-            var lastHourRankingInfo =
-                lastHourRankingListSnapshotIndex.RankingList.Find(t => t.Address == rankingInfo.Address);
-            if (lastHourRankingInfo == null)
+            var lastHourRankingInfoRanking =
+                lastHourRankingListSnapshotIndex.RankingList.FindIndex(t => t.Address == rankingInfo.Address) + 1;
+            if (lastHourRankingInfoRanking == 0)
             {
                 rankingInfoDto.NewStatus = 1;
                 continue;
             }
-
-            rankingInfoDto.RankingChange1H = lastHourRankingInfo.Ranking - rankingInfo.Ranking;
+            rankingInfoDto.RankingChange1H = lastHourRankingInfoRanking - ranking;
         }
 
         return new RankingListDto
@@ -263,19 +285,23 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                         var point = await GetPointAsync(dto);
                         var userActivityGrainId = GrainIdHelper.GenerateGrainId(dto.ChainId, activity.Type, activity.ActivityId, dto.Sender);
                         var userActivityGrain = _clusterClient.GetGrain<IUserActivityGrain>(userActivityGrainId);
-                        var userActivityResult = await userActivityGrain.AddUserPointAsync(dto.Sender, point, dto.Timestamp);
+                        var userActivityResult = await userActivityGrain.GetAsync();
+                        var isNewUser = !userActivityResult.Success;
+                        userActivityResult = await userActivityGrain.AddUserPointAsync(dto.Sender, point, dto.Timestamp);
                         await _distributedEventBus.PublishAsync(
                             ObjectMapper.Map<UserActivityInfo, UserActivityInfoEto>(userActivityResult.Data));
                         
                         // update ranking
                         var currentActivityRankingGrainId = GrainIdHelper.GenerateGrainId(dto.ChainId, activity.Type, activity.ActivityId);
                         var currentActivityRankingGrain = _clusterClient.GetGrain<ICurrentActivityRankingGrain>(currentActivityRankingGrainId);
-                        var currentActivityRankingResult = await currentActivityRankingGrain.AddOrUpdateAsync(userActivityResult.Data.Address, userActivityResult.Data.TotalPoint, userActivityResult.Data.LastUpdateTime, activity.ActivityId);
+                        var currentActivityRankingResult = await currentActivityRankingGrain.AddOrUpdateAsync(userActivityResult.Data.Address, 
+                            userActivityResult.Data.TotalPoint, userActivityResult.Data.LastUpdateTime, activity.ActivityId, isNewUser);
                         
                         // ranking snapshot
                         var snapshotTime = GetNormalSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp));
                         var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(dto.ChainId, activity.Type, activity.ActivityId, snapshotTime);
                         var activityRankingSnapshotGrain = _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
+                        currentActivityRankingResult.Data.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
                         var activityRankingSnapshotResult = await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);
                         await _distributedEventBus.PublishAsync(
                         ObjectMapper.Map<RankingListSnapshot, RankingListSnapshotEto>(activityRankingSnapshotResult.Data));

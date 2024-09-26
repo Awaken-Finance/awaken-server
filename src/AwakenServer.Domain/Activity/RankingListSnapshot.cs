@@ -11,7 +11,6 @@ public class RankingListSnapshot : ActivityBase
 
 public class RankingInfo
 {
-    public int Ranking { get; set; }
     public string Address { get; set; }
     public long TotalPoint { get; set; }
 }
