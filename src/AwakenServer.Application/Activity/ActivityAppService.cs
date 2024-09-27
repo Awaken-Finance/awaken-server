@@ -61,6 +61,9 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         ITokenAppService tokenAppService,
         IOptionsSnapshot<PortfolioOptions> portfolioOptions,
         INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiquidityIndexRepository,
+        INESTRepository<JoinRecordIndex, Guid> joinRecordRepository,
+        INESTRepository<UserActivityInfoIndex, Guid> userActivityInfoRepository,
+        INESTRepository<RankingListSnapshotIndex, Guid> rankingListSnapshotRepository,
         INESTRepository<TradePair, Guid> tradePairIndexRepository,
         IDistributedEventBus distributedEventBus)
     {
@@ -74,6 +77,9 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         _activityTradePairAddresses = new Dictionary<int, List<ActivityTradePair>>();
         _portfolioOptions = portfolioOptions.Value;
         _tradePairIndexRepository = tradePairIndexRepository;
+        _joinRecordRepository = joinRecordRepository;
+        _userActivityInfoRepository = userActivityInfoRepository;
+        _rankingListSnapshotRepository = rankingListSnapshotRepository;
     }
 
     private string AddVersionToKey(string baseKey, string version)

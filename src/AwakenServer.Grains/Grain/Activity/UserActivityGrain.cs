@@ -18,6 +18,7 @@ public class UserActivityGrain : Grain<UserActivityState>, IUserActivityGrain
         if (string.IsNullOrEmpty(State.Address))
         {
             State.Address = userAddress;
+            State.Id = Guid.NewGuid();
         }
         State.TotalPoint += point;
         State.LastUpdateTime = timestamp;
@@ -34,6 +35,7 @@ public class UserActivityGrain : Grain<UserActivityState>, IUserActivityGrain
         if (string.IsNullOrEmpty(State.Address))
         {
             State.Address = userAddress;
+            State.Id = Guid.NewGuid();
         }
         State.TotalPoint = point;
         State.LastUpdateTime = timestamp;

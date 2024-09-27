@@ -26,14 +26,14 @@ public class UserActivityInfoIndexHandler : TradeIndexHandlerBase,
     public async Task HandleEventAsync(UserActivityInfoEto eventData)
     {
         var userActivityInfoIndex = ObjectMapper.Map<UserActivityInfoEto, UserActivityInfoIndex>(eventData);
-        var existedIndex = await _userActivityInfoIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.ActivityId).Value(eventData.ActivityId)) &&
-            q.Term(i => i.Field(f => f.Address).Value(eventData.Address)));
-        userActivityInfoIndex.Id = existedIndex switch
-        {
-            null => Guid.NewGuid(),
-            _ => existedIndex.Id
-        };
+        // var existedIndex = await _userActivityInfoIndexRepository.GetAsync(q =>
+        //     q.Term(i => i.Field(f => f.ActivityId).Value(eventData.ActivityId)) &&
+        //     q.Term(i => i.Field(f => f.Address).Value(eventData.Address)));
+        // userActivityInfoIndex.Id = existedIndex switch
+        // {
+        //     null => Guid.NewGuid(),
+        //     _ => existedIndex.Id
+        // };
         await _userActivityInfoIndexRepository.AddOrUpdateAsync(userActivityInfoIndex);
     }
 }
