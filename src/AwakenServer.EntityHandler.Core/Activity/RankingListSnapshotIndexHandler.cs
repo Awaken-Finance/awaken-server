@@ -26,14 +26,14 @@ public class RankingListSnapshotIndexHandler : TradeIndexHandlerBase,
     public async Task HandleEventAsync(RankingListSnapshotEto eventData)
     {
         var rankingListSnapshotIndex = ObjectMapper.Map<RankingListSnapshotEto, RankingListSnapshotIndex>(eventData);
-        var existedIndex = await _rankingListSnapshotIndexRepository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.ActivityId).Value(eventData.ActivityId)) &&
-            q.Term(i => i.Field(f => f.Timestamp).Value(eventData.Timestamp)));
-        rankingListSnapshotIndex.Id = existedIndex switch
-        {
-            null => Guid.NewGuid(),
-            _ => existedIndex.Id
-        };
+        // var existedIndex = await _rankingListSnapshotIndexRepository.GetAsync(q =>
+        //     q.Term(i => i.Field(f => f.ActivityId).Value(eventData.ActivityId)) &&
+        //     q.Term(i => i.Field(f => f.Timestamp).Value(eventData.Timestamp)));
+        // rankingListSnapshotIndex.Id = existedIndex switch
+        // {
+        //     null => Guid.NewGuid(),
+        //     _ => existedIndex.Id
+        // };
         await _rankingListSnapshotIndexRepository.AddOrUpdateAsync(rankingListSnapshotIndex);
     }
 }

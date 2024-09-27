@@ -119,6 +119,37 @@ namespace AwakenServer.Trade
                 };
             });
 
+            context.Services.Configure<ActivityOptions>(o =>
+            {
+                o.ActivityList = new List<Activity.Activity>();
+                o.ActivityList.Add(new Activity.Activity()
+                {
+                    ActivityId = 1,
+                    Type = "volume",
+                    BeginTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                    EndTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(3)),
+                    TradePairs = new List<string>()
+                    {
+                        "ETH_USDT",
+                        "BTC_USDT"
+                    },
+                });
+                o.ActivityList.Add(new Activity.Activity()
+                {
+                    ActivityId = 2,
+                    Type = "tvl",
+                    BeginTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                    EndTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(3)),
+                    TradePairs = new List<string>()
+                    {
+                        "ETH_USDT",
+                        "BTC_USDT"
+                    },
+                });
+    
+            });
+
+            
             context.Services.Configure<CmsOptions>(o => { o.CmsAddress = "https://test-cms.awaken.finance/"; });
 
             context.Services.Configure<ContractsTokenOptions>(o =>

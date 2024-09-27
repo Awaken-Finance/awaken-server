@@ -45,7 +45,7 @@ public class CurrentActivityRankingGrain : Grain<ActivityRankingSnapshotState>, 
                 TotalPoint = totalPoint
             });
         }
-        State.RankingList.Sort((r1, r2) => r1.TotalPoint.CompareTo(r2.TotalPoint));
+        State.RankingList.Sort((r1, r2) => r2.TotalPoint.CompareTo(r1.TotalPoint));
         if (State.RankingList.Count > 100)
         {
             State.RankingList.RemoveRange(100, State.RankingList.Count - 100);
