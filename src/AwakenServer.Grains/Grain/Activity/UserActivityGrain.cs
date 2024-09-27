@@ -13,7 +13,7 @@ public class UserActivityGrain : Grain<UserActivityState>, IUserActivityGrain
     }
 
     
-    public async Task<GrainResultDto<UserActivityGrainDto>> AddUserPointAsync(string userAddress, double point, long timestamp)
+    public async Task<GrainResultDto<UserActivityGrainDto>> AccumulateUserPointAsync(string userAddress, double point, long timestamp)
     {
         if (string.IsNullOrEmpty(State.Address))
         {
@@ -28,7 +28,23 @@ public class UserActivityGrain : Grain<UserActivityState>, IUserActivityGrain
             Data = _objectMapper.Map<UserActivityState, UserActivityGrainDto>(State)
         };
     }
-
+    
+    public async Task<GrainResultDto<UserActivityGrainDto>> UpdateUserPointAsync(string userAddress, double point, long timestamp)
+    {
+        if (string.IsNullOrEmpty(State.Address))
+        {
+            State.Address = userAddress;
+        }
+        State.TotalPoint = point;
+        State.LastUpdateTime = timestamp;
+        await WriteStateAsync();
+        return new GrainResultDto<UserActivityGrainDto>()
+        {
+            Success = true,
+            Data = _objectMapper.Map<UserActivityState, UserActivityGrainDto>(State)
+        };
+    }
+    
     public async Task<GrainResultDto<UserActivityGrainDto>> GetAsync()
     {
         await ReadStateAsync();

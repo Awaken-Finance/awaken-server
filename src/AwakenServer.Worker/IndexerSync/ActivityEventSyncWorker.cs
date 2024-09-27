@@ -74,16 +74,21 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         if (_firstExecution)
         {
             _logger.LogInformation("Executing LP task at first startup: {time}", DateTime.Now);
-            await _activityAppService.CreateLpSnapshotAsync(now);
+            await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
             _firstExecution = false; 
             SetNextExecutionTime();
         }
         else
         {
+  
+            // var endTime = _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000));
+            // var result = now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < endTime;
+            // _logger.LogInformation($"now: {now}, nextLpSnapshotExecutionTime: {_nextLpSnapshotExecutionTime}, endTime:{endTime}, exec: {result}");
+            
             if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000)))
             {
                 _logger.LogInformation("Executing LP snapshot task at: {time}", now);
-                await _activityAppService.CreateLpSnapshotAsync(now);
+                await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
                 SetNextExecutionTime();
             }
         }
@@ -91,18 +96,18 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         // 2. Swap Value
         long blockHeight = -1;
         
-        // var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
-        //
-        // _logger.LogInformation("Activity swap queryList count: {count}", swapRecordList.Count);
-        //     
-        // foreach (var swapRecordDto in swapRecordList)
-        // {
-        //     if (!await _activityAppService.CreateSwapAsync(swapRecordDto))
-        //     {
-        //         continue;
-        //     }
-        //     blockHeight = Math.Max(blockHeight, swapRecordDto.BlockHeight);
-        // }
+        var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
+        
+        _logger.LogInformation("Activity swap queryList count: {count}", swapRecordList.Count);
+            
+        foreach (var swapRecordDto in swapRecordList)
+        {
+            if (!await _activityAppService.CreateSwapAsync(swapRecordDto))
+            {
+                continue;
+            }
+            blockHeight = Math.Max(blockHeight, swapRecordDto.BlockHeight);
+        }
 
         return blockHeight;
     }

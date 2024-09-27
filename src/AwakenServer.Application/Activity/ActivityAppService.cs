@@ -8,12 +8,16 @@ using AElf.Indexing.Elasticsearch;
 using AwakenServer.Activity.Dtos;
 using AwakenServer.Activity.Eto;
 using AwakenServer.Activity.Index;
+using AwakenServer.Asset;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Activity;
+using AwakenServer.Grains.Grain.MyPortfolio;
+using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Price;
 using AwakenServer.Price.Dtos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
+using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
@@ -31,12 +35,19 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     private INESTRepository<JoinRecordIndex, Guid> _joinRecordRepository;
     private INESTRepository<UserActivityInfoIndex, Guid> _userActivityInfoRepository;
     private INESTRepository<RankingListSnapshotIndex, Guid> _rankingListSnapshotRepository;
+    private INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiquidityIndexRepository;
+    private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
+
     private IClusterClient _clusterClient;
     private IDistributedEventBus _distributedEventBus;
     private readonly ILogger<ActivityAppService> _logger;
     private readonly ActivityOptions _activitOptions;
+    private readonly PortfolioOptions _portfolioOptions;
+
     private readonly ITokenAppService _tokenAppService;
     private readonly IPriceAppService _priceAppService;
+
+    private Dictionary<int, List<ActivityTradePair>> _activityTradePairAddresses;
 
     protected const string VolumeActivityType = "volume";
     protected const string TvlActivityType = "tvl";
@@ -48,6 +59,9 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         IClusterClient clusterClient,
         IPriceAppService priceAppService,
         ITokenAppService tokenAppService,
+        IOptionsSnapshot<PortfolioOptions> portfolioOptions,
+        INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiquidityIndexRepository,
+        INESTRepository<TradePair, Guid> tradePairIndexRepository,
         IDistributedEventBus distributedEventBus)
     {
         _logger = logger;
@@ -56,8 +70,17 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         _tokenAppService = tokenAppService;
         _priceAppService = priceAppService;
         _distributedEventBus = distributedEventBus;
+        _currentUserLiquidityIndexRepository = currentUserLiquidityIndexRepository;
+        _activityTradePairAddresses = new Dictionary<int, List<ActivityTradePair>>();
+        _portfolioOptions = portfolioOptions.Value;
+        _tradePairIndexRepository = tradePairIndexRepository;
     }
 
+    private string AddVersionToKey(string baseKey, string version)
+    {
+        return $"{baseKey}:{version}";
+    }
+    
     public async Task JoinAsync(JoinInput input)
     {
         var activity = _activitOptions.ActivityList.Find(t => t.ActivityId == input.ActivityId);
@@ -65,6 +88,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         {
             throw new UserFriendlyException("Activity not existed");
         }
+
         if (activity.EndTime < DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow))
         {
             throw new UserFriendlyException("Activity has ended");
@@ -84,7 +108,8 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             throw new UserFriendlyException("Verify signature fail");
         }
 
-        var joinRecordGrain = _clusterClient.GetGrain<IJoinRecordGrain>(GrainIdHelper.GenerateGrainId(input.ActivityId, input.Address));
+        var joinRecordGrain =
+            _clusterClient.GetGrain<IJoinRecordGrain>(GrainIdHelper.GenerateGrainId(input.ActivityId, input.Address));
         var joinRecordGrainResult = await joinRecordGrain.AddOrUpdateAsync(new JoinRecordGrainDto
         {
             Address = input.Address,
@@ -97,7 +122,9 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         {
             throw new UserFriendlyException("Join already");
         }
-        await _distributedEventBus.PublishAsync(ObjectMapper.Map<JoinRecord, JoinRecordEto>(joinRecordGrainResult.Data));
+
+        await _distributedEventBus.PublishAsync(
+            ObjectMapper.Map<JoinRecord, JoinRecordEto>(joinRecordGrainResult.Data));
     }
 
     public async Task<JoinRecordIndex> GetJoinRecordAsync(int activity, string address)
@@ -153,12 +180,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 myRanking = index + 1;
             }
         }
-        
+
         return new MyRankingDto
         {
             Ranking = myRanking,
-            TotalPoint = userActivityInfoIndex?.TotalPoint != null 
-                ? (long)userActivityInfoIndex.TotalPoint 
+            TotalPoint = userActivityInfoIndex?.TotalPoint != null
+                ? (long)userActivityInfoIndex.TotalPoint
                 : 0
         };
     }
@@ -199,6 +226,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 rankingInfoDto.NewStatus = 1;
                 continue;
             }
+
             rankingInfoDto.RankingChange1H = lastHourRankingInfoRanking - ranking;
         }
 
@@ -207,115 +235,241 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             Items = rankingInfoDtoList
         };
     }
-    
+
     private DateTime GetLpSnapshotTime(DateTime timestamp)
+    {
+        if (timestamp.Minute <= 10)
         {
-            if (timestamp.Minute <= 10)
-            {
-                return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, 0, 0);
-            }
-    
-            if (timestamp.Minute >= 50)
-            {
-                DateTime nextHour = timestamp.AddHours(1);
-                return new DateTime(nextHour.Year, nextHour.Month, nextHour.Day, nextHour.Hour, 0, 0);
-            }
-
-            return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, 0, 0);;
-        }
-        
-        public DateTime GetNormalSnapshotTime(DateTime time)
-        {
-            return time.Date.AddHours(time.Hour);
+            return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, 0, 0);
         }
 
-        private async Task<double> GetPointAsync(SwapRecordDto dto)
+        if (timestamp.Minute >= 50)
         {
-            var labsFeeToken = await _tokenAppService.GetAsync(new GetTokenInput()
-            {
-                Symbol = dto.LabsFeeSymbol
-            });
-            var labsFee = dto.LabsFee / Math.Pow(10, labsFeeToken.Decimals);
-            var labsFeeTokenPrice = await _priceAppService.GetTokenHistoryPriceDataAsync(
-                new GetTokenHistoryPriceInput()
-                {
-                    Symbol = dto.LabsFeeSymbol,
-                    DateTime = DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp)
-                }
-            );
-            var labsFeeInUsd = labsFee * (double)labsFeeTokenPrice.PriceInUsd;
-            return labsFeeInUsd / LabsFeeRate;
+            DateTime nextHour = timestamp.AddHours(1);
+            return new DateTime(nextHour.Year, nextHour.Month, nextHour.Day, nextHour.Hour, 0, 0);
         }
 
-        public bool IsActivityPool(Activity activity, SwapRecordDto dto)
-        {
-            if (dto.SwapRecords.Count > 0)
-            {
-                return false;
-            }
+        return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, 0, 0);
+        ;
+    }
 
-            foreach (var pair in activity.TradePairs)
+    public DateTime GetNormalSnapshotTime(DateTime time)
+    {
+        return time.Date.AddHours(time.Hour);
+    }
+
+    private async Task<double> GetPointAsync(SwapRecordDto dto)
+    {
+        var labsFeeToken = await _tokenAppService.GetAsync(new GetTokenInput()
+        {
+            Symbol = dto.LabsFeeSymbol
+        });
+        var labsFee = dto.LabsFee / Math.Pow(10, labsFeeToken.Decimals);
+        var labsFeeTokenPrice = await _priceAppService.GetTokenHistoryPriceDataAsync(
+            new GetTokenHistoryPriceInput()
             {
-                var activityPool = pair.Split('_').ToList();
-                if (activityPool.Count == 2 &&
-                    (activityPool[0] == dto.SymbolIn && activityPool[1] == dto.SymbolOut)
-                    || (activityPool[0] == dto.SymbolOut && activityPool[1] == dto.SymbolIn))
-                {
-                    return true;
-                }             
+                Symbol = dto.LabsFeeSymbol,
+                DateTime = DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp)
             }
-            
+        );
+        var labsFeeInUsd = labsFee * (double)labsFeeTokenPrice.PriceInUsd;
+        return labsFeeInUsd / LabsFeeRate;
+    }
+
+    public async Task<bool> IsActivityPoolAsync(Activity activity, SwapRecordDto dto)
+    {
+        if (dto.SwapRecords.Count > 0)
+        {
             return false;
-            
         }
-        
-        public async Task<bool> CreateSwapAsync(SwapRecordDto dto)
+
+        if (!_activityTradePairAddresses.ContainsKey(activity.ActivityId))
         {
-            foreach (var activity in _activitOptions.ActivityList)
+            var activityPools = await GetActivityPair(activity);
+            _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
+        }
+
+        var activityPoolSet = new HashSet<string>(_activityTradePairAddresses[activity.ActivityId].Select(t => t.PairAddress));
+        return activityPoolSet.Contains(dto.PairAddress);
+    }
+
+    private async Task UpdateUserPointAndRankingAsync(UpdatePointType updatePointType, string chainId, long timestamp, DateTime snapshotTime, Activity activity, string userAddress, double point)
+    {
+        // update user point
+        var userActivityGrainId =
+            GrainIdHelper.GenerateGrainId(chainId, activity.Type, activity.ActivityId, userAddress);
+        var userActivityGrain = _clusterClient.GetGrain<IUserActivityGrain>(userActivityGrainId);
+        var userActivityResult = await userActivityGrain.GetAsync();
+        var isNewUser = !userActivityResult.Success;
+        switch (updatePointType)
+        {
+            case UpdatePointType.Update:
             {
-                if (activity.Type == VolumeActivityType)
+                userActivityResult = await userActivityGrain.UpdateUserPointAsync(userAddress, point, timestamp);
+                break;
+            }
+            case UpdatePointType.Add:
+            {
+                userActivityResult = await userActivityGrain.AccumulateUserPointAsync(userAddress, point, timestamp);
+                break;
+            }
+        }
+        await _distributedEventBus.PublishAsync(
+            ObjectMapper.Map<UserActivityInfo, UserActivityInfoEto>(userActivityResult.Data));
+
+        // update ranking
+        var currentActivityRankingGrainId =
+            GrainIdHelper.GenerateGrainId(chainId, activity.Type, activity.ActivityId);
+        var currentActivityRankingGrain =
+            _clusterClient.GetGrain<ICurrentActivityRankingGrain>(currentActivityRankingGrainId);
+        var currentActivityRankingResult = await currentActivityRankingGrain.AddOrUpdateAsync(
+            userActivityResult.Data.Address,
+            userActivityResult.Data.TotalPoint, userActivityResult.Data.LastUpdateTime, activity.ActivityId,
+            isNewUser);
+
+        // ranking snapshot
+        var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(chainId, activity.Type,
+            activity.ActivityId, snapshotTime);
+        var activityRankingSnapshotGrain =
+            _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
+        currentActivityRankingResult.Data.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
+        var activityRankingSnapshotResult =
+            await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);
+        await _distributedEventBus.PublishAsync(
+            ObjectMapper.Map<RankingListSnapshot, RankingListSnapshotEto>(
+                activityRankingSnapshotResult.Data));
+    }
+    
+    public async Task<bool> CreateSwapAsync(SwapRecordDto dto)
+    {
+        foreach (var activity in _activitOptions.ActivityList)
+        {
+            if (activity.Type == VolumeActivityType)
+            {
+                if (!await IsActivityPoolAsync(activity, dto))
                 {
-                    if (!IsActivityPool(activity, dto))
+                    continue;
+                }
+
+                if (dto.Timestamp >= activity.BeginTime && dto.Timestamp <= activity.EndTime)
+                {
+                    var point = await GetPointAsync(dto);
+                    var snapshotTime = GetNormalSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp));
+                    await UpdateUserPointAndRankingAsync(UpdatePointType.Add, dto.ChainId, dto.Timestamp, snapshotTime, activity, dto.Sender, point);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public async Task<List<CurrentUserLiquidityIndex>> GetCurrentUserLiquidityIndexListAsync(Guid tradePairId, string dataVersion)
+    {
+        var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
+        mustQuery.Add(q => q.Range(i => i.Field(f => f.LpTokenAmount).GreaterThan(0)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(dataVersion)));
+        QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
+        var result = await _currentUserLiquidityIndexRepository.GetListAsync(Filter, skip: 0, limit: 10000);
+        return result.Item2;
+    }
+    
+    private async Task<List<ActivityTradePair>> GetActivityPair(Activity activity)
+    {
+        var result = new List<ActivityTradePair>();
+        foreach (var activityTradePair in activity.TradePairs)
+        {
+            var activityPool = activityTradePair.Split('_').ToList();
+            if (activityPool.Count != 2)
+            {
+                continue;
+            }
+            var mustQuery = new List<Func<QueryContainerDescriptor<TradePair>, QueryContainer>>();
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.IsDeleted).Value(false)));
+            mustQuery.Add(q => q.Bool(b => b
+                .Should(
+                    q.Bool(b1 => b1
+                        .Must(
+                            q.Term(i => i.Field(f => f.Token0).Value(activityPool[0])),
+                            q.Term(i => i.Field(f => f.Token1).Value(activityPool[1]))
+                        )
+                    ),
+                    q.Bool(b1 => b1
+                        .Must(
+                            q.Term(i => i.Field(f => f.Token0).Value(activityPool[1])),
+                            q.Term(i => i.Field(f => f.Token1).Value(activityPool[0]))
+                        )
+                    )
+                )
+            ));
+            QueryContainer Filter(QueryContainerDescriptor<TradePair> f) => f.Bool(b => b.Must(mustQuery));
+            var pairList = await _tradePairIndexRepository.GetListAsync(Filter);
+            foreach (var pair in pairList.Item2)
+            {
+                _logger.LogInformation($"Activity: {activity.ActivityId}, pair: {activityTradePair}, find es pair: {pair.Address} - {pair.Id}");
+                result.Add(new ActivityTradePair()
+                {
+                    PairAddress = pair.Address,
+                    PairId = pair.Id
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<bool> CreateLpSnapshotAsync(long executeTime)
+    {
+        foreach (var activity in _activitOptions.ActivityList)
+        {
+            if (executeTime >= activity.BeginTime && executeTime <= activity.EndTime)
+            {
+                if (activity.Type == TvlActivityType)
+                {
+                    if (!_activityTradePairAddresses.ContainsKey(activity.ActivityId))
                     {
-                        continue;
+                        var activityPools = await GetActivityPair(activity);
+                        _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
                     }
-                    if (dto.Timestamp >= activity.BeginTime && dto.Timestamp <= activity.EndTime)
+
+                    var activityPairs = _activityTradePairAddresses[activity.ActivityId];
+                    foreach (var activityPair in activityPairs)
                     {
-                        // update user point
-                        var point = await GetPointAsync(dto);
-                        var userActivityGrainId = GrainIdHelper.GenerateGrainId(dto.ChainId, activity.Type, activity.ActivityId, dto.Sender);
-                        var userActivityGrain = _clusterClient.GetGrain<IUserActivityGrain>(userActivityGrainId);
-                        var userActivityResult = await userActivityGrain.GetAsync();
-                        var isNewUser = !userActivityResult.Success;
-                        userActivityResult = await userActivityGrain.AddUserPointAsync(dto.Sender, point, dto.Timestamp);
-                        await _distributedEventBus.PublishAsync(
-                            ObjectMapper.Map<UserActivityInfo, UserActivityInfoEto>(userActivityResult.Data));
-                        
-                        // update ranking
-                        var currentActivityRankingGrainId = GrainIdHelper.GenerateGrainId(dto.ChainId, activity.Type, activity.ActivityId);
-                        var currentActivityRankingGrain = _clusterClient.GetGrain<ICurrentActivityRankingGrain>(currentActivityRankingGrainId);
-                        var currentActivityRankingResult = await currentActivityRankingGrain.AddOrUpdateAsync(userActivityResult.Data.Address, 
-                            userActivityResult.Data.TotalPoint, userActivityResult.Data.LastUpdateTime, activity.ActivityId, isNewUser);
-                        
-                        // ranking snapshot
-                        var snapshotTime = GetNormalSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp));
-                        var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(dto.ChainId, activity.Type, activity.ActivityId, snapshotTime);
-                        var activityRankingSnapshotGrain = _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
-                        currentActivityRankingResult.Data.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
-                        var activityRankingSnapshotResult = await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);
-                        await _distributedEventBus.PublishAsync(
-                        ObjectMapper.Map<RankingListSnapshot, RankingListSnapshotEto>(activityRankingSnapshotResult.Data));
-                        
+                        var pairLiquidity = await GetCurrentUserLiquidityIndexListAsync(activityPair.PairId, _portfolioOptions.DataVersion);
+                        foreach (var userPairLiquidity in pairLiquidity)
+                        {
+                            var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userPairLiquidity.TradePairId));
+                            var pair = (await tradePairGrain.GetAsync()).Data;
+                            
+                            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userPairLiquidity.TradePairId), _portfolioOptions.DataVersion));
+                            var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
+                            
+                            var lpTokenPercentage = currentTradePair.TotalSupply == 0
+                                ? 0.0
+                                : userPairLiquidity.LpTokenAmount / (double)currentTradePair.TotalSupply;
+
+                            var point = lpTokenPercentage * pair.TVL;
+                            var snapshotTime = GetLpSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(executeTime));
+
+                            await UpdateUserPointAndRankingAsync(UpdatePointType.Update, userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point);
+                        }
                     }
                 }
             }
-            return true;
         }
 
-        public async Task<bool> CreateLpSnapshotAsync(DateTime executeTime)
-        {
-            // todo
-            return true;
-        }
-        
+        return true;
+    }
+
+    public class ActivityTradePair
+    {
+        public string PairAddress { get; set; }
+        public Guid PairId { get; set; }
+    }
+    
+    public enum UpdatePointType
+    {
+        Add = 1,
+        Update
+    }
 }
