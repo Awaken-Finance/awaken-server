@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AwakenServer.Activity;
+using AwakenServer.Activity.Dtos;
 using AwakenServer.Models;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
@@ -18,12 +20,14 @@ namespace AwakenServer.Hubs
         private readonly ITradeHubGroupProvider _tradeHubGroupProvider;
         private readonly IKLineAppService _kLineAppService;
         private readonly ITradePairAppService _tradePairAppService;
+        private readonly IActivityAppService _activityAppService;
         private readonly ILogger<TradeHub> _logger;
 
         public TradeHub(ITradeRecordAppService tradeRecordAppService,
             ITradeHubConnectionProvider tradeHubConnectionProvider,
             IKLineAppService kLineAppService, ITradeHubGroupProvider tradeHubGroupProvider,
             ITradePairAppService tradePairAppService,
+            IActivityAppService activityAppService,
             ILogger<TradeHub> logger)
         {
             _tradeRecordAppService = tradeRecordAppService;
@@ -31,6 +35,7 @@ namespace AwakenServer.Hubs
             _kLineAppService = kLineAppService;
             _tradeHubGroupProvider = tradeHubGroupProvider;
             _tradePairAppService = tradePairAppService;
+            _activityAppService = activityAppService;
             _logger = logger;
         }
 
@@ -197,6 +202,25 @@ namespace AwakenServer.Hubs
             _tradeHubConnectionProvider.ClearRemovedUserConnection(chainId, Guid.Parse(tradePairId), address,
                 Context.ConnectionId);
         }
+        
+        public async Task RequestActivityRankingList(int activityId)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId,
+                _tradeHubGroupProvider.GetActivityRankingListGroupName(activityId));
+            
+            var rankingListDto = await _activityAppService.GetRankingListAsync(new ActivityBaseDto()
+            {
+                ActivityId = activityId
+            });
+
+            await Clients.Caller.SendAsync("ReceiveActivityRankingList", rankingListDto);
+        }
+
+        public async Task UnsubscribeActivityRankingList(int activityId)
+        {
+            await TryRemoveFromGroupAsync(Context.ConnectionId,
+                _tradeHubGroupProvider.GetActivityRankingListGroupName(activityId));
+        }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
@@ -214,6 +238,12 @@ namespace AwakenServer.Hubs
 
             var tradePairGroups = _tradeHubGroupProvider.GetAllTradePairGroup();
             foreach (var group in tradePairGroups)
+            {
+                await TryRemoveFromGroupAsync(Context.ConnectionId, group);
+            }
+
+            var activityRankingListGroups = _tradeHubGroupProvider.GetAllActivityRankingListGroup();
+            foreach (var group in activityRankingListGroups)
             {
                 await TryRemoveFromGroupAsync(Context.ConnectionId, group);
             }
