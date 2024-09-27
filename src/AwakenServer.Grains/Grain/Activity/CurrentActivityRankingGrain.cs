@@ -58,5 +58,20 @@ public class CurrentActivityRankingGrain : Grain<ActivityRankingSnapshotState>, 
             Data = _objectMapper.Map<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>(State)
         };
     }
-    
+
+    public async Task<GrainResultDto<ActivityRankingSnapshotGrainDto>> AddNumOfPointAsync(int activityId, int num)
+    {
+        if (State.Id == Guid.Empty)
+        {
+            State.Id = Guid.NewGuid();
+            State.ActivityId = activityId;
+        }
+        State.NumOfJoin += num;
+        await WriteStateAsync();
+        return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
+        {
+            Success = true,
+            Data = _objectMapper.Map<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>(State)
+        };
+    }
 }

@@ -31,5 +31,4 @@ public class ActivityRankingSnapshotGrain : Grain<ActivityRankingSnapshotState>,
             Data = _objectMapper.Map<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>(State)
         };
     }
-    
 }

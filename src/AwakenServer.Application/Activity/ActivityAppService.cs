@@ -34,7 +34,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     private IClusterClient _clusterClient;
     private IDistributedEventBus _distributedEventBus;
     private readonly ILogger<ActivityAppService> _logger;
-    private readonly ActivityOptions _activitOptions;
+    private readonly ActivityOptions _activityOptions;
     private readonly ITokenAppService _tokenAppService;
     private readonly IPriceAppService _priceAppService;
 
@@ -42,25 +42,29 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     protected const string TvlActivityType = "tvl";
     protected const double LabsFeeRate = 0.0015;
 
-    public ActivityAppService(
-        ILogger<ActivityAppService> logger,
-        IOptionsSnapshot<ActivityOptions> activitOptions,
-        IClusterClient clusterClient,
-        IPriceAppService priceAppService,
-        ITokenAppService tokenAppService,
-        IDistributedEventBus distributedEventBus)
+    public ActivityAppService(INESTRepository<JoinRecordIndex, Guid> joinRecordRepository, 
+        INESTRepository<UserActivityInfoIndex, Guid> userActivityInfoRepository, 
+        INESTRepository<RankingListSnapshotIndex, Guid> rankingListSnapshotRepository, 
+        IClusterClient clusterClient, IDistributedEventBus distributedEventBus, 
+        ILogger<ActivityAppService> logger, 
+        IOptionsSnapshot<ActivityOptions> activityOptions, 
+        ITokenAppService tokenAppService, 
+        IPriceAppService priceAppService)
     {
-        _logger = logger;
-        _activitOptions = activitOptions.Value;
+        _joinRecordRepository = joinRecordRepository;
+        _userActivityInfoRepository = userActivityInfoRepository;
+        _rankingListSnapshotRepository = rankingListSnapshotRepository;
         _clusterClient = clusterClient;
+        _distributedEventBus = distributedEventBus;
+        _logger = logger;
+        _activityOptions = activityOptions.Value;
         _tokenAppService = tokenAppService;
         _priceAppService = priceAppService;
-        _distributedEventBus = distributedEventBus;
     }
 
     public async Task JoinAsync(JoinInput input)
     {
-        var activity = _activitOptions.ActivityList.Find(t => t.ActivityId == input.ActivityId);
+        var activity = _activityOptions.ActivityList.Find(t => t.ActivityId == input.ActivityId);
         if (activity == null)
         {
             throw new UserFriendlyException("Activity not existed");
@@ -69,7 +73,6 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         {
             throw new UserFriendlyException("Activity has ended");
         }
-
         var joinRecordExisted = await GetJoinRecordAsync(input.ActivityId, input.Address);
         if (joinRecordExisted != null)
         {
@@ -77,7 +80,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         }
 
         var publicKeyByte = ByteArrayHelper.HexStringToByteArray(input.PublicKey);
-        var dataByte = ByteArrayHelper.HexStringToByteArray(input.Message);
+        var dataByte = HashHelper.ComputeFrom(input.Message).ToByteArray();
         var signatureByte = ByteArrayHelper.HexStringToByteArray(input.Signature);
         if (!CryptoHelper.VerifySignature(signatureByte, dataByte, publicKeyByte))
         {
@@ -98,9 +101,22 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             throw new UserFriendlyException("Join already");
         }
         await _distributedEventBus.PublishAsync(ObjectMapper.Map<JoinRecord, JoinRecordEto>(joinRecordGrainResult.Data));
+
+        var currentActivityRankingGrainId = GrainIdHelper.GenerateGrainId(activity.Type, activity.ActivityId);
+        var currentActivityRankingGrain = _clusterClient.GetGrain<ICurrentActivityRankingGrain>(currentActivityRankingGrainId);
+        var currentActivityRankingResult = await currentActivityRankingGrain.AddNumOfPointAsync(activity.ActivityId,1);
+        
+        // ranking snapshot
+        var snapshotTime = GetNormalSnapshotTime(DateTime.UtcNow);
+        var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(activity.Type, activity.ActivityId, snapshotTime);
+        var activityRankingSnapshotGrain = _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
+        currentActivityRankingResult.Data.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
+        var activityRankingSnapshotResult = await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);
+        await _distributedEventBus.PublishAsync(
+            ObjectMapper.Map<RankingListSnapshot, RankingListSnapshotEto>(activityRankingSnapshotResult.Data));
     }
 
-    public async Task<JoinRecordIndex> GetJoinRecordAsync(int activity, string address)
+    private async Task<JoinRecordIndex> GetJoinRecordAsync(int activity, string address)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<JoinRecordIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ActivityId).Value(activity)));
@@ -109,7 +125,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return await _joinRecordRepository.GetAsync(Filter);
     }
 
-    public async Task<UserActivityInfoIndex> GetUserActivityInfoAsync(int activity, string address)
+    private async Task<UserActivityInfoIndex> GetUserActivityInfoAsync(int activity, string address)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<UserActivityInfoIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ActivityId).Value(activity)));
@@ -118,7 +134,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return await _userActivityInfoRepository.GetAsync(Filter);
     }
 
-    public async Task<RankingListSnapshotIndex> GetLatestRankingListSnapshotAsync(int activity, DateTime maxTime)
+    private async Task<RankingListSnapshotIndex> GetLatestRankingListSnapshotAsync(int activity, DateTime maxTime)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<RankingListSnapshotIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ActivityId).Value(activity)));
@@ -271,7 +287,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         
         public async Task<bool> CreateSwapAsync(SwapRecordDto dto)
         {
-            foreach (var activity in _activitOptions.ActivityList)
+            foreach (var activity in _activityOptions.ActivityList)
             {
                 if (activity.Type == VolumeActivityType)
                 {
@@ -292,14 +308,14 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                             ObjectMapper.Map<UserActivityInfo, UserActivityInfoEto>(userActivityResult.Data));
                         
                         // update ranking
-                        var currentActivityRankingGrainId = GrainIdHelper.GenerateGrainId(dto.ChainId, activity.Type, activity.ActivityId);
+                        var currentActivityRankingGrainId = GrainIdHelper.GenerateGrainId( activity.Type, activity.ActivityId);
                         var currentActivityRankingGrain = _clusterClient.GetGrain<ICurrentActivityRankingGrain>(currentActivityRankingGrainId);
                         var currentActivityRankingResult = await currentActivityRankingGrain.AddOrUpdateAsync(userActivityResult.Data.Address, 
                             userActivityResult.Data.TotalPoint, userActivityResult.Data.LastUpdateTime, activity.ActivityId, isNewUser);
                         
                         // ranking snapshot
                         var snapshotTime = GetNormalSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp));
-                        var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(dto.ChainId, activity.Type, activity.ActivityId, snapshotTime);
+                        var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(activity.Type, activity.ActivityId, snapshotTime);
                         var activityRankingSnapshotGrain = _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
                         currentActivityRankingResult.Data.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
                         var activityRankingSnapshotResult = await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);

@@ -178,6 +178,7 @@ namespace AwakenServer
 
             CreateMap<RankingListSnapshotEto, RankingListSnapshotIndex>();
             CreateMap<UserActivityInfoEto, UserActivityInfoIndex>();
+            CreateMap<JoinRecordEto, JoinRecordIndex>();
         }
 
         private void CreateMapForFavorite()

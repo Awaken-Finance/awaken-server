@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AwakenServer.Activity;
 using AwakenServer.Applications.GameOfTrust;
 using AwakenServer.Chains;
 using AwakenServer.CMS;
@@ -128,6 +129,31 @@ namespace AwakenServer.Trade
                     { "0.001", "2KRHY1oZv5S28YGRJ3adtMxfAh7WQP3wmMyoFq33oTc7Mt5Z1Y" },
                     { "0.03", "UoHeeCXZ6fV481oD3NXASSexWVtsPLgv2Wthm3BGrPAgqdS5d" },
                     { "0.05", "2tWvBTmX7YhB2HLcWGGG5isVCgab96jdaXnqDs1jzSsyqwmjic" }
+                };
+            });
+            
+            context.Services.Configure<ActivityOptions>(o =>
+            {
+                o.ActivityList = new List<Activity.Activity>()
+                {
+                    new ()
+                    {
+                        ActivityId = 1,
+                        BeginTime = 0,
+                        EndTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(1)),
+                        Type = "volume",
+                        TradePairs = {"ELF_USDT"},
+                        WhiteList = {}
+                    },
+                    new ()
+                    {
+                        ActivityId = 2,
+                        BeginTime = 0,
+                        EndTime = 1,
+                        Type = "tvl",
+                        TradePairs = {"ELF_USDT"},
+                        WhiteList = {}
+                    }
                 };
             });
 
