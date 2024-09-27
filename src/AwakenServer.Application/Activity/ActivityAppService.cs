@@ -18,12 +18,14 @@ using AwakenServer.Price.Dtos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
+using Volo.Abp.Caching;
 using Volo.Abp.EventBus.Distributed;
 
 
@@ -32,11 +34,14 @@ namespace AwakenServer.Activity;
 [RemoteService(IsEnabled = false)]
 public class ActivityAppService : ApplicationService, IActivityAppService
 {
+    public const string SyncedTransactionCachePrefix = "ActivitySynced";
     private INESTRepository<JoinRecordIndex, Guid> _joinRecordRepository;
     private INESTRepository<UserActivityInfoIndex, Guid> _userActivityInfoRepository;
     private INESTRepository<RankingListSnapshotIndex, Guid> _rankingListSnapshotRepository;
     private INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiquidityIndexRepository;
     private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
+    private readonly IDistributedCache<string> _syncedTransactionIdCache;
+
 
     private IClusterClient _clusterClient;
     private IDistributedEventBus _distributedEventBus;
@@ -65,7 +70,8 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         INESTRepository<UserActivityInfoIndex, Guid> userActivityInfoRepository,
         INESTRepository<RankingListSnapshotIndex, Guid> rankingListSnapshotRepository,
         INESTRepository<TradePair, Guid> tradePairIndexRepository,
-        IDistributedEventBus distributedEventBus)
+        IDistributedEventBus distributedEventBus,
+        IDistributedCache<string> syncedTransactionIdCache)
     {
         _logger = logger;
         _activitOptions = activitOptions.Value;
@@ -80,6 +86,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         _joinRecordRepository = joinRecordRepository;
         _userActivityInfoRepository = userActivityInfoRepository;
         _rankingListSnapshotRepository = rankingListSnapshotRepository;
+        _syncedTransactionIdCache = syncedTransactionIdCache;
     }
 
     private string AddVersionToKey(string baseKey, string version)
@@ -215,7 +222,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             {
                 Ranking = ranking,
                 Address = rankingInfo.Address,
-                TotalPoint = rankingInfo.TotalPoint,
+                TotalPoint = (long)rankingInfo.TotalPoint,
             };
             rankingInfoDtoList.Add(rankingInfoDto);
             if (lastHourRankingListSnapshotIndex == null ||
@@ -284,7 +291,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     public async Task<bool> IsActivityPoolAsync(Activity activity, SwapRecordDto dto)
     {
-        if (dto.SwapRecords.Count > 0)
+        if (dto.SwapRecords != null && dto.SwapRecords.Count > 0)
         {
             return false;
         }
@@ -311,12 +318,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         {
             case UpdatePointType.Update:
             {
-                userActivityResult = await userActivityGrain.UpdateUserPointAsync(userAddress, point, timestamp);
+                userActivityResult = await userActivityGrain.UpdateUserPointAsync(activity.ActivityId, userAddress, point, timestamp);
                 break;
             }
             case UpdatePointType.Add:
             {
-                userActivityResult = await userActivityGrain.AccumulateUserPointAsync(userAddress, point, timestamp);
+                userActivityResult = await userActivityGrain.AccumulateUserPointAsync(activity.ActivityId, userAddress, point, timestamp);
                 break;
             }
         }
@@ -350,6 +357,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     {
         foreach (var activity in _activitOptions.ActivityList)
         {
+            var key = $"{SyncedTransactionCachePrefix}:{dto.TransactionHash}:{activity.ActivityId}";
+            var existed = await _syncedTransactionIdCache.GetAsync(key);
+            if (!existed.IsNullOrWhiteSpace())
+            {
+                return false;
+            }
             if (activity.Type == VolumeActivityType)
             {
                 if (!await IsActivityPoolAsync(activity, dto))
@@ -364,8 +377,11 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                     await UpdateUserPointAndRankingAsync(UpdatePointType.Add, dto.ChainId, dto.Timestamp, snapshotTime, activity, dto.Sender, point);
                 }
             }
+            await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
+            {
+                AbsoluteExpiration = DateTimeOffset.UtcNow.AddDays(14)
+            });
         }
-
         return true;
     }
 
@@ -396,14 +412,14 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 .Should(
                     q.Bool(b1 => b1
                         .Must(
-                            q.Term(i => i.Field(f => f.Token0).Value(activityPool[0])),
-                            q.Term(i => i.Field(f => f.Token1).Value(activityPool[1]))
+                            q.Term(i => i.Field(f => f.Token0.Symbol).Value(activityPool[0])),
+                            q.Term(i => i.Field(f => f.Token1.Symbol).Value(activityPool[1]))
                         )
                     ),
                     q.Bool(b1 => b1
                         .Must(
-                            q.Term(i => i.Field(f => f.Token0).Value(activityPool[1])),
-                            q.Term(i => i.Field(f => f.Token1).Value(activityPool[0]))
+                            q.Term(i => i.Field(f => f.Token0.Symbol).Value(activityPool[1])),
+                            q.Term(i => i.Field(f => f.Token1.Symbol).Value(activityPool[0]))
                         )
                     )
                 )

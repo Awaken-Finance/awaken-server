@@ -60,5 +60,6 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
         CreateMap<UserActivityState, UserActivityGrainDto>().ReverseMap();
         CreateMap<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>().ReverseMap();
         CreateMap<JoinRecordState, JoinRecordGrainDto>().ReverseMap();
+        CreateMap<RankingInfo, AwakenServer.Activity.RankingInfo>().ReverseMap();
     }
 }
