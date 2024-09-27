@@ -138,7 +138,8 @@ namespace AwakenServer.Price
 
         private bool IsNeedFetchPrice(PriceDto priceDto)
         {
-            return priceDto.PriceInUsd == PriceOptions.DefaultPriceValue ||
+            return priceDto.PriceInUsd == 0 || 
+                   priceDto.PriceInUsd == PriceOptions.DefaultPriceValue ||
                    priceDto.PriceUpdateTime.AddSeconds(_tokenPriceOptions.Value.PriceExpirationTimeSeconds) <= DateTime.UtcNow;
         }
         
