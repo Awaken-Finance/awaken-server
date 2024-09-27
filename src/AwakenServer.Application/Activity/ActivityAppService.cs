@@ -34,7 +34,7 @@ namespace AwakenServer.Activity;
 [RemoteService(IsEnabled = false)]
 public class ActivityAppService : ApplicationService, IActivityAppService
 {
-    public const string SyncedTransactionCachePrefix = "ActivitySynced";
+    private const string SyncedTransactionCachePrefix = "ActivitySynced";
     private INESTRepository<JoinRecordIndex, Guid> _joinRecordRepository;
     private INESTRepository<UserActivityInfoIndex, Guid> _userActivityInfoRepository;
     private INESTRepository<RankingListSnapshotIndex, Guid> _rankingListSnapshotRepository;
@@ -54,9 +54,9 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     private Dictionary<int, List<ActivityTradePair>> _activityTradePairAddresses;
 
-    protected const string VolumeActivityType = "volume";
-    protected const string TvlActivityType = "tvl";
-    protected const double LabsFeeRate = 0.0015;
+    private const string VolumeActivityType = "volume";
+    private const string TvlActivityType = "tvl";
+    private const double LabsFeeRate = 0.0015;
 
     public ActivityAppService(
         ILogger<ActivityAppService> logger,
@@ -278,7 +278,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         ;
     }
 
-    public DateTime GetNormalSnapshotTime(DateTime time)
+    private DateTime GetNormalSnapshotTime(DateTime time)
     {
         return time.Date.AddHours(time.Hour);
     }
@@ -301,7 +301,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return labsFeeInUsd / LabsFeeRate;
     }
 
-    public async Task<bool> IsActivityPoolAsync(Activity activity, SwapRecordDto dto)
+    private async Task<bool> IsActivityPoolAsync(Activity activity, SwapRecordDto dto)
     {
         if (dto.SwapRecords != null && dto.SwapRecords.Count > 0)
         {
@@ -398,7 +398,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return true;
     }
 
-    public async Task<List<CurrentUserLiquidityIndex>> GetCurrentUserLiquidityIndexListAsync(Guid tradePairId, string dataVersion)
+    private async Task<List<CurrentUserLiquidityIndex>> GetCurrentUserLiquidityIndexListAsync(Guid tradePairId, string dataVersion)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
