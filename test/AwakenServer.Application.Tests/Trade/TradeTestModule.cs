@@ -162,31 +162,6 @@ namespace AwakenServer.Trade
                     { "0.05", "2tWvBTmX7YhB2HLcWGGG5isVCgab96jdaXnqDs1jzSsyqwmjic" }
                 };
             });
-            
-            context.Services.Configure<ActivityOptions>(o =>
-            {
-                o.ActivityList = new List<Activity.Activity>()
-                {
-                    new ()
-                    {
-                        ActivityId = 1,
-                        BeginTime = 0,
-                        EndTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(1)),
-                        Type = "volume",
-                        TradePairs = {"ELF_USDT"},
-                        WhiteList = {}
-                    },
-                    new ()
-                    {
-                        ActivityId = 2,
-                        BeginTime = 0,
-                        EndTime = 1,
-                        Type = "tvl",
-                        TradePairs = {"ELF_USDT"},
-                        WhiteList = {}
-                    }
-                };
-            });
 
             context.Services.AddSingleton<TestEnvironmentProvider>();
             
