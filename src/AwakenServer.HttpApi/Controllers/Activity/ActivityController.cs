@@ -29,22 +29,22 @@ public class ActivityController : AbpController
     
     [HttpGet]
     [Route("join-status")]
-    public virtual async Task JoinStatusAsync(GetJoinStatusInput input)
+    public virtual async Task<JoinStatusDto> JoinStatusAsync(GetJoinStatusInput input)
     {
-        await _activityAppService.GetJoinStatusAsync(input);
+        return await _activityAppService.GetJoinStatusAsync(input);
     }
     
     [HttpGet]
     [Route("my-ranking")]
-    public virtual async Task MyRankingAsync(GetMyRankingInput input)
+    public virtual async Task<MyRankingDto> MyRankingAsync(GetMyRankingInput input)
     {
-        await _activityAppService.GetMyRankingAsync(input);
+       return await _activityAppService.GetMyRankingAsync(input);
     }
     
     [HttpGet]
     [Route("ranking-list")]
-    public virtual async Task RankingListAsync(ActivityBaseDto input)
+    public virtual async Task<RankingListDto> RankingListAsync(ActivityBaseDto input)
     {
-        await _activityAppService.GetRankingListAsync(input);
+        return await _activityAppService.GetRankingListAsync(input);
     }
 }
