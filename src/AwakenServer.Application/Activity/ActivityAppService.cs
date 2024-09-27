@@ -47,7 +47,6 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     private IDistributedEventBus _distributedEventBus;
     private readonly ILogger<ActivityAppService> _logger;
     private readonly ActivityOptions _activityOptions;
-    private readonly ActivityOptions _activitOptions;
     private readonly PortfolioOptions _portfolioOptions;
 
     private readonly ITokenAppService _tokenAppService;
@@ -61,7 +60,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     public ActivityAppService(
         ILogger<ActivityAppService> logger,
-        IOptionsSnapshot<ActivityOptions> activitOptions,
+        IOptionsSnapshot<ActivityOptions> activityOptions,
         IClusterClient clusterClient,
         IPriceAppService priceAppService,
         ITokenAppService tokenAppService,
@@ -75,7 +74,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         IDistributedCache<string> syncedTransactionIdCache)
     {
         _logger = logger;
-        _activitOptions = activitOptions.Value;
+        _activityOptions = activityOptions.Value;
         _clusterClient = clusterClient;
         _tokenAppService = tokenAppService;
         _priceAppService = priceAppService;
@@ -346,7 +345,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
         // update ranking
         var currentActivityRankingGrainId =
-            GrainIdHelper.GenerateGrainId(chainId, activity.Type, activity.ActivityId);
+            GrainIdHelper.GenerateGrainId(activity.Type, activity.ActivityId);
         var currentActivityRankingGrain =
             _clusterClient.GetGrain<ICurrentActivityRankingGrain>(currentActivityRankingGrainId);
         var currentActivityRankingResult = await currentActivityRankingGrain.AddOrUpdateAsync(
@@ -355,7 +354,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             isNewUser);
 
         // ranking snapshot
-        var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(chainId, activity.Type,
+        var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(activity.Type,
             activity.ActivityId, snapshotTime);
         var activityRankingSnapshotGrain =
             _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
@@ -369,7 +368,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     
     public async Task<bool> CreateSwapAsync(SwapRecordDto dto)
     {
-        foreach (var activity in _activitOptions.ActivityList)
+        foreach (var activity in _activityOptions.ActivityList)
         {
             var key = $"{SyncedTransactionCachePrefix}:{dto.TransactionHash}:{activity.ActivityId}";
             var existed = await _syncedTransactionIdCache.GetAsync(key);
@@ -456,7 +455,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     public async Task<bool> CreateLpSnapshotAsync(long executeTime)
     {
-        foreach (var activity in _activitOptions.ActivityList)
+        foreach (var activity in _activityOptions.ActivityList)
         {
             if (executeTime >= activity.BeginTime && executeTime <= activity.EndTime)
             {
