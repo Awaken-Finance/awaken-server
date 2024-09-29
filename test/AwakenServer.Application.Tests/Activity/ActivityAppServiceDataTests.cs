@@ -11,6 +11,7 @@ using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using Google.Protobuf;
 using Microsoft.AspNetCore.Routing.Matching;
+using MongoDB.Driver.Linq;
 using Nest;
 using Shouldly;
 using Volo.Abp.EventBus.Local;
@@ -141,6 +142,24 @@ namespace AwakenServer.Activity
             });
             createActivitySwapResult.ShouldBe(true);
             
+            createActivitySwapResult = await _activityAppService.CreateSwapAsync(new SwapRecordDto
+            {
+                ChainId = ChainId,
+                PairAddress = TradePairEthUsdtAddress,
+                Sender = "0x11",
+                TransactionHash = "0x4",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(2)),
+                AmountOut = NumberFormatter.WithDecimals(100, 8),
+                AmountIn = NumberFormatter.WithDecimals(100, 6),
+                SymbolIn = TokenUsdtSymbol,
+                SymbolOut = TokenEthSymbol,
+                Channel = "test",
+                BlockHeight = 99,
+                LabsFee = 1500000,
+                LabsFeeSymbol = TokenEthSymbol
+            });
+            createActivitySwapResult.ShouldBe(true);
+            
             var userActivityInfo = await _userActivityInfoRepository.GetListAsync();
             userActivityInfo.Item2.Count.ShouldBe(2);
             userActivityInfo.Item2[0].ActivityId.ShouldBe(1);
@@ -149,11 +168,11 @@ namespace AwakenServer.Activity
             
             userActivityInfo.Item2[1].ActivityId.ShouldBe(1);
             userActivityInfo.Item2[1].Address.ShouldBe("0x11");
-            userActivityInfo.Item2[1].TotalPoint.ShouldBe(10);
+            userActivityInfo.Item2[1].TotalPoint.ShouldBe(20);
             
             
             var ranking = await _rankingListSnapshotRepository.GetListAsync();
-            ranking.Item2.Count.ShouldBe(1);
+            ranking.Item2.Count.ShouldBe(2);
             ranking.Item2[0].ActivityId.ShouldBe(1);
             ranking.Item2[0].NumOfJoin.ShouldBe(2);
             ranking.Item2[0].RankingList.Count.ShouldBe(2);
@@ -161,6 +180,14 @@ namespace AwakenServer.Activity
             ranking.Item2[0].RankingList[0].TotalPoint.ShouldBe(10);
             ranking.Item2[0].RankingList[1].Address.ShouldBe("0x10");
             ranking.Item2[0].RankingList[1].TotalPoint.ShouldBe(2);
+            
+            ranking.Item2[1].ActivityId.ShouldBe(1);
+            ranking.Item2[1].NumOfJoin.ShouldBe(2);
+            ranking.Item2[1].RankingList.Count.ShouldBe(2);
+            ranking.Item2[1].RankingList[0].Address.ShouldBe("0x11");
+            ranking.Item2[1].RankingList[0].TotalPoint.ShouldBe(20);
+            ranking.Item2[1].RankingList[1].Address.ShouldBe("0x10");
+            ranking.Item2[1].RankingList[1].TotalPoint.ShouldBe(2);
         }
         
         
