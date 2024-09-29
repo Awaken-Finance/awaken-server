@@ -180,7 +180,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         mustQuery.Add(q =>
             q.Range(i => i.Field(f => f.Timestamp).LessThanOrEquals(DateTimeHelper.ToUnixTimeMilliseconds(maxTime))));
         QueryContainer Filter(QueryContainerDescriptor<RankingListSnapshotIndex> f) => f.Bool(b => b.Must(mustQuery));
-        return await _rankingListSnapshotRepository.GetAsync(Filter);
+        return await _rankingListSnapshotRepository.GetAsync(Filter, sortExp: k => k.Timestamp, sortType: SortOrder.Descending);
     }
 
     public async Task<JoinStatusDto> GetJoinStatusAsync(GetJoinStatusInput input)
