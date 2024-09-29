@@ -310,28 +310,17 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return activityPoolSet.Contains(dto.PairAddress);
     }
 
-    private async Task UpdateUserPointAndRankingAsync(UpdatePointType updatePointType, string chainId, long timestamp, DateTime snapshotTime, Activity activity, string userAddress, double point)
+    private async Task UpdateUserPointAndRankingAsync(string chainId, long timestamp, DateTime snapshotTime, Activity activity, string userAddress, double point)
     {
-        _logger.LogInformation($"Update user point and ranking, updatePointType: {updatePointType}, snapshotTime: {snapshotTime}, activityId: {activity.ActivityId}, userAddress: {userAddress}, point: {point}");
+        _logger.LogInformation($"Update user point and ranking, updatePointType: snapshotTime: {snapshotTime}, activityId: {activity.ActivityId}, userAddress: {userAddress}, point: {point}");
         // update user point
         var userActivityGrainId =
             GrainIdHelper.GenerateGrainId(chainId, activity.Type, activity.ActivityId, userAddress);
         var userActivityGrain = _clusterClient.GetGrain<IUserActivityGrain>(userActivityGrainId);
         var userActivityResult = await userActivityGrain.GetAsync();
         var isNewUser = !userActivityResult.Success;
-        switch (updatePointType)
-        {
-            case UpdatePointType.Update:
-            {
-                userActivityResult = await userActivityGrain.UpdateUserPointAsync(activity.ActivityId, userAddress, point, timestamp);
-                break;
-            }
-            case UpdatePointType.Add:
-            {
-                userActivityResult = await userActivityGrain.AccumulateUserPointAsync(activity.ActivityId, userAddress, point, timestamp);
-                break;
-            }
-        }
+        userActivityResult = await userActivityGrain.AccumulateUserPointAsync(activity.ActivityId, userAddress, point, timestamp);
+  
         await _distributedEventBus.PublishAsync(
             ObjectMapper.Map<UserActivityInfo, UserActivityInfoEto>(userActivityResult.Data));
 
@@ -379,7 +368,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 {
                     var point = await GetPointAsync(dto);
                     var snapshotTime = GetNormalSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp));
-                    await UpdateUserPointAndRankingAsync(UpdatePointType.Add, dto.ChainId, dto.Timestamp, snapshotTime, activity, dto.Sender, point);
+                    await UpdateUserPointAndRankingAsync(dto.ChainId, dto.Timestamp, snapshotTime, activity, dto.Sender, point);
                 }
             }
             await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
@@ -477,7 +466,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                             var point = lpTokenPercentage * pair.TVL;
                             var snapshotTime = RandomSnapshotHelper.GetLpSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(executeTime));
 
-                            await UpdateUserPointAndRankingAsync(UpdatePointType.Update, userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point);
+                            await UpdateUserPointAndRankingAsync(userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point);
                         }
                     }
                 }
