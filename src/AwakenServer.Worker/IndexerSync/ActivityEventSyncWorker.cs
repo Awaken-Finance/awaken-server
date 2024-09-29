@@ -45,25 +45,11 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         _activityAppService = activityAppService;
     }
 
-    private void SetNextExecutionTime(DateTime currentExecuteTime)
+    private void SetNextExecutionTime(DateTime lastExecuteTime)
     {
-        int nextHour = currentExecuteTime.Hour;
-        if (currentExecuteTime.Minute < 50)
-        {
-            int randomMinute = _random.Next(50, 60);
-            int randomSecond = _random.Next(0, 60);
-            _nextLpSnapshotExecutionTime = new TimeSpan(nextHour, randomMinute, randomSecond);
-        }
-        else
-        {
-            nextHour = (nextHour + 2) % 24; 
-            int randomMinute = _random.Next(0, 11);
-            int randomSecond = _random.Next(0, 60);
-            _nextLpSnapshotExecutionTime = new TimeSpan(nextHour, randomMinute, randomSecond);
-        }
-        _logger.LogInformation($"Executing LP snapshot task at: {currentExecuteTime}, next executing time set to: {_nextLpSnapshotExecutionTime}");
+        _nextLpSnapshotExecutionTime = RandomSnapshotHelper.GetNextLpSnapshotExecutionTime(_random, lastExecuteTime);
+        _logger.LogInformation($"Executing LP snapshot task at: {lastExecuteTime}, next executing time set to: {_nextLpSnapshotExecutionTime}");
     }
-
     
     public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
     {

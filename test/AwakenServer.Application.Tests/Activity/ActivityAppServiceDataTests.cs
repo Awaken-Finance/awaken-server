@@ -59,6 +59,32 @@ namespace AwakenServer.Activity
         }
         
         [Fact]
+        public async Task RandomTimeLpSnapshotTest()
+        {
+            var random = new Random();
+            var snapshotTimes = new List<TimeSpan>();
+            var lastExecutionTime = DateTime.UtcNow;
+            for (int i = 0; i < 1000; i++)
+            {
+                var snapshotTime = RandomSnapshotHelper.GetLpSnapshotTime(lastExecutionTime);
+                snapshotTimes.Add(snapshotTime.TimeOfDay);
+                var nextExecutionTime = RandomSnapshotHelper.GetNextLpSnapshotExecutionTime(random, lastExecutionTime);
+                lastExecutionTime = new DateTime(lastExecutionTime.Year, lastExecutionTime.Month, lastExecutionTime.Day,
+                    nextExecutionTime.Hours, nextExecutionTime.Minutes, nextExecutionTime.Seconds);
+            }
+            snapshotTimes.Count.ShouldBe(1000);
+            for (int i = 1; i < snapshotTimes.Count; i++)
+            {
+                var timeDifference = (snapshotTimes[i] - snapshotTimes[i - 1]).Hours;
+                if (snapshotTimes[i - 1].Hours == 23 && snapshotTimes[i].Hours == 0)
+                {
+                    timeDifference = 1;
+                }
+                timeDifference.ShouldBe(1, $"Snapshot at index {i} and {i-1} should have a 1-hour difference, but got {timeDifference} hours.");
+            }
+        }
+        
+        [Fact]
         public async Task SwapTest()
         {
             var createActivitySwapResult = await _activityAppService.CreateSwapAsync(new SwapRecordDto

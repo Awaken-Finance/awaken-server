@@ -266,23 +266,6 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         };
     }
 
-    private DateTime GetLpSnapshotTime(DateTime timestamp)
-    {
-        if (timestamp.Minute <= 10)
-        {
-            return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, 0, 0);
-        }
-
-        if (timestamp.Minute >= 50)
-        {
-            DateTime nextHour = timestamp.AddHours(1);
-            return new DateTime(nextHour.Year, nextHour.Month, nextHour.Day, nextHour.Hour, 0, 0);
-        }
-
-        return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, 0, 0);
-        ;
-    }
-
     private DateTime GetNormalSnapshotTime(DateTime time)
     {
         return time.Date.AddHours(time.Hour);
@@ -490,7 +473,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                                 : userPairLiquidity.LpTokenAmount / (double)currentTradePair.TotalSupply;
 
                             var point = lpTokenPercentage * pair.TVL;
-                            var snapshotTime = GetLpSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(executeTime));
+                            var snapshotTime = RandomSnapshotHelper.GetLpSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(executeTime));
 
                             await UpdateUserPointAndRankingAsync(UpdatePointType.Update, userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point);
                         }
