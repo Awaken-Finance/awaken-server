@@ -59,11 +59,6 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         {
             _firstExecution = false; 
             SetNextExecutionTime(now);
-            var success = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
-            if (success)
-            {
-                _logger.LogInformation($"Create Lp Snapshot done at: {now}");
-            }
         }
         else
         {
