@@ -33,11 +33,10 @@ public class RandomSnapshotHelper
 
         if (timestamp.Minute >= 50)
         {
-            DateTime nextHour = timestamp.AddHours(1);
+            var nextHour = timestamp.AddHours(1);
             return new DateTime(nextHour.Year, nextHour.Month, nextHour.Day, nextHour.Hour, 0, 0);
         }
 
         return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, 0, 0);
-        ;
     }
 }
