@@ -197,9 +197,13 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     public async Task<MyRankingDto> GetMyRankingAsync(GetMyRankingInput input)
     {
-        var rankingListSnapshotIndex = await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow);
         var userActivityInfoIndex = await GetUserActivityInfoAsync(input.ActivityId, input.Address);
-        var myRanking = 51;
+        if (userActivityInfoIndex == null)
+        {
+            return new MyRankingDto();
+        }
+        var rankingListSnapshotIndex = await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow);
+        var myRanking = 1001;
         if (rankingListSnapshotIndex?.RankingList.Count > 0)
         {
             var index = rankingListSnapshotIndex.RankingList.FindIndex(t => t.Address == input.Address);
@@ -212,9 +216,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return new MyRankingDto
         {
             Ranking = myRanking,
-            TotalPoint = userActivityInfoIndex?.TotalPoint != null
-                ? (long)userActivityInfoIndex.TotalPoint
-                : 0
+            TotalPoint = (long)userActivityInfoIndex.TotalPoint
         };
     }
 
