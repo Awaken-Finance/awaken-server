@@ -35,6 +35,7 @@ namespace AwakenServer.Activity;
 public class ActivityAppService : ApplicationService, IActivityAppService
 {
     private const string SyncedTransactionCachePrefix = "ActivitySynced";
+    private const int MaxRankingCount = 50;
     private INESTRepository<JoinRecordIndex, Guid> _joinRecordRepository;
     private INESTRepository<UserActivityInfoIndex, Guid> _userActivityInfoRepository;
     private INESTRepository<RankingListSnapshotIndex, Guid> _rankingListSnapshotRepository;
@@ -227,10 +228,13 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var lastHourRankingListSnapshotIndex =
             await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow.AddHours(-1));
         var rankingInfoDtoList = new List<RankingInfoDto>();
-        var ranking = 0;
+        var ranking = 1;
         foreach (var rankingInfo in rankingListSnapshotIndex.RankingList)
         {
-            ranking++;
+            if (ranking > MaxRankingCount)
+            {
+                break;
+            }
             var rankingInfoDto = new RankingInfoDto()
             {
                 Ranking = ranking,
@@ -253,6 +257,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 continue;
             }
             rankingInfoDto.RankingChange1H = lastHourRankingInfoRanking - ranking;
+            ranking++;
         }
 
         return new RankingListDto

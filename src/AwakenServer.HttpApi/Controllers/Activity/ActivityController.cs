@@ -9,7 +9,7 @@ namespace AwakenServer.Controllers.Activity;
 
 [RemoteService]
 [Area("app")]
-[ControllerName("Asset")]
+[ControllerName("Activity")]
 [Route("api/app/activity")]
 public class ActivityController : AbpController
 {

@@ -2,7 +2,6 @@ using System;
 using System.Threading.Tasks;
 using AwakenServer.Activity.Dtos;
 using AwakenServer.Trade.Dtos;
-using Volo.Abp.Application.Dtos;
 
 namespace AwakenServer.Activity;
 
