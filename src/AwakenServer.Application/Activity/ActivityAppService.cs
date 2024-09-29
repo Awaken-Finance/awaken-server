@@ -392,7 +392,6 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<CurrentUserLiquidityIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePairId).Value(tradePairId)));
-        mustQuery.Add(q => q.Range(i => i.Field(f => f.LpTokenAmount).GreaterThan(0)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(dataVersion)));
         QueryContainer Filter(QueryContainerDescriptor<CurrentUserLiquidityIndex> f) => f.Bool(b => b.Must(mustQuery));
         var result = await _currentUserLiquidityIndexRepository.GetListAsync(Filter, skip: 0, limit: 10000);

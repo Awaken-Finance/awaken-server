@@ -2,16 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using AElf.CSharp.Core;
 using AElf.Indexing.Elasticsearch;
 using Awaken.Contracts.Hooks;
 using AwakenServer.Activity.Dtos;
 using AwakenServer.Activity.Index;
+using AwakenServer.Asset;
 using AwakenServer.Grains.Tests;
 using AwakenServer.Provider;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using Google.Protobuf;
 using Microsoft.AspNetCore.Routing.Matching;
+using Microsoft.Extensions.Options;
 using MongoDB.Driver.Linq;
 using Nest;
 using Shouldly;
@@ -27,11 +30,19 @@ namespace AwakenServer.Activity
         private readonly IActivityAppService _activityAppService;
         private INESTRepository<UserActivityInfoIndex, Guid> _userActivityInfoRepository;
         private INESTRepository<RankingListSnapshotIndex, Guid> _rankingListSnapshotRepository;
+        private readonly IMyPortfolioAppService _myPortfolioAppService;
+        private readonly IOptionsSnapshot<PortfolioOptions> _portfolioOptions;
+        private readonly ITradePairAppService _tradePairAppService;
+
+
         public ActivityAppServiceDataTests()
         {
             _activityAppService = GetRequiredService<IActivityAppService>();
             _userActivityInfoRepository = GetRequiredService<INESTRepository<UserActivityInfoIndex, Guid>>();
             _rankingListSnapshotRepository = GetRequiredService<INESTRepository<RankingListSnapshotIndex, Guid>>();
+            _myPortfolioAppService = GetRequiredService<IMyPortfolioAppService>();
+            _portfolioOptions = GetRequiredService<IOptionsSnapshot<PortfolioOptions>>();
+            _tradePairAppService = GetRequiredService<ITradePairAppService>();
         }
 
         [Fact]
@@ -174,6 +185,7 @@ namespace AwakenServer.Activity
             
             var ranking = await _rankingListSnapshotRepository.GetListAsync();
             ranking.Item2.Count.ShouldBe(2);
+            ranking.Item2[0].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(DateTime.UtcNow.Hour)));
             ranking.Item2[0].ActivityId.ShouldBe(1);
             ranking.Item2[0].NumOfJoin.ShouldBe(2);
             ranking.Item2[0].RankingList.Count.ShouldBe(2);
@@ -182,6 +194,7 @@ namespace AwakenServer.Activity
             ranking.Item2[0].RankingList[1].Address.ShouldBe("0x10");
             ranking.Item2[0].RankingList[1].TotalPoint.ShouldBe(2);
             
+            ranking.Item2[1].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(DateTime.UtcNow.Hour.Add(2))));
             ranking.Item2[1].ActivityId.ShouldBe(1);
             ranking.Item2[1].NumOfJoin.ShouldBe(2);
             ranking.Item2[1].RankingList.Count.ShouldBe(2);
@@ -190,6 +203,7 @@ namespace AwakenServer.Activity
             ranking.Item2[1].RankingList[1].Address.ShouldBe("0x10");
             ranking.Item2[1].RankingList[1].TotalPoint.ShouldBe(2);
         }
+
 
         [Fact]
         public async Task GetRankingListTests()
@@ -219,5 +233,131 @@ namespace AwakenServer.Activity
             rankingList.Items[1].NewStatus.ShouldBe(1);
             rankingList.Items[1].RankingChange1H.ShouldBe(0);
         }
+        
+        [Fact]
+        public async Task LpTest()
+        {
+            var snapshotTime1 = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, DateTime.UtcNow.Hour+1, 5, 0);
+            var snapshotTime2 = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, DateTime.UtcNow.Hour+2, 5, 0);
+            await _tradePairAppService.CreateSyncAsync(new SyncRecordDto()
+            {
+                ChainId = ChainId,
+                PairAddress = TradePairEthUsdtAddress,
+                SymbolA = TokenEthSymbol,
+                SymbolB = TokenUsdtSymbol,
+                ReserveA = NumberFormatter.WithDecimals(100, 8),
+                ReserveB = NumberFormatter.WithDecimals(10000, 6),
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-2))
+            });
+            
+            var result = await _myPortfolioAppService.SyncLiquidityRecordAsync(new LiquidityRecordDto()
+            {
+                ChainId = ChainName,
+                Pair = TradePairEthUsdtAddress,
+                Address = "0x1",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1)),
+                Token0Amount = 100,
+                Token0 = TokenEthSymbol,
+                Token1Amount = 1000,
+                Token1 = TokenUsdtSymbol,
+                LpTokenAmount = 99950000,
+                Type = LiquidityType.Mint,
+                TransactionHash = "0x1",
+                Channel = "TestChanel",
+                Sender = "0x123456789",
+                To = "0x1",
+                BlockHeight = 100
+            }, _portfolioOptions.Value.DataVersion);
+            result.ShouldBeTrue();
+            
+            result = await _myPortfolioAppService.SyncLiquidityRecordAsync(new LiquidityRecordDto()
+            {
+                ChainId = ChainName,
+                Pair = TradePairEthUsdtAddress,
+                Address = "0x2",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1)),
+                Token0Amount = 100,
+                Token0 = TokenEthSymbol,
+                Token1Amount = 1000,
+                Token1 = TokenUsdtSymbol,
+                LpTokenAmount = 99950000,
+                Type = LiquidityType.Mint,
+                TransactionHash = "0x2",
+                Channel = "TestChanel",
+                Sender = "0x123456789",
+                To = "0x2",
+                BlockHeight = 100
+            }, _portfolioOptions.Value.DataVersion);
+            result.ShouldBeTrue();
+            
+            var createActivityLpSnapshotResult = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime1));
+            createActivityLpSnapshotResult.ShouldBe(true);
+            
+            var userActivityInfo = await _userActivityInfoRepository.GetListAsync();
+            userActivityInfo.Item2.Count.ShouldBe(2);
+            userActivityInfo.Item2[0].ActivityId.ShouldBe(2);
+            userActivityInfo.Item2[0].Address.ShouldBe("0x1");
+            userActivityInfo.Item2[0].TotalPoint.ShouldBe(5050);
+            
+            userActivityInfo.Item2[1].ActivityId.ShouldBe(2);
+            userActivityInfo.Item2[1].Address.ShouldBe("0x2");
+            userActivityInfo.Item2[1].TotalPoint.ShouldBe(5050);
+            
+            
+            result = await _myPortfolioAppService.SyncLiquidityRecordAsync(new LiquidityRecordDto()
+            {
+                ChainId = ChainName,
+                Pair = TradePairEthUsdtAddress,
+                Address = "0x2",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1)),
+                Token0Amount = 100,
+                Token0 = TokenEthSymbol,
+                Token1Amount = 1000,
+                Token1 = TokenUsdtSymbol,
+                LpTokenAmount = 99950000,
+                Type = LiquidityType.Burn,
+                TransactionHash = "0x3",
+                Channel = "TestChanel",
+                Sender = "0x123456789",
+                To = "0x2",
+                BlockHeight = 100
+            }, _portfolioOptions.Value.DataVersion);
+            result.ShouldBeTrue();
+            
+            createActivityLpSnapshotResult = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime2));
+            createActivityLpSnapshotResult.ShouldBe(true);
+            
+            userActivityInfo = await _userActivityInfoRepository.GetListAsync(sortExp: k=>k.TotalPoint, sortType: SortOrder.Descending);
+            userActivityInfo.Item2.Count.ShouldBe(2);
+            userActivityInfo.Item2[0].ActivityId.ShouldBe(2);
+            userActivityInfo.Item2[0].Address.ShouldBe("0x1");
+            userActivityInfo.Item2[0].TotalPoint.ShouldBe(10100);
+            
+            userActivityInfo.Item2[1].ActivityId.ShouldBe(2);
+            userActivityInfo.Item2[1].Address.ShouldBe("0x2");
+            userActivityInfo.Item2[1].TotalPoint.ShouldBe(0);
+            
+            
+            var ranking = await _rankingListSnapshotRepository.GetListAsync(sortExp: k => k.Timestamp);
+            ranking.Item2.Count.ShouldBe(2);
+            ranking.Item2[0].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime1.Date.AddHours(snapshotTime1.Hour)));
+            ranking.Item2[0].ActivityId.ShouldBe(2);
+            ranking.Item2[0].NumOfJoin.ShouldBe(2);
+            ranking.Item2[0].RankingList.Count.ShouldBe(2);
+            ranking.Item2[0].RankingList[0].Address.ShouldBe("0x1");
+            ranking.Item2[0].RankingList[0].TotalPoint.ShouldBe(5050);
+            ranking.Item2[0].RankingList[1].Address.ShouldBe("0x2");
+            ranking.Item2[0].RankingList[1].TotalPoint.ShouldBe(5050);
+            
+            ranking.Item2[1].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime2.Date.AddHours(snapshotTime2.Hour)));
+            ranking.Item2[1].ActivityId.ShouldBe(2);
+            ranking.Item2[1].NumOfJoin.ShouldBe(2);
+            ranking.Item2[1].RankingList.Count.ShouldBe(2);
+            ranking.Item2[1].RankingList[0].Address.ShouldBe("0x1");
+            ranking.Item2[1].RankingList[0].TotalPoint.ShouldBe(10100);
+            ranking.Item2[1].RankingList[1].Address.ShouldBe("0x2");
+            ranking.Item2[1].RankingList[1].TotalPoint.ShouldBe(0);
+        }
+        
     }
 }
