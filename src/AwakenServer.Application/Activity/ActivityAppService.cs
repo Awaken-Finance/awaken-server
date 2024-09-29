@@ -95,7 +95,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return $"{baseKey}:{version}";
     }
 
-    public async Task JoinAsync(JoinInput input)
+    public async Task<string> JoinAsync(JoinInput input)
     {
         var activity = _activityOptions.ActivityList.Find(t => t.ActivityId == input.ActivityId);
         if (activity == null)
@@ -152,6 +152,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var activityRankingSnapshotResult = await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);
         await _distributedEventBus.PublishAsync(
             ObjectMapper.Map<RankingListSnapshot, RankingListSnapshotEto>(activityRankingSnapshotResult.Data));
+        return "Success";
     }
 
     private async Task<JoinRecordIndex> GetJoinRecordAsync(int activity, string address)

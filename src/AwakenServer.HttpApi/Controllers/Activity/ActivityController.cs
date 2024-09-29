@@ -22,9 +22,9 @@ public class ActivityController : AbpController
     
     [HttpPost]
     [Route("join")]
-    public virtual async Task JoinAsync(JoinInput input)
+    public virtual async Task<string> JoinAsync(JoinInput input)
     {
-        await _activityAppService.JoinAsync(input);
+        return await _activityAppService.JoinAsync(input);
     }
     
     [HttpGet]
