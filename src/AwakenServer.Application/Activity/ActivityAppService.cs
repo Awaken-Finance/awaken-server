@@ -326,6 +326,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     private async Task UpdateUserPointAndRankingAsync(UpdatePointType updatePointType, string chainId, long timestamp, DateTime snapshotTime, Activity activity, string userAddress, double point)
     {
+        _logger.LogInformation($"Update user point and ranking, updatePointType: {updatePointType}, snapshotTime: {snapshotTime}, activityId: {activity.ActivityId}, userAddress: {userAddress}, point: {point}");
         // update user point
         var userActivityGrainId =
             GrainIdHelper.GenerateGrainId(chainId, activity.Type, activity.ActivityId, userAddress);

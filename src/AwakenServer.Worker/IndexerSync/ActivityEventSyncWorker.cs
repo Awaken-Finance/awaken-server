@@ -45,12 +45,10 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         _activityAppService = activityAppService;
     }
 
-    private void SetNextExecutionTime()
+    private void SetNextExecutionTime(DateTime currentExecuteTime)
     {
-        var now = DateTime.Now;
-        int nextHour = now.Hour;
-
-        if (now.Minute < 50)
+        int nextHour = currentExecuteTime.Hour;
+        if (currentExecuteTime.Minute < 50)
         {
             int randomMinute = _random.Next(50, 60);
             int randomSecond = _random.Next(0, 60);
@@ -58,13 +56,12 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         }
         else
         {
-            nextHour = (nextHour + 1) % 24; 
-            int randomMinute = _random.Next(0, 11); 
+            nextHour = (nextHour + 2) % 24; 
+            int randomMinute = _random.Next(0, 11);
             int randomSecond = _random.Next(0, 60);
             _nextLpSnapshotExecutionTime = new TimeSpan(nextHour, randomMinute, randomSecond);
         }
-        var endTime = _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000));
-        _logger.LogInformation($"Next execution time set to: {_nextLpSnapshotExecutionTime}, {endTime}");
+        _logger.LogInformation($"Executing LP snapshot task at: {currentExecuteTime}, next executing time set to: {_nextLpSnapshotExecutionTime}");
     }
 
     
@@ -74,23 +71,24 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         // 1. Lp Snapshot: random execute
         if (_firstExecution)
         {
-            _logger.LogInformation("Executing LP task at first startup: {time}", DateTime.Now);
-            await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
             _firstExecution = false; 
-            SetNextExecutionTime();
+            SetNextExecutionTime(now);
+            var success = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
+            if (success)
+            {
+                _logger.LogInformation($"Create Lp Snapshot done at: {now}");
+            }
         }
         else
         {
-  
-            // var endTime = _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000));
-            // var result = now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < endTime;
-            // _logger.LogInformation($"now: {now}, nextLpSnapshotExecutionTime: {_nextLpSnapshotExecutionTime}, endTime:{endTime}, exec: {result}");
-            
             if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000)))
             {
-                _logger.LogInformation("Executing LP snapshot task at: {time}", now);
-                await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
-                SetNextExecutionTime();
+                SetNextExecutionTime(now);
+                var success = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
+                if (success)
+                {
+                    _logger.LogInformation($"Create Lp Snapshot done at: {now}");
+                }
             }
         }
         
