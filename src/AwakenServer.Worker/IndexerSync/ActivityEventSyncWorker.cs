@@ -73,12 +73,19 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
             {
                 if (activity.Type == TvlActivityType)
                 {
-                    if (timestamp >= activity.BeginTime && timestamp < activity.BeginTime + _workerOptions.TimePeriod * 2)
+                    var isActivityBeginTime = timestamp >= activity.BeginTime &&
+                                      timestamp < activity.BeginTime + _workerOptions.TimePeriod * 2;
+                    // _logger.LogInformation($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * 2}, isActivityBeginTime: {isActivityBeginTime}");
+                    if (isActivityBeginTime)
                     {
-                        var success = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
+                        var success = await _activityAppService.CreateLpSnapshotAsync(timestamp);
                         if (success)
                         {
-                            _logger.LogInformation($"Executing LP snapshot at activity begin done at: {now}");
+                            _logger.LogInformation($"Executing LP snapshot at activity begin done at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
+                        }
+                        else
+                        {
+                            _logger.LogError($"Executing LP snapshot at activity begin failed at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
                         }
                     }
                 }
@@ -87,10 +94,14 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
             if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod * 2 / 1000)))
             {
                 SetNextExecutionTime(now);
-                var success = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
+                var success = await _activityAppService.CreateLpSnapshotAsync(timestamp);
                 if (success)
                 {
-                    _logger.LogInformation($"Executing LP snapshot done at: {now}");
+                    _logger.LogInformation($"Executing LP snapshot done at: {timestamp}");
+                }
+                else
+                {
+                    _logger.LogError($"Executing LP snapshot at activity failed at: {timestamp}");
                 }
             }
         }
