@@ -57,6 +57,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     private const string VolumeActivityType = "volume";
     private const string TvlActivityType = "tvl";
+    private const long TvlActivityInitNum = 1000;
     private const double LabsFeeRate = 0.0015;
 
     public ActivityAppService(
@@ -187,6 +188,11 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     {
         var joinRecordExisted = await GetJoinRecordAsync(input.ActivityId, input.Address);
         var rankingListSnapshotIndex = await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow);
+        var activity = _activityOptions.ActivityList.Find(t => t.ActivityId == input.ActivityId);
+        if (activity?.Type == TvlActivityType)
+        {
+            rankingListSnapshotIndex.NumOfJoin += TvlActivityInitNum;
+        }
         return new JoinStatusDto
         {
             Status = joinRecordExisted == null ? 0 : 1,
