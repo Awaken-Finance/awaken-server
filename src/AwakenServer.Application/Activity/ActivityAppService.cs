@@ -213,7 +213,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         if (rankingListSnapshotIndex?.RankingList.Count > 0)
         {
             var index = rankingListSnapshotIndex.RankingList.FindIndex(t => t.Address == input.Address);
-            if (index > 0)
+            if (index >= 0)
             {
                 myRanking = index + 1;
             }
