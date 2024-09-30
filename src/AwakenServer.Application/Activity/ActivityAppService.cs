@@ -234,6 +234,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             return new RankingListDto();
         }
 
+        rankingListSnapshotIndex.RankingList = rankingListSnapshotIndex.RankingList.Where(t => t.TotalPoint >= 1).ToList();
         var lastHourRankingListSnapshotIndex =
             await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow.AddHours(-1));
         var rankingInfoDtoList = new List<RankingInfoDto>();
