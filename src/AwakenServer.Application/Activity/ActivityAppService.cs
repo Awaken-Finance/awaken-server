@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using AElf;
 using AElf.Cryptography;
@@ -115,7 +116,8 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         }
 
         var publicKeyByte = ByteArrayHelper.HexStringToByteArray(input.PublicKey);
-        var dataByte = HashHelper.ComputeFrom(input.Message).ToByteArray();
+        var messageHash = ByteExtensions.ToHex(Encoding.UTF8.GetBytes(input.Message));
+        var dataByte = HashHelper.ComputeFrom(messageHash).ToByteArray();
         var signatureByte = ByteArrayHelper.HexStringToByteArray(input.Signature);
         if (!CryptoHelper.VerifySignature(signatureByte, dataByte, publicKeyByte))
         {
