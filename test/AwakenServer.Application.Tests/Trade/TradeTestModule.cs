@@ -133,6 +133,10 @@ namespace AwakenServer.Trade
                         "ETH_USDT",
                         "BTC_USDT"
                     },
+                    WhiteList = new List<string>()
+                    {
+                        "AAA"
+                    }
                 });
                 o.ActivityList.Add(new Activity.Activity()
                 {

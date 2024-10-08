@@ -174,14 +174,25 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return await _userActivityInfoRepository.GetAsync(Filter);
     }
 
-    private async Task<RankingListSnapshotIndex> GetLatestRankingListSnapshotAsync(int activity, DateTime maxTime)
+    private async Task<RankingListSnapshotIndex> GetLatestRankingListSnapshotAsync(int activityId, DateTime maxTime)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<RankingListSnapshotIndex>, QueryContainer>>();
-        mustQuery.Add(q => q.Term(i => i.Field(f => f.ActivityId).Value(activity)));
+        mustQuery.Add(q => q.Term(i => i.Field(f => f.ActivityId).Value(activityId)));
         mustQuery.Add(q =>
             q.Range(i => i.Field(f => f.Timestamp).LessThanOrEquals(DateTimeHelper.ToUnixTimeMilliseconds(maxTime))));
         QueryContainer Filter(QueryContainerDescriptor<RankingListSnapshotIndex> f) => f.Bool(b => b.Must(mustQuery));
-        return await _rankingListSnapshotRepository.GetAsync(Filter, sortExp: k => k.Timestamp, sortType: SortOrder.Descending);
+        var snapshotIndex = await _rankingListSnapshotRepository.GetAsync(Filter, sortExp: k => k.Timestamp, sortType: SortOrder.Descending);
+        if (snapshotIndex == null)
+        {
+            return null;
+        }
+        var activityOption = _activityOptions.ActivityList.Find(t => t.ActivityId == activityId);
+        if (activityOption?.WhiteList.Count > 0)
+        {
+            snapshotIndex.RankingList = snapshotIndex.RankingList
+                .Where(t => !activityOption.WhiteList.Contains(t.Address)).ToList();
+        }
+        return snapshotIndex;
     }
 
     public async Task<JoinStatusDto> GetJoinStatusAsync(GetJoinStatusInput input)
@@ -189,14 +200,15 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var joinRecordExisted = await GetJoinRecordAsync(input.ActivityId, input.Address);
         var rankingListSnapshotIndex = await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow);
         var activity = _activityOptions.ActivityList.Find(t => t.ActivityId == input.ActivityId);
+        var numberOfJoin = rankingListSnapshotIndex?.NumOfJoin ?? 0;
         if (activity?.Type == TvlActivityType)
         {
-            rankingListSnapshotIndex.NumOfJoin += TvlActivityInitNum;
+            numberOfJoin += TvlActivityInitNum;
         }
         return new JoinStatusDto
         {
             Status = joinRecordExisted == null ? 0 : 1,
-            NumberOfJoin = rankingListSnapshotIndex?.NumOfJoin ?? 0
+            NumberOfJoin = numberOfJoin
         };
     }
 
@@ -370,11 +382,11 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 {
                     continue;
                 }
-                var excludedAddresses = new HashSet<string>(activity.WhiteList);
-                if (excludedAddresses.Contains(dto.Sender))
-                {
-                    continue;
-                }
+                // var excludedAddresses = new HashSet<string>(activity.WhiteList);
+                // if (excludedAddresses.Contains(dto.Sender))
+                // {
+                //     continue;
+                // }
                 
                 if (dto.Timestamp >= activity.BeginTime && dto.Timestamp <= activity.EndTime)
                 {
@@ -470,17 +482,17 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                         _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
                     }
                     _logger.LogInformation($"Create LP snapshot, activityId: {activity.ActivityId}, executeTime: {executeTime}, whiteList: {string.Join(", ", activity.WhiteList)}");
-                    var excludedAddresses = new HashSet<string>(activity.WhiteList);
+                    // var excludedAddresses = new HashSet<string>(activity.WhiteList);
                     var activityPairs = _activityTradePairAddresses[activity.ActivityId];
                     foreach (var activityPair in activityPairs)
                     {
                         var pairLiquidity = await GetCurrentUserLiquidityIndexListAsync(activityPair.PairId, _portfolioOptions.DataVersion);
                         foreach (var userPairLiquidity in pairLiquidity)
                         {
-                            if (excludedAddresses.Contains(userPairLiquidity.Address))
-                            {
-                                continue;
-                            }
+                            // if (excludedAddresses.Contains(userPairLiquidity.Address))
+                            // {
+                            //     continue;
+                            // }
                             var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userPairLiquidity.TradePairId));
                             var pair = (await tradePairGrain.GetAsync()).Data;
                             
