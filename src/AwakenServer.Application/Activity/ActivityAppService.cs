@@ -462,6 +462,16 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var snapshotTime = RandomSnapshotHelper.GetLpSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(executeTime));
         foreach (var activity in _activityOptions.ActivityList)
         {
+            if (activity.Type != TvlActivityType)
+            {
+                continue;
+            }
+            _logger.LogInformation($"Create LP snapshot, " +
+                                   $"activityId: {activity.ActivityId}, " +
+                                   $"executeTime: {executeTime}, " +
+                                   $"activity time: {activity.BeginTime}-{activity.EndTime}, " +
+                                   $"whiteList: {string.Join(", ", activity.WhiteList)}," +
+                                   $"pools: {string.Join(", ", activity.TradePairs)}");
             var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(activity.Type,
                 activity.ActivityId, snapshotTime);
             var activityRankingSnapshotGrain =
@@ -469,43 +479,39 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             var snapshotResult = await activityRankingSnapshotGrain.GetAsync();
             if (snapshotResult.Success)
             {
-                _logger.LogInformation($"Lp snapshot: {activityRankingSnapshotGrainId} already exist");
+                _logger.LogInformation($"Create LP snapshot, {activityRankingSnapshotGrainId} already exist");
                 continue;
             }
             if (executeTime >= activity.BeginTime && executeTime <= activity.EndTime)
             {
-                if (activity.Type == TvlActivityType)
+                if (!_activityTradePairAddresses.ContainsKey(activity.ActivityId))
                 {
-                    if (!_activityTradePairAddresses.ContainsKey(activity.ActivityId))
+                    var activityPools = await GetActivityPair(activity);
+                    _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
+                }
+                var excludedAddresses = new HashSet<string>(activity.WhiteList);
+                var activityPairs = _activityTradePairAddresses[activity.ActivityId];
+                foreach (var activityPair in activityPairs)
+                {
+                    var pairLiquidity = await GetCurrentUserLiquidityIndexListAsync(activityPair.PairId, _portfolioOptions.DataVersion);
+                    foreach (var userPairLiquidity in pairLiquidity)
                     {
-                        var activityPools = await GetActivityPair(activity);
-                        _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
-                    }
-                    _logger.LogInformation($"Create LP snapshot, activityId: {activity.ActivityId}, executeTime: {executeTime}, whiteList: {string.Join(", ", activity.WhiteList)}");
-                    // var excludedAddresses = new HashSet<string>(activity.WhiteList);
-                    var activityPairs = _activityTradePairAddresses[activity.ActivityId];
-                    foreach (var activityPair in activityPairs)
-                    {
-                        var pairLiquidity = await GetCurrentUserLiquidityIndexListAsync(activityPair.PairId, _portfolioOptions.DataVersion);
-                        foreach (var userPairLiquidity in pairLiquidity)
+                        if (excludedAddresses.Contains(userPairLiquidity.Address))
                         {
-                            // if (excludedAddresses.Contains(userPairLiquidity.Address))
-                            // {
-                            //     continue;
-                            // }
-                            var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userPairLiquidity.TradePairId));
-                            var pair = (await tradePairGrain.GetAsync()).Data;
-                            
-                            var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userPairLiquidity.TradePairId), _portfolioOptions.DataVersion));
-                            var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
-                            
-                            var lpTokenPercentage = currentTradePair.TotalSupply == 0
-                                ? 0.0
-                                : userPairLiquidity.LpTokenAmount / (double)currentTradePair.TotalSupply;
-
-                            var point = lpTokenPercentage * pair.TVL;
-                            await UpdateUserPointAndRankingAsync(userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point);
+                            continue;
                         }
+                        var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userPairLiquidity.TradePairId));
+                        var pair = (await tradePairGrain.GetAsync()).Data;
+                        
+                        var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userPairLiquidity.TradePairId), _portfolioOptions.DataVersion));
+                        var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
+                        
+                        var lpTokenPercentage = currentTradePair.TotalSupply == 0
+                            ? 0.0
+                            : userPairLiquidity.LpTokenAmount / (double)currentTradePair.TotalSupply;
+
+                        var point = lpTokenPercentage * pair.TVL;
+                        await UpdateUserPointAndRankingAsync(userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point);
                     }
                 }
             }
