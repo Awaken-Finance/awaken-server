@@ -382,12 +382,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 {
                     continue;
                 }
-                // var excludedAddresses = new HashSet<string>(activity.WhiteList);
-                // if (excludedAddresses.Contains(dto.Sender))
-                // {
-                //     continue;
-                // }
-                
+
                 if (dto.Timestamp >= activity.BeginTime && dto.Timestamp <= activity.EndTime)
                 {
                     var point = await GetPointAsync(dto);
@@ -489,17 +484,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                     var activityPools = await GetActivityPair(activity);
                     _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
                 }
-                var excludedAddresses = new HashSet<string>(activity.WhiteList);
                 var activityPairs = _activityTradePairAddresses[activity.ActivityId];
                 foreach (var activityPair in activityPairs)
                 {
                     var pairLiquidity = await GetCurrentUserLiquidityIndexListAsync(activityPair.PairId, _portfolioOptions.DataVersion);
                     foreach (var userPairLiquidity in pairLiquidity)
                     {
-                        if (excludedAddresses.Contains(userPairLiquidity.Address))
-                        {
-                            continue;
-                        }
                         var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(userPairLiquidity.TradePairId));
                         var pair = (await tradePairGrain.GetAsync()).Data;
                         
