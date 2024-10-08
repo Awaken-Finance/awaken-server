@@ -47,4 +47,11 @@ public class ActivityController : AbpController
     {
         return await _activityAppService.GetRankingListAsync(input);
     }
+    
+    [HttpPost]
+    [Route("snapshot/create")]
+    public virtual async Task<string> CreateLpSnapshotAsync(CreateSnapshotInput input)
+    {
+        return await _activityAppService.CreateLpSnapshotAsync(input.ExecuteTime) ? "Success" : "Failed";
+    }
 }

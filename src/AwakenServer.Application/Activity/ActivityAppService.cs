@@ -457,6 +457,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             var snapshotResult = await activityRankingSnapshotGrain.GetAsync();
             if (snapshotResult.Success)
             {
+                _logger.LogInformation($"Lp snapshot: {activityRankingSnapshotGrainId} already exist");
                 continue;
             }
             if (executeTime >= activity.BeginTime && executeTime <= activity.EndTime)
@@ -468,7 +469,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                         var activityPools = await GetActivityPair(activity);
                         _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
                     }
-                    _logger.LogInformation($"Create LP snapshot, activityId: {activity.ActivityId}, executeTime: {executeTime}, whiteList: {activity.WhiteList}");
+                    _logger.LogInformation($"Create LP snapshot, activityId: {activity.ActivityId}, executeTime: {executeTime}, whiteList: {string.Join(", ", activity.WhiteList)}");
                     var excludedAddresses = new HashSet<string>(activity.WhiteList);
                     var activityPairs = _activityTradePairAddresses[activity.ActivityId];
                     foreach (var activityPair in activityPairs)

@@ -54,7 +54,6 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
     private void SetNextExecutionTime(DateTime lastExecuteTime)
     {
         _nextLpSnapshotExecutionTime = RandomSnapshotHelper.GetNextLpSnapshotExecutionTime(_random, lastExecuteTime);
-        _logger.LogInformation($"Executing LP snapshot task at: {lastExecuteTime}, next executing time set to: {_nextLpSnapshotExecutionTime}");
     }
     
     public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
@@ -66,6 +65,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         {
             _firstExecution = false; 
             SetNextExecutionTime(now);
+            _logger.LogInformation($"Init LP snapshot worker, Next executing time set to: {_nextLpSnapshotExecutionTime}");
         }
         else
         {
@@ -98,11 +98,11 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
                 var success = await _activityAppService.CreateLpSnapshotAsync(timestamp);
                 if (success)
                 {
-                    _logger.LogInformation($"Executing LP snapshot done at: {timestamp}");
+                    _logger.LogInformation($"Executing LP snapshot done at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
                 }
                 else
                 {
-                    _logger.LogError($"Executing LP snapshot at activity failed at: {timestamp}");
+                    _logger.LogError($"Executing LP snapshot at activity failed at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
                 }
             }
         }
