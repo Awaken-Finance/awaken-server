@@ -370,7 +370,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 {
                     continue;
                 }
-
+                var excludedAddresses = new HashSet<string>(activity.WhiteList);
+                if (excludedAddresses.Contains(dto.Sender))
+                {
+                    continue;
+                }
+                
                 if (dto.Timestamp >= activity.BeginTime && dto.Timestamp <= activity.EndTime)
                 {
                     var point = await GetPointAsync(dto);
@@ -442,8 +447,18 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     public async Task<bool> CreateLpSnapshotAsync(long executeTime)
     {
+        var snapshotTime = RandomSnapshotHelper.GetLpSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(executeTime));
         foreach (var activity in _activityOptions.ActivityList)
         {
+            var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(activity.Type,
+                activity.ActivityId, snapshotTime);
+            var activityRankingSnapshotGrain =
+                _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
+            var snapshotResult = await activityRankingSnapshotGrain.GetAsync();
+            if (snapshotResult.Success)
+            {
+                continue;
+            }
             if (executeTime >= activity.BeginTime && executeTime <= activity.EndTime)
             {
                 if (activity.Type == TvlActivityType)
@@ -453,7 +468,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                         var activityPools = await GetActivityPair(activity);
                         _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
                     }
-                    _logger.LogInformation($"Create LP snapshot, activityId: {activity.ActivityId}, executeTime: {executeTime}");
+                    _logger.LogInformation($"Create LP snapshot, activityId: {activity.ActivityId}, executeTime: {executeTime}, whiteList: {activity.WhiteList}");
                     var excludedAddresses = new HashSet<string>(activity.WhiteList);
                     var activityPairs = _activityTradePairAddresses[activity.ActivityId];
                     foreach (var activityPair in activityPairs)
@@ -476,8 +491,6 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                                 : userPairLiquidity.LpTokenAmount / (double)currentTradePair.TotalSupply;
 
                             var point = lpTokenPercentage * pair.TVL;
-                            var snapshotTime = RandomSnapshotHelper.GetLpSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(executeTime));
-
                             await UpdateUserPointAndRankingAsync(userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point);
                         }
                     }

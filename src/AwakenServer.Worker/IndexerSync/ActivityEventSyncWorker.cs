@@ -31,6 +31,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
 
     private const string VolumeActivityType = "volume";
     private const string TvlActivityType = "tvl";
+    private const int TvlSnapshotTimeFactor = 3;
 
     public ActivityEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
         ITradeRecordAppService tradeRecordAppService, ILogger<AwakenServerWorkerBase> logger,
@@ -74,8 +75,8 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
                 if (activity.Type == TvlActivityType)
                 {
                     var isActivityBeginTime = timestamp >= activity.BeginTime &&
-                                      timestamp < activity.BeginTime + _workerOptions.TimePeriod * 2;
-                    // _logger.LogInformation($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * 2}, isActivityBeginTime: {isActivityBeginTime}");
+                                      timestamp < activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor;
+                    // _logger.LogInformation($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor}, isActivityBeginTime: {isActivityBeginTime}");
                     if (isActivityBeginTime)
                     {
                         var success = await _activityAppService.CreateLpSnapshotAsync(timestamp);
@@ -91,7 +92,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
                 }
             }
             
-            if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod * 2 / 1000)))
+            if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod * TvlSnapshotTimeFactor / 1000)))
             {
                 SetNextExecutionTime(now);
                 var success = await _activityAppService.CreateLpSnapshotAsync(timestamp);

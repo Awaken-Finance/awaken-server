@@ -35,4 +35,21 @@ public class ActivityRankingSnapshotGrain : Grain<ActivityRankingSnapshotState>,
             Data = _objectMapper.Map<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>(State)
         };
     }
+
+    public async Task<GrainResultDto<ActivityRankingSnapshotGrainDto>> GetAsync()
+    {
+        if (State.Id == Guid.Empty)
+        {
+            return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
+            {
+                Success = false
+            };
+        }
+        
+        return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
+        {
+            Success = true,
+            Data = _objectMapper.Map<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>(State)
+        };
+    }
 }
