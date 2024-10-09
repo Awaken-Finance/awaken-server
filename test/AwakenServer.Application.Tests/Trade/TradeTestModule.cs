@@ -121,6 +121,11 @@ namespace AwakenServer.Trade
 
             context.Services.Configure<ActivityOptions>(o =>
             {
+                o.PricingTokens = new List<string>()
+                {
+                    "ELF",
+                    "USDT"
+                };
                 o.ActivityList = new List<Activity.Activity>();
                 o.ActivityList.Add(new Activity.Activity()
                 {
