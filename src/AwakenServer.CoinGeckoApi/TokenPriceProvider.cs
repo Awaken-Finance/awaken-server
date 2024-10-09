@@ -41,7 +41,7 @@ public class TokenPriceProvider : ITokenPriceProvider
         var coinId = GetCoinIdAsync(symbol);
         if (coinId == null)
         {
-            _logger.Info("can not get the token {symbol}", symbol);
+            _logger.LogInformation("can not get the token {symbol}", symbol);
             return 0;
         }
 
@@ -75,7 +75,7 @@ public class TokenPriceProvider : ITokenPriceProvider
         var coinId = GetCoinIdAsync(symbol);
         if (coinId == null)
         {
-            _logger.Info($"Get history token price {symbol}, can not get the token");
+            _logger.LogInformation($"Get history token price {symbol}, can not get the token");
             return 0;
         }
 

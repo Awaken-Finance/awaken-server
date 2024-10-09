@@ -3,7 +3,7 @@
   <Import Project="..\..\common.props" />
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>AwakenServer</RootNamespace>
   </PropertyGroup>
 
@@ -20,12 +20,12 @@
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.1.0" />
     <PackageReference Include="Nethereum.Util" Version="4.0.5" />
     <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
-    <PackageReference Include="Volo.Abp.Account.Application" Version="7.0.0" />
-    <PackageReference Include="Volo.Abp.Identity.Application" Version="7.0.0" />
-    <PackageReference Include="Volo.Abp.TenantManagement.Application" Version="7.0.0" />
-    <PackageReference Include="Volo.Abp.FeatureManagement.Application" Version="7.0.0" />
-    <PackageReference Include="Volo.Abp.SettingManagement.Application" Version="7.0.0" />
-    <PackageReference Include="Volo.Abp.Caching.StackExchangeRedis" Version="7.0.0" />
+    <PackageReference Include="Volo.Abp.Account.Application" Version="8.2.0" />
+    <PackageReference Include="Volo.Abp.Identity.Application" Version="8.2.0" />
+    <PackageReference Include="Volo.Abp.TenantManagement.Application" Version="8.2.0" />
+    <PackageReference Include="Volo.Abp.FeatureManagement.Application" Version="8.2.0" />
+    <PackageReference Include="Volo.Abp.SettingManagement.Application" Version="8.2.0" />
+    <PackageReference Include="Volo.Abp.Caching.StackExchangeRedis" Version="8.2.0" />
     <PackageReference Include="AElf.Client" Version="1.1.0" />
     <PackageReference Include="Orleans.Providers.MongoDB" Version="3.8.0" />
   </ItemGroup>

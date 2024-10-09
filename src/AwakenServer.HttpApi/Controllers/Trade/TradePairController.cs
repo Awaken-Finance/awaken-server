@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Asp.Versioning;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using JetBrains.Annotations;

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Threading.Tasks;
+using Asp.Versioning;
 using AwakenServer.Asset;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
