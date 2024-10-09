@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Orleans;
 using Orleans.Configuration;
+using Orleans.Hosting;
 using Orleans.Providers.MongoDB.Configuration;
 using StackExchange.Redis;
 using Volo.Abp;

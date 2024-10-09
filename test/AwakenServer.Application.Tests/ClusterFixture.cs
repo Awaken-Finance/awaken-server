@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
@@ -148,7 +149,7 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                         typeof(ICurrentTenant),
                         typeof(CurrentTenant)
                     );
-                    services.OnRegistred(UnitOfWorkInterceptorRegistrar.RegisterIfNeeded);
+                    // services.OnRegistred(UnitOfWorkInterceptorRegistrar.RegisterIfNeeded);
                     services.AddTransient(
                         typeof(IUnitOfWorkManager),
                         typeof(UnitOfWorkManager)
@@ -159,12 +160,12 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                     );
                     services.OnExposing(onServiceExposingContext =>
                     {
-                        //Register types for IObjectMapper<TSource, TDestination> if implements
+                        var implementedTypes = ReflectionHelper.GetImplementedGenericTypes(
+                            onServiceExposingContext.ImplementationType,
+                            typeof(IObjectMapper<,>)
+                        );
                         onServiceExposingContext.ExposedTypes.AddRange(
-                            ReflectionHelper.GetImplementedGenericTypes(
-                                onServiceExposingContext.ImplementationType,
-                                typeof(IObjectMapper<,>)
-                            )
+                            implementedTypes.Select(type => new ServiceIdentifier(type))
                         );
                     });
                     services.AddTransient(
