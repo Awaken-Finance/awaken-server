@@ -149,9 +149,10 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         
         // ranking snapshot
         var snapshotTime = GetNormalSnapshotTime(DateTime.UtcNow);
-        var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(activity.Type, activity.ActivityId, snapshotTime);
+        var snapshotTimeStamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
+        var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(activity.Type, activity.ActivityId, snapshotTimeStamp);
         var activityRankingSnapshotGrain = _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
-        currentActivityRankingResult.Data.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
+        currentActivityRankingResult.Data.Timestamp = snapshotTimeStamp;
         var activityRankingSnapshotResult = await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);
         await _distributedEventBus.PublishAsync(
             ObjectMapper.Map<RankingListSnapshot, RankingListSnapshotEto>(activityRankingSnapshotResult.Data));
@@ -356,11 +357,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             isNewUser);
 
         // ranking snapshot
+        var snapshotTimeStamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
         var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(activity.Type,
-            activity.ActivityId, snapshotTime);
+            activity.ActivityId, snapshotTimeStamp);
         var activityRankingSnapshotGrain =
             _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
-        currentActivityRankingResult.Data.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
+        currentActivityRankingResult.Data.Timestamp = snapshotTimeStamp;
         var activityRankingSnapshotResult =
             await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);
         await _distributedEventBus.PublishAsync(
