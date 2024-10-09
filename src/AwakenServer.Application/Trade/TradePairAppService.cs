@@ -25,6 +25,7 @@ using Microsoft.Extensions.Options;
 using Nest;
 using Orleans;
 using Orleans.Runtime;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -228,7 +229,7 @@ namespace AwakenServer.Trade
                 var tradePairResult = await grain.GetAsync();
                 if (!tradePairResult.Success)
                 {
-                    _logger.LogError($"grain id {id} does not exist");
+                    Log.Error($"grain id {id} does not exist");
                     continue;
                 }
             
@@ -248,7 +249,7 @@ namespace AwakenServer.Trade
             var result = await grain.GetAsync();
             if (!result.Success)
             {
-                _logger.LogError($"get chain trade pairs failed. chain id: {input.ChainId}");
+                Log.Error($"get chain trade pairs failed. chain id: {input.ChainId}");
             }
 
             var pairs = result.Data;
@@ -296,7 +297,7 @@ namespace AwakenServer.Trade
             var result = await grain.GetAsync(addresses);
             if (!result.Success)
             {
-                _logger.LogError($"get chain trade pairs failed. chain id: {chainId}");
+                Log.Error($"get chain trade pairs failed. chain id: {chainId}");
             }
             
             // QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> q) =>
@@ -353,7 +354,7 @@ namespace AwakenServer.Trade
             }
             catch (Exception e)
             {
-                _logger.LogError("Revert trade pair err:{0}", e);
+                Log.Error(e, $"Revert trade pair err {e.Message}");
             }
         }
         
@@ -368,7 +369,7 @@ namespace AwakenServer.Trade
             var pair = await GetAsync(dto.ChainId, dto.PairAddress);
             if (pair == null)
             {
-                _logger.LogError($"get pair: {dto.PairAddress} failed in chain: {dto.ChainId}");
+                Log.Error($"get pair: {dto.PairAddress} failed in chain: {dto.ChainId}");
                 return;
             }
 
@@ -384,7 +385,7 @@ namespace AwakenServer.Trade
             var syncRecordGrainDto = _objectMapper.Map<SyncRecordDto, SyncRecordGrainDto>(dto);
             (syncRecordGrainDto.Token0PriceInUsd, syncRecordGrainDto.Token1PriceInUsd) = await _tokenPriceProvider.GetUSDPriceAsync(pair.ChainId, pair.Id, pair.Token0.Symbol, pair.Token1.Symbol, token0Amount, token1Amount);
             
-            _logger.LogInformation($"Sync event, get token price usd, trade pair id: {pair.Id}, token0: {pair.Token0.Symbol}, token1:{pair.Token1.Symbol}, price0:{syncRecordGrainDto.Token0PriceInUsd}, price1:{syncRecordGrainDto.Token1PriceInUsd}");
+            Log.Information($"Sync event, get token price usd, trade pair id: {pair.Id}, token0: {pair.Token0.Symbol}, token1:{pair.Token1.Symbol}, price0:{syncRecordGrainDto.Token0PriceInUsd}, price1:{syncRecordGrainDto.Token1PriceInUsd}");
             
             await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(pair.Id, async grain =>
             {
@@ -418,18 +419,18 @@ namespace AwakenServer.Trade
                         tradePairIndexDto.FeeRate.ToString(),
                         out var address))
                 {
-                    _logger.LogError("GetTokenInfoAsync, Get tradePairIndexDto failed");
+                    Log.Error("GetTokenInfoAsync, Get tradePairIndexDto failed");
                     return null;
                 }
 
                 var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
                     TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
-                _logger.LogInformation($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
+                Log.Information($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
                 return token;
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Get token info failed");
+                Log.Error(e, "Get token info failed");
                 return null;
             }
         }
@@ -439,28 +440,28 @@ namespace AwakenServer.Trade
         {
             var snapshotTime = _tradePairMarketDataProvider.GetSnapshotTime(DateTime.UtcNow);
             
-            _logger.LogInformation($"UpdateTradePairAsync id: {id}");
+            Log.Information($"UpdateTradePairAsync id: {id}");
             
             var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(id));
             
             var pairResult = await grain.GetAsync();
             if (!pairResult.Success)
             {
-                _logger.LogInformation("can not find trade pair id:{id}", id);
+                Log.Information("can not find trade pair id:{id}", id);
                 return;
             }
 
             var pair = pairResult.Data;
             if (!await IsNeedUpdateAsync(pair, snapshotTime))
             {
-                _logger.LogInformation("no need to update trade pair id:{id}", id);
+                Log.Information("no need to update trade pair id:{id}", id);
                 return;
             }
             
             var userTradeAddressCount = await _tradeRecordAppService.GetUserTradeAddressCountAsync(pair.ChainId, pair.Id, snapshotTime);
             var token = await GetTokenInfoAsync(pair.Id, pair.ChainId);
             var supply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
-            _logger.LogInformation($"get pair {pair.Id}, supply {supply}");
+            Log.Information($"get pair {pair.Id}, supply {supply}");
             
             var (token0PriceInUsd, token1PriceInUsd) = await _tokenPriceProvider.GetUSDPriceAsync(pair.ChainId, pair.Id, pair.Token0.Symbol, pair.Token1.Symbol);
             
@@ -468,7 +469,7 @@ namespace AwakenServer.Trade
             
             if (!tradePairGrainDtoResult.Success)
             {
-                _logger.LogError($"AddOrUpdateTradePairIndexAsync: updage grain {pair.Id} failed");
+                Log.Error($"AddOrUpdateTradePairIndexAsync: updage grain {pair.Id} failed");
                 return;
             }
             
@@ -487,7 +488,7 @@ namespace AwakenServer.Trade
             
             if (tokenDto == null)
             {
-                _logger.LogInformation($"get token from es failed. token symbol: {symbol}, chain id: {chainId}, go to create.");
+                Log.Information($"get token from es failed. token symbol: {symbol}, chain id: {chainId}, go to create.");
                 
                 var tokenInfo =
                     await _blockchainAppService.GetTokenInfoAsync(chainId, null, symbol);
@@ -511,7 +512,7 @@ namespace AwakenServer.Trade
         {
             if (!Guid.TryParse(pair.Id, out var pairId))
             {
-                _logger.LogError(
+                Log.Error(
                     "pairId is not valid: {pairId}, chainName: {chainName}, token0: {token0Symbol}, token1: {token1Symbol}",
                     pair.Id, chain.Name, pair.Token0Symbol, pair.Token1Symbol);
                 return false;
@@ -529,11 +530,11 @@ namespace AwakenServer.Trade
 
             var grain = _clusterClient.GetGrain<ITokenPathGrain>(chain.Id);
             var clearCountResultDto = await grain.ResetCacheAsync();
-            _logger.LogInformation($"clear swap path cache, token path grain: {grain.GetPrimaryKeyString()}, count: {clearCountResultDto.Data}");
+            Log.Information($"clear swap path cache, token path grain: {grain.GetPrimaryKeyString()}, count: {clearCountResultDto.Data}");
             
             var routeGrain = _clusterClient.GetGrain<IRouteGrain>(chain.Id);
             var clearRouteCountResultDto = await routeGrain.ResetCacheAsync();
-            _logger.LogInformation($"clear route cache, route grain: {routeGrain.GetPrimaryKeyString()}, count: {clearRouteCountResultDto.Data}");
+            Log.Information($"clear route cache, route grain: {routeGrain.GetPrimaryKeyString()}, count: {clearRouteCountResultDto.Data}");
             
             var token0 = await _tokenAppService.GetAsync(new GetTokenInput
             {
@@ -550,13 +551,13 @@ namespace AwakenServer.Trade
 
             if (token0 == null)
             {
-                _logger.LogError("can not find token {token0Symbol}, chainId: {chainId}, pairId: {pairId}",
+                Log.Error("can not find token {token0Symbol}, chainId: {chainId}, pairId: {pairId}",
                     pair.Token0Symbol, chain.Id, pair.Id);
             }
 
             if (token1 == null)
             {
-                _logger.LogError("can not find token {token1Symbol}, chainId:{chainId}, pairId:{pairId}",
+                Log.Error("can not find token {token1Symbol}, chainId:{chainId}, pairId:{pairId}",
                     pair.Token1Symbol, chain.Id, pair.Id);
             }
 
@@ -575,7 +576,7 @@ namespace AwakenServer.Trade
                 TradePairGrainId = tradePairGrain.GetPrimaryKeyString()
             });
             
-            _logger.LogInformation("create pair success Id: {pairId}, chainId: {chainId}, token0: {token0}," +
+            Log.Information("create pair success Id: {pairId}, chainId: {chainId}, token0: {token0}," +
                                    "token1:{token1}", pair.Id, chain.Id, pair.Token0Symbol, pair.Token1Symbol);
 
             await CreateTradePairIndexAsync(pair, token0, token1, chain);
@@ -627,7 +628,7 @@ namespace AwakenServer.Trade
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "add favorite info error");
+                Log.Error(e, "add favorite info error");
             }
 
             return new PagedResultDto<TradePairIndexDto>

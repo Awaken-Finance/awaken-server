@@ -16,6 +16,7 @@ using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -145,7 +146,7 @@ namespace AwakenServer.Trade
                 limitOrderIndexDto.TotalFee = totalFee.ToString();
                 limitOrderIndexDto.NetworkFee = networkFee.ToString();
                 
-                _logger.LogInformation($"Limit order list, " +
+                Log.Information($"Limit order list, " +
                                        $"input: {JsonConvert.SerializeObject(input.MakerAddress)}, " +
                                        $"index: {JsonConvert.SerializeObject(limitOrder)}, " +
                                        $"token0 decimal: {tokenMap[limitOrderIndexDto.SymbolIn].Token.Decimals}, " +
@@ -172,7 +173,7 @@ namespace AwakenServer.Trade
                 OrderId = input.OrderId
             });
 
-            _logger.LogInformation($"Query limit order detail: {input.OrderId}, result count: {queryResult.TotalCount}");
+            Log.Information($"Query limit order detail: {input.OrderId}, result count: {queryResult.TotalCount}");
             
             if (queryResult.Data == null || queryResult.Data.Count <= 0)
             {

@@ -17,6 +17,7 @@ using Volo.Abp.ObjectMapping;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Index;
+using Serilog;
 
 namespace AwakenServer.Grains.Grain.Route;
 
@@ -197,7 +198,7 @@ public class RouteGrain : Grain<RouteState>, IRouteGrain
     {
         var cacheCount = State.RouteCache.Count;
         State.RouteCache.Clear();
-        _logger.LogInformation($"clear route cache, grain id: {this.GetPrimaryKeyString()}, remove count: {cacheCount}, now count: {State.RouteCache.Count}");
+        Log.Information($"clear route cache, grain id: {this.GetPrimaryKeyString()}, remove count: {cacheCount}, now count: {State.RouteCache.Count}");
         return new GrainResultDto<long>
         {
             Success = true,

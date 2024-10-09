@@ -8,6 +8,7 @@ using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
@@ -42,7 +43,7 @@ public class TradeRecordEventSwapWorker : AwakenServerWorkerBase
         
         var queryList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        _logger.LogInformation("swap queryList count: {count}", queryList.Count);
+        Log.Information("swap queryList count: {count}", queryList.Count);
             
         foreach (var queryDto in queryList)
         {

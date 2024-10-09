@@ -19,6 +19,7 @@ using Microsoft.Extensions.Options;
 using Nest;
 using Nethereum.Util;
 using Orleans;
+using Serilog;
 using Volo.Abp.Caching;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.DistributedLocking;
@@ -94,21 +95,20 @@ namespace AwakenServer.Trade
             var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePairId));
             if (!(await grain.GetAsync()).Success)
             {
-                _logger.LogInformation($"trade pair: {tradePairId} not exist");
+                Log.Information("trade pair: {tradePairId} not exist", tradePairId);
                 return;
             }
             
             var result = await methodDelegate(grain);
             
-            _logger.LogDebug($"from {methodDelegate.Method.Name} publishAsync TradePairEto: {JsonConvert.SerializeObject(result.Data.TradePairDto)}");
-
+            Log.Debug("from {name} publishAsync TradePairEto: {tradePairEto}", methodDelegate.Method.Name, JsonConvert.SerializeObject(result.Data.TradePairDto));
             await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairEto>(
                 _objectMapper.Map<TradePairGrainDto, TradePairEto>(
                     result.Data.TradePairDto)
             ));
             
-            _logger.LogDebug($"from {methodDelegate.Method.Name} publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.SnapshotDto)}");
-            
+            Log.Debug("from {name} publishAsync TradePairMarketDataSnapshotEto: {tradePairMarketDataSnapshotEto}", methodDelegate.Method.Name, JsonConvert.SerializeObject(result.Data.SnapshotDto));
+
             await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairMarketDataSnapshotEto>(
                 _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>(
                     result.Data.SnapshotDto)
@@ -116,8 +116,7 @@ namespace AwakenServer.Trade
 
             if (result.Data.LatestSnapshotDto != null)
             {
-                _logger.LogDebug($"update latest snapshot from {methodDelegate.Method.Name} publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.LatestSnapshotDto)}");
-            
+                Log.Debug("update latest snapshot from {name} publishAsync TradePairMarketDataSnapshotEto: {latestSnapshotDto}", methodDelegate.Method.Name, JsonConvert.SerializeObject(result.Data.LatestSnapshotDto));
                 await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairMarketDataSnapshotEto>(
                     _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>(
                         result.Data.LatestSnapshotDto)

@@ -10,6 +10,7 @@ using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 using SwapRecord = AwakenServer.Trade.Dtos.SwapRecord;
@@ -52,7 +53,7 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
         }
         var liquidityRecordList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
-        _logger.LogInformation("portfolioWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
+        Log.Information("portfolioWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
             liquidityRecordList.Count, swapRecordList.Count);
         long blockHeight = -1;
         var logCount = 0;
@@ -79,14 +80,14 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
 
                 if (logCount++ == 10)
                 {
-                    _logger.LogInformation("Portfolio blockHeight : {height}, data version : {version}", blockHeight, _workerOptions.DataVersion);
+                    Log.Information("Portfolio blockHeight : {height}, data version : {version}", blockHeight, _workerOptions.DataVersion);
                     logCount = 0;
                 }
             }
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Portfolio event fail.");
+            Log.Error(e, "Portfolio event fail.");
         }
 
         return blockHeight;

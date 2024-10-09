@@ -16,6 +16,7 @@ using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using AwakenServer.Trade.Index;
+using Serilog;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
 
@@ -53,14 +54,14 @@ namespace AwakenServer.SwapTokenPath
         
         public async Task<PagedResultDto<TokenPathDto>> GetListAsync(GetTokenPathsInput input)
         {
-            _logger.LogInformation($"get token paths begin, input: {input.ChainId}, {input.StartSymbol}, {input.EndSymbol}, {input.MaxDepth}");
+            Log.Information($"get token paths begin, input: {input.ChainId}, {input.StartSymbol}, {input.EndSymbol}, {input.MaxDepth}");
             
             var grain = _clusterClient.GetGrain<ITokenPathGrain>(input.ChainId);
             
             var cachedResult = await grain.GetCachedPathAsync(_objectMapper.Map<GetTokenPathsInput, GetTokenPathGrainDto>(input));
             if (cachedResult.Success)
             {
-                _logger.LogInformation($"get token paths from cache done, path count: {cachedResult.Data.Path.Count}");
+                Log.Information($"get token paths from cache done, path count: {cachedResult.Data.Path.Count}");
                 
                 return new PagedResultDto<TokenPathDto>()
                 {
@@ -71,7 +72,7 @@ namespace AwakenServer.SwapTokenPath
             
             var pairs = await GetListAsync(input.ChainId);
             
-            _logger.LogInformation($"get token paths do search, get relations from chain trade pairs, count: {pairs.Count}");
+            Log.Information($"get token paths do search, get relations from chain trade pairs, count: {pairs.Count}");
             
             await grain.SetGraphAsync(new GraphDto()
             {
@@ -83,11 +84,11 @@ namespace AwakenServer.SwapTokenPath
             
             if (!result.Success || result.Data == null || result.Data.Path == null)
             {
-                _logger.LogError($"get token paths, failed, flag: {result.Success}");
+                Log.Error($"get token paths, failed, flag: {result.Success}");
                 return new PagedResultDto<TokenPathDto>();
             }
             
-            _logger.LogInformation($"get token paths done, path count: {result.Data.Path.Count}");
+            Log.Information($"get token paths done, path count: {result.Data.Path.Count}");
             return new PagedResultDto<TokenPathDto>()
             {
                 TotalCount = result.Data.Path.Count,

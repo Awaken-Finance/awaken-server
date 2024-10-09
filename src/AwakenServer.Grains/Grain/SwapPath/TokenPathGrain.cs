@@ -14,6 +14,7 @@ using Orleans;
 using Volo.Abp.ObjectMapping;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
 using AwakenServer.Tokens;
+using Serilog;
 
 namespace AwakenServer.Grains.Grain.SwapTokenPath;
 
@@ -115,7 +116,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
     
     public async Task<GrainResultDto<TokenPathResultGrainDto>> GetPathAsync(GetTokenPathGrainDto dto)
     {
-        _logger.LogInformation($"get swap path do search, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}");
+        Log.Information($"get swap path do search, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}");
         
         var pathResult = new List<TokenPath>();
         var distinctPaths = new HashSet<string>();
@@ -231,7 +232,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
     {
         var cacheCount = State.PathCache.Count;
         State.PathCache.Clear();
-        _logger.LogInformation($"clear path cache, grain id: {this.GetPrimaryKeyString()}, remove count: {cacheCount}, now count: {State.PathCache.Count}");
+        Log.Information($"clear path cache, grain id: {this.GetPrimaryKeyString()}, remove count: {cacheCount}, now count: {State.PathCache.Count}");
         return new GrainResultDto<long>
         {
             Success = true,

@@ -23,6 +23,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
 using Orleans;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
@@ -441,7 +442,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             var pairList = await _tradePairIndexRepository.GetListAsync(Filter);
             foreach (var pair in pairList.Item2)
             {
-                _logger.LogInformation($"Activity: {activity.ActivityId}, pair: {activityTradePair}, find es pair: {pair.Address} - {pair.Id}");
+                Log.Information($"Activity: {activity.ActivityId}, pair: {activityTradePair}, find es pair: {pair.Address} - {pair.Id}");
                 result.Add(new ActivityTradePair()
                 {
                     PairAddress = pair.Address,

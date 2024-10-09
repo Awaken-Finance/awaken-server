@@ -12,6 +12,7 @@ using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
 using MassTransit;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using SwapRecord = AwakenServer.Trade.SwapRecord;
@@ -61,7 +62,7 @@ namespace AwakenServer.EntityHandler.Trade
                 Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(index)
             });
 
-            _logger.LogInformation(
+            Log.Information(
                 $"publish normal swap record, " +
                 $"address:{index.Address} " +
                 $"tradePairId:{index.TradePair.Id} " +
@@ -73,7 +74,7 @@ namespace AwakenServer.EntityHandler.Trade
         {
             if (eventData.Entity.PercentRoutes.Count <= 0)
             {
-                _logger.LogError($"creare multi swap records handle entity create event faild. percent routes empty.");
+                Log.Error($"creare multi swap records handle entity create event faild. percent routes empty.");
                 return;
             }
             
@@ -84,7 +85,7 @@ namespace AwakenServer.EntityHandler.Trade
                 await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
                 Math.Pow(10, 8);
             
-            _logger.LogInformation($"creare multi swap records handle entity create event. " +
+            Log.Information($"creare multi swap records handle entity create event. " +
                                    $"record: {JsonConvert.SerializeObject(index)}");
             
             await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
@@ -119,7 +120,7 @@ namespace AwakenServer.EntityHandler.Trade
                 
                 await _tradeRecordIndexRepository.AddOrUpdateAsync(subRecordIndex);
                 
-                _logger.LogInformation($"creare multi swap records handle entity create event. " +
+                Log.Information($"creare multi swap records handle entity create event. " +
                                        $"record: {JsonConvert.SerializeObject(subRecordIndex)}");
                 
                 await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
@@ -169,7 +170,7 @@ namespace AwakenServer.EntityHandler.Trade
                 if (list.Items != null && list.Items.Count >= 1 &&
                     double.Parse(list.Items[0].PriceInUsd.ToString()) > 0)
                 {
-                    _logger.LogInformation("{token1Symbol}, time: {time}, get history price: {price}",
+                    Log.Information("{token1Symbol}, time: {time}, get history price: {price}",
                         index.TradePair.Token1.Symbol, index.Timestamp, list.Items[0].PriceInUsd.ToString());
                     return index.Price * double.Parse(index.Token0Amount) *
                            double.Parse(list.Items[0].PriceInUsd.ToString());
@@ -177,7 +178,7 @@ namespace AwakenServer.EntityHandler.Trade
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Get history price failed.");
+                Log.Error(ex, "Get history price failed.");
             }
 
             return 0;

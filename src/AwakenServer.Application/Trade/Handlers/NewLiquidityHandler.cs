@@ -9,6 +9,7 @@ using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nethereum.Util;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
 using Volo.Abp.ObjectMapping;
@@ -50,18 +51,18 @@ namespace AwakenServer.Trade.Handlers
                         tradePairIndexDto.FeeRate.ToString(),
                         out var address))
                 {
-                    _logger.LogError("GetTokenInfoAsync, Get tradePairIndexDto failed");
+                    Log.Error("GetTokenInfoAsync, Get tradePairIndexDto failed");
                     return null;
                 }
 
                 var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
                     TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
-                _logger.LogInformation($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
+                Log.Information($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
                 return token;
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Get token info failed");
+                Log.Error(e, "Get token info failed");
                 return null;
             }
         }
@@ -72,7 +73,7 @@ namespace AwakenServer.Trade.Handlers
             var dto = _objectMapper.Map<NewLiquidityRecordEvent, LiquidityRecordGrainDto>(eventData);
             var token = await GetTokenInfoAsync(eventData.TradePairId, eventData.ChainId);
             dto.TotalSupply = token != null ? token.Supply.ToDecimalsString(token.Decimals) : "0";
-            _logger.LogInformation($"handle new liquidity record event get pair {eventData.TradePairId}, supply {dto.TotalSupply}");
+            Log.Information($"handle new liquidity record event get pair {eventData.TradePairId}, supply {dto.TotalSupply}");
             await _tradePairMarketDataProvider.AddOrUpdateSnapshotAsync(eventData.TradePairId, async grain =>
             {
                 return await grain.UpdateTotalSupplyAsync(dto);

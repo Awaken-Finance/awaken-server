@@ -26,6 +26,7 @@ using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using AwakenServer.Trade.Index;
 using Newtonsoft.Json;
+using Serilog;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
 using PercentRouteDto = AwakenServer.Route.Dtos.PercentRouteDto;
@@ -81,13 +82,13 @@ namespace AwakenServer.Route
             });
             if (cachedResult.Success)
             {
-                _logger.LogInformation(
+                Log.Information(
                     $"get route from cache, start: {symbolIn}, end:{symbolOut}, maxDepth:{maxDepth}, path count: {cachedResult.Data.Routes.Count}");
                 return cachedResult.Data.Routes;
             }
 
             var pairs = await GetListAsync(chainId);
-            _logger.LogInformation(
+            Log.Information(
                 $"get route do search, chain: {chainId}, get relations from chain trade pairs, count: {pairs.Count}");
 
             var result =
@@ -102,12 +103,12 @@ namespace AwakenServer.Route
 
             if (!result.Success || result.Data == null)
             {
-                _logger.LogError(
+                Log.Error(
                     $"get route failed, start: {symbolIn}, end:{symbolOut}, maxDepth:{maxDepth}, flag: {result.Success}");
                 return new List<SwapRoute>();
             }
 
-            _logger.LogInformation(
+            Log.Information(
                 $"get route done, start: {symbolIn}, end:{symbolOut}, maxDepth:{maxDepth}, routes count: {result.Data.Routes.Count}");
             return result.Data.Routes;
         }
@@ -117,7 +118,7 @@ namespace AwakenServer.Route
         {
             if (!tradePairReserveMap.ContainsKey(tradePairId))
             {
-                _logger.LogError("Get best route, can't find trade pair: {tradePairId}");
+                Log.Error("Get best route, can't find trade pair: {tradePairId}");
                 return new Tuple<long, long, double>(0, 0, 0);
             }
             
@@ -234,7 +235,7 @@ namespace AwakenServer.Route
             var percents = new List<int>();
             if (100 % distributionPercent != 0)
             {
-                _logger.LogError("Get best route, error in distributionPercent. Only calculate 100 percent.");
+                Log.Error("Get best route, error in distributionPercent. Only calculate 100 percent.");
                 percents.Add(100);
             }
             else
@@ -292,7 +293,7 @@ namespace AwakenServer.Route
             var swapRoutes =
                 await GetRoutesAsync(input.ChainId, input.RouteType, input.SymbolIn, input.SymbolOut, MaxDepth);
             
-            _logger.LogInformation(
+            Log.Information(
                 $"Get best routes, all routes count: {swapRoutes.Count}");
             
             if (swapRoutes.Count <= 0)
@@ -341,7 +342,7 @@ namespace AwakenServer.Route
                     var pairResult = await tradePairGrain.GetAsync();
                     if (!pairResult.Success)
                     {
-                        _logger.LogError($"GetReservesAsync failed. Can not find trade pair: {tradePair.Id}");
+                        Log.Error($"GetReservesAsync failed. Can not find trade pair: {tradePair.Id}");
                         continue;
                     }
 
@@ -361,7 +362,7 @@ namespace AwakenServer.Route
             await Task.WhenAll(mapTasks);
 
 
-            _logger.LogInformation(
+            Log.Information(
                 $"Get best routes, all cross(or not) rate routes count: {crossFeeRateRoutes.Count}");
             
             foreach (var percent in percents)
@@ -390,7 +391,7 @@ namespace AwakenServer.Route
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError($"Get best routes, Exception: {e}");
+                        Log.Error(e, $"Get best routes, Exception: {e.Message}");
                         return null;
                     }
                     percentSwapRoute.Percent = percent;
@@ -404,7 +405,7 @@ namespace AwakenServer.Route
                     .ToList();
             }
             
-            _logger.LogInformation(
+            Log.Information(
                 $"Get best routes, begin to sort");
             
             foreach (var percentRoutes in percentToSortedRoutes)
@@ -418,7 +419,7 @@ namespace AwakenServer.Route
             }
             
             percentToSortedRoutes.ToList().ForEach(kvp =>
-                _logger.LogInformation($"Get best routes, percent: {kvp.Key}, route count: {kvp.Value.Count}"));
+                Log.Information($"Get best routes, percent: {kvp.Key}, route count: {kvp.Value.Count}"));
             
             
             var bestSwaps = new PriorityQueue<PercentSwapRouteDistribution, PercentSwapRouteDistribution>(input.ResultCount, Comparer<PercentSwapRouteDistribution>.Create((quoteRouteA, quoteRouteB) =>
@@ -466,12 +467,12 @@ namespace AwakenServer.Route
             var splits = 1;
             while (queue.Count > 0)
             {
-                _logger.LogInformation($"Get best routes, splits: {splits}, current best swaps count: {bestSwaps.Count}");
+                Log.Information($"Get best routes, splits: {splits}, current best swaps count: {bestSwaps.Count}");
                 var layer = queue.Count;
                 splits++;
                 if (splits > input.MaxSplits)
                 {
-                    _logger.LogInformation("Max splits reached. Stopping search.");
+                    Log.Information("Max splits reached. Stopping search.");
                     break;
                 }
 
@@ -576,7 +577,7 @@ namespace AwakenServer.Route
                         }
                         else
                         {
-                            _logger.LogError($"Get best route, can't find trade pair: {tradePair.Id}");
+                            Log.Error($"Get best route, can't find trade pair: {tradePair.Id}");
                         }
                     }
 

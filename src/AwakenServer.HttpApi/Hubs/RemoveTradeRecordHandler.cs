@@ -6,6 +6,7 @@ using AwakenServer.Trade.Dtos;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Distributed;
 
@@ -42,7 +43,7 @@ namespace AwakenServer.Hubs
                 var tradeRecordGroupName =
                     _tradeHubGroupProvider.GetRemovedTradeRecordGroupName(key[0], Guid.Parse(key[1]));
 
-                _logger.LogInformation(
+                Log.Information(
                     "RemoveTradeRecordHandler,ReceiveRemovedTradeRecord: {tradeRecordGroupName}, {count}",
                     tradeRecordGroupName, keyValuePair.Value.ToList().Count);
                 await _hubContext.Clients.Group(tradeRecordGroupName)
@@ -64,7 +65,7 @@ namespace AwakenServer.Hubs
                         Guid.Parse(key[1]), key[2]);
                 if (connectionIds == null) continue;
 
-                _logger.LogInformation(
+                Log.Information(
                     "RemoveTradeRecordHandler,ReceiveRemovedUserTradeRecord: {connectionId}, {count}", connectionIds,
                     keyValuePair.Value.ToList().Count);
 

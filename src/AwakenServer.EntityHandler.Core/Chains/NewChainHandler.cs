@@ -4,6 +4,7 @@ using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Distributed;
 using Volo.Abp.ObjectMapping;
@@ -30,12 +31,12 @@ public class NewChainHandler : IDistributedEventHandler<NewChainEvent>, ITransie
         try
         {
             await _chainIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewChainEvent, Chain>(eventData));
-            _logger.LogDebug("Chain info add success: {Id}-{Name}-{AElfChainId}", eventData.Id, 
+            Log.Debug("Chain info add success: {Id}-{Name}-{AElfChainId}", eventData.Id, 
                 eventData.Name, eventData.AElfChainId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Chain info add Fail: {Id}-{Name}-{AElfChainId}", eventData.Id,
+            Log.Error(ex, "Chain info add Fail: {Id}-{Name}-{AElfChainId}", eventData.Id,
                 eventData.Name, eventData.AElfChainId);
         }
     }

@@ -8,6 +8,7 @@ using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Serilog;
 using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Grains.Grain.Price;
@@ -59,7 +60,7 @@ public class ChainTradePairsGrain : Grain<ChainTradePairsState>, IChainTradePair
             var result = await grain.GetAsync();
             if (!result.Success)
             {
-                _logger.LogError($"get trade pair grain id: {tradePair.Value} failed.");
+                Log.Error($"get trade pair grain id: {tradePair.Value} failed.");
             }
             data.Add(result.Data);
         }
@@ -82,7 +83,7 @@ public class ChainTradePairsGrain : Grain<ChainTradePairsState>, IChainTradePair
                 var result = await grain.GetAsync();
                 if (!result.Success)
                 {
-                    _logger.LogError($"get trade pair grain id: {State.TradePairs[address]} failed.");
+                    Log.Error($"get trade pair grain id: {State.TradePairs[address]} failed.");
                 }
                 data.Add(result.Data);
             }
@@ -106,7 +107,7 @@ public class ChainTradePairsGrain : Grain<ChainTradePairsState>, IChainTradePair
         var result = await grain.GetAsync();
         if (!result.Success)
         {
-            _logger.LogError($"get trade pair grain id: {State.TradePairs[address]} failed.");
+            Log.Error($"get trade pair grain id: {State.TradePairs[address]} failed.");
         }
 
         return new GrainResultDto<TradePairGrainDto>()

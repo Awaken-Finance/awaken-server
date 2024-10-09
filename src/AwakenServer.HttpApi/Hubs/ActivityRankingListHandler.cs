@@ -3,6 +3,7 @@ using AwakenServer.Activity.Dtos;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.Hubs;
@@ -24,7 +25,7 @@ public class ActivityRankingListHandler : IConsumer<NewIndexEvent<RankingListDto
     {
         var activityRankingListGroup =
             _tradeHubGroupProvider.GetActivityRankingListGroupName(context.Message.Data.ActivityId);
-        _logger.LogInformation(
+        Log.Information(
             "ActivityRankingListHandler: Consume RankingListDto:activityRankingListGroup:ActivityId:{ActivityId}",
             context.Message.Data.ActivityId);
         await _hubContext.Clients.Group(activityRankingListGroup).SendAsync("ReceiveActivityRankingList", context.Message.Data);

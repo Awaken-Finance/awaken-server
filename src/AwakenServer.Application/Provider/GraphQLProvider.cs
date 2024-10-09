@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Orleans;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.Provider;
@@ -93,7 +94,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             };
         }
         
-        _logger.LogInformation("graphQlResponse: {totalCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount);
+        Log.Information("graphQlResponse: {totalCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount);
         
         if (graphQlResponse.Data.TradePairInfoDtoList.TotalCount == 0)
         {
@@ -106,7 +107,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 },
             };
         }
-        _logger.LogInformation("total count is {totalCount},data count:{dataCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount,graphQlResponse.Data.TradePairInfoDtoList.Data.Count);
+        Log.Information("total count is {totalCount},data count:{dataCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount,graphQlResponse.Data.TradePairInfoDtoList.Data.Count);
 
         graphQlResponse.Data.TradePairInfoDtoList.Data.ForEach(pair =>
         {
@@ -131,7 +132,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     {
         /*if (startBlockHeight > endBlockHeight)
         {
-            _logger.LogInformation("EndBlockHeight should be higher than StartBlockHeight");
+            Log.Information("EndBlockHeight should be higher than StartBlockHeight");
             return new List<LiquidityRecordDto>();
         }*/
 
@@ -167,7 +168,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
         });
         
-        _logger.LogInformation($"getLiquidityRecords " +
+        Log.Information($"getLiquidityRecords " +
                                $"startBlockHeight: {startBlockHeight}, " +
                                $"endBlockHeight: {endBlockHeight}, " +
                                $"maxResultCount: {maxResultCount}, " +
@@ -191,7 +192,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     {
         // if (startBlockHeight > endBlockHeight)
         // {
-        //     _logger.LogInformation("EndBlockHeight should be higher than StartBlockHeight");
+        //     Log.Information("EndBlockHeight should be higher than StartBlockHeight");
         //     return new List<SwapRecordDto>();
         // }
 
@@ -335,7 +336,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
                 
         });
-        _logger.LogInformation($"liquidityRecord from graphql: {graphQlResponse.Data.LiquidityRecord.TotalCount}");
+        Log.Information($"liquidityRecord from graphql: {graphQlResponse.Data.LiquidityRecord.TotalCount}");
         return graphQlResponse.Data.LiquidityRecord;
     }
 
@@ -426,7 +427,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     
     public async Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrderDetailsInput input)
     {
-        _logger.LogInformation($"Query limitOrderDetails, OrderId: {input.OrderId}");
+        Log.Information($"Query limitOrderDetails, OrderId: {input.OrderId}");
         var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderDetailResultDto>(new GraphQLRequest
         {
             Query = 
@@ -479,7 +480,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         
         if (graphQlResponse.Data == null || graphQlResponse.Data.LimitOrderDetails == null)
         {
-            _logger.LogError($"Query limitOrderDetails, result is null");
+            Log.Error($"Query limitOrderDetails, result is null");
             return new LimitOrderPageResultDto();
         }
         
@@ -517,7 +518,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "GetIndexBlockHeight on chain {id} error", chainId);
+            Log.Error(e, "GetIndexBlockHeight on chain {id} error", chainId);
             return AppServiceConstant.LongError;
         }
     }
@@ -532,7 +533,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "SetIndexBlockHeight on chain {id} error", chainId);
+            Log.Error(e, "SetIndexBlockHeight on chain {id} error", chainId);
         }
     }
 
@@ -540,7 +541,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     {
         errors.ToList().ForEach(error =>
         {
-            _logger.LogError("GraphQL error: {message}", error.Message);
+            Log.Error("GraphQL error: {message}", error.Message);
         });
     }
 }

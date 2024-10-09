@@ -9,6 +9,7 @@ using AwakenServer.Dtos.GraphQL;
 using AwakenServer.Price;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.Caching;
 using DistributedCacheEntryOptions = Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions;
 
@@ -42,7 +43,7 @@ public class SyncStateProvider : ISyncStateProvider
         var chainSyncState = await _syncStateCache.GetAsync(key);
         if (chainSyncState != null)
         {
-            _logger.LogDebug($"Get sync state cache, key: {key}, LastIrreversibleBlockHeight: {chainSyncState.LastIrreversibleBlockHeight}");
+            Log.Debug($"Get sync state cache, key: {key}, LastIrreversibleBlockHeight: {chainSyncState.LastIrreversibleBlockHeight}");
             return chainSyncState.LastIrreversibleBlockHeight;
         }
         
@@ -60,22 +61,22 @@ public class SyncStateProvider : ISyncStateProvider
                         AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(SyncStateCacheExpirationTimeSeconds)
                     });
 
-                    _logger.LogDebug($"Update sync state cache, key: {key}, LastIrreversibleBlockHeight: {syncStateResponse.LastIrreversibleBlockHeight}");
+                    Log.Debug($"Update sync state cache, key: {key}, LastIrreversibleBlockHeight: {syncStateResponse.LastIrreversibleBlockHeight}");
                     return syncStateResponse.LastIrreversibleBlockHeight;
                 }
-                _logger.LogError($"Update sync state failed. can't find chainId: {chainId} in response");
+                Log.Error($"Update sync state failed. can't find chainId: {chainId} in response");
             }
             catch (Exception e)
             {
                 retryCount++;
-                _logger.LogError(e, $"Attempt {retryCount} failed: GetLastIrreversibleBlockHeightAsync failed.");
+                Log.Error(e, $"Attempt {retryCount} failed: GetLastIrreversibleBlockHeightAsync failed.");
                 if (retryCount >= SyncStateRequestMaxRetries)
                 {
                     break;
                 }
             }
         }
-        _logger.LogError($"Get sync state Maximum retry attempts reached, failing with 0.");
+        Log.Error($"Get sync state Maximum retry attempts reached, failing with 0.");
         return 0;
     }
 }

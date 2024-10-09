@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using AElf.Client.Service;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.CMS;
@@ -75,10 +76,10 @@ public class CmsAppService : AwakenServerAppService, ICmsAppService, ISingletonD
                     PinnedTokens.Add(pinnedTokensDto.ChainId, new List<PinnedTokensDto> { pinnedTokensDto });
                 }
             }
-            _logger.LogInformation("Update cms symbol list success.");
+            Log.Information("Update cms symbol list success.");
             foreach (var keyValuePair in PinnedTokens)
             {
-                _logger.LogInformation("ChainId: {chainId}, Symbol: {symbol}", keyValuePair.Key, string.Join(",", keyValuePair.Value));
+                Log.Information("ChainId: {chainId}, Symbol: {symbol}", keyValuePair.Key, string.Join(",", keyValuePair.Value));
             }
         }
     }

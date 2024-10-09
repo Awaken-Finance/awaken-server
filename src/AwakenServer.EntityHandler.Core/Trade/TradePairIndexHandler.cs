@@ -10,6 +10,7 @@ using MassTransit;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Orleans;
+using Serilog;
 using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using TradePair = AwakenServer.Trade.Index.TradePair;
@@ -50,7 +51,7 @@ namespace AwakenServer.EntityHandler.Trade
                 Data = ObjectMapper.Map<TradePair, TradePairIndexDto>(index)
             });
             
-            _logger.LogInformation($"write trade pair to es, {JsonConvert.SerializeObject(index)}");
+            Log.Information($"write trade pair to es, {JsonConvert.SerializeObject(index)}");
         }
     }
 }

@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
@@ -38,7 +39,7 @@ public class DataCleanupWorker : AwakenServerWorkerBase
             _options.ExecuteDeletion = newOptions.ExecuteDeletion;
             _options.DataVersion = newOptions.DataVersion;
             _options.Indexes = newOptions.Indexes;
-            _logger.LogInformation($"Data cleanup, options change: " +
+            Log.Information($"Data cleanup, options change: " +
                                    $"ExecuteDeletion={_options.ExecuteDeletion}, " +
                                    $"DataVersion={_options.DataVersion}, " +
                                    $"Indexes={_options.Indexes}");
@@ -50,7 +51,7 @@ public class DataCleanupWorker : AwakenServerWorkerBase
         var userLiquidityIndexName = typeof(CurrentUserLiquidityIndex).Name.ToLower();
         var userLiquiditySnapshotIndexName = typeof(UserLiquiditySnapshotIndex).Name.ToLower();
         
-        _logger.LogInformation($"Data cleanup, begin with options: {JsonConvert.SerializeObject(_options)}");
+        Log.Information($"Data cleanup, begin with options: {JsonConvert.SerializeObject(_options)}");
         
         foreach (var indexName in _options.Indexes)
         {
@@ -66,11 +67,11 @@ public class DataCleanupWorker : AwakenServerWorkerBase
             }
             if (result)
             {
-                _logger.LogInformation($"Data cleanup, index: {indexName}, version: {_options.DataVersion} done");
+                Log.Information($"Data cleanup, index: {indexName}, version: {_options.DataVersion} done");
             }
             else
             {
-                _logger.LogError($"Data cleanup, index: {indexName}, version: {_options.DataVersion} failed");
+                Log.Error($"Data cleanup, index: {indexName}, version: {_options.DataVersion} failed");
             }
         }
 

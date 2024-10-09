@@ -10,6 +10,7 @@ using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Caching;
 using Volo.Abp.Threading;
@@ -64,7 +65,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
             _nextLpSnapshotExecutionTime = new TimeSpan(nextHour, randomMinute, randomSecond);
         }
         var endTime = _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000));
-        _logger.LogInformation($"Next execution time set to: {_nextLpSnapshotExecutionTime}, {endTime}");
+        Log.Information($"Next execution time set to: {_nextLpSnapshotExecutionTime}, {endTime}");
     }
 
     
@@ -74,7 +75,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         // 1. Lp Snapshot: random execute
         if (_firstExecution)
         {
-            _logger.LogInformation("Executing LP task at first startup: {time}", DateTime.Now);
+            Log.Information("Executing LP task at first startup: {time}", DateTime.Now);
             await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
             _firstExecution = false; 
             SetNextExecutionTime();
@@ -84,11 +85,11 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
   
             // var endTime = _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000));
             // var result = now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < endTime;
-            // _logger.LogInformation($"now: {now}, nextLpSnapshotExecutionTime: {_nextLpSnapshotExecutionTime}, endTime:{endTime}, exec: {result}");
+            // Log.Information($"now: {now}, nextLpSnapshotExecutionTime: {_nextLpSnapshotExecutionTime}, endTime:{endTime}, exec: {result}");
             
             if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000)))
             {
-                _logger.LogInformation("Executing LP snapshot task at: {time}", now);
+                Log.Information("Executing LP snapshot task at: {time}", now);
                 await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
                 SetNextExecutionTime();
             }
@@ -99,7 +100,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        _logger.LogInformation("Activity swap queryList count: {count}", swapRecordList.Count);
+        Log.Information("Activity swap queryList count: {count}", swapRecordList.Count);
             
         foreach (var swapRecordDto in swapRecordList)
         {

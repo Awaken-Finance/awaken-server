@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.Provider;
@@ -68,7 +69,7 @@ public class RevertProvider : IRevertProvider
         var unconfirmedTransactions = await GetUnConfirmedTransactionsAsync(eventType, chainId,
             startBlockHeight, confirmedHeight);
                 
-        _logger.LogInformation(
+        Log.Information(
             "got unconfirmed transactions, block height range: {0}-{1}, count: {2}, {3}",
             startBlockHeight, confirmedHeight, unconfirmedTransactions.Count(), unconfirmedTransactions.Select(s => s.TransactionHash).ToList());
         
@@ -87,7 +88,7 @@ public class RevertProvider : IRevertProvider
             }
         }
         
-        _logger.LogInformation(
+        Log.Information(
             "got confirmed transactions, block height range: {0}-{1}, count: {2}, transaction hash list: {3}",
             startBlockHeight, confirmedHeight, confirmedTransactionSet.Count(),
             confirmedTransactionSet.ToList());
@@ -95,7 +96,7 @@ public class RevertProvider : IRevertProvider
         // There may be situations where the confirmed transaction list is empty.
         // if (confirmedTransactionSet.IsNullOrEmpty())
         // {
-        //     _logger.LogError("confirmed transactions is empty, block height range {0}-{1}", startBlockHeight,
+        //     Log.Error("confirmed transactions is empty, block height range {0}-{1}", startBlockHeight,
         //         confirmedHeight);
         //     return new List<string>();
         // }
@@ -103,7 +104,7 @@ public class RevertProvider : IRevertProvider
         var needDeletedTransactions = unconfirmedTransactions
             .Where(unconfirmed => !confirmedTransactionSet.Contains(unconfirmed.TransactionHash)).ToList();
 
-        _logger.LogInformation(
+        Log.Information(
             "need delete transactions, block height range:{0}-{1}, count:{2}, transaction hash list:{3}",
             startBlockHeight, confirmedHeight, needDeletedTransactions.Count(),
             needDeletedTransactions.Select(s => s.TransactionHash).ToList());
@@ -122,7 +123,7 @@ public class RevertProvider : IRevertProvider
         }
         else
         {
-            _logger.LogError($"get unconfirmed transactions failed");
+            Log.Error($"get unconfirmed transactions failed");
         }
 
         return new List<UnconfirmedTransactionsGrainDto>();

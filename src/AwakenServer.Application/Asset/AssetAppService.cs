@@ -23,6 +23,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
 using Orleans;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
@@ -83,7 +84,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
     public async Task<UserAssetInfoDto> GetUserAssetInfoAsync(GetUserAssetInfoDto input)
     {
         var tokenList = await _graphQlProvider.GetUserTokensAsync(input.ChainId, input.Address);
-        _logger.LogInformation("get user token list from indexer,symbol:{symbol}",
+        Log.Information("get user token list from indexer,symbol:{symbol}",
             tokenList.Select(s => s.Symbol).ToList());
         if (tokenList == null || tokenList.Count == 0)
         {
@@ -138,7 +139,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
                     continue;
                 }
 
-                _logger.LogInformation("get balance,token:{token},balance:{balance}", nftSymbol, balanceOutput.Balance);
+                Log.Information("get balance,token:{token},balance:{balance}", nftSymbol, balanceOutput.Balance);
                 if (balanceOutput != null)
                 {
                     var userTokenInfo = new UserTokenInfo()
@@ -236,7 +237,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             await _aelfClientProvider.GetTokenInfoAsync(chainId, null, symbol);
         if (tokenInfo == null)
         {
-            _logger.LogInformation("GetTokenInfo is null:{token}", symbol);
+            Log.Information("GetTokenInfo is null:{token}", symbol);
             return 0;
         }
 
@@ -298,7 +299,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
 
     public async Task<IdleTokensDto> GetIdleTokensAsync(GetIdleTokensDto input)
     {
-        _logger.LogInformation($"get idle tokens, CultureInfo.CurrentCulture: {CultureInfo.CurrentCulture.Name}");
+        Log.Information($"get idle tokens, CultureInfo.CurrentCulture: {CultureInfo.CurrentCulture.Name}");
         
         var tokenListDto = await GetUserAssetInfoAsync(new GetUserAssetInfoDto()
         {
@@ -358,7 +359,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
                 idleTokenList[idleTokenList.Count - 1].ValueInUsd = otherSumValueInUsd.ToString();
             }
 
-            _logger.LogInformation(
+            Log.Information(
                 $"get idle tokens symbol: {tokenDto.Symbol}, price usd: {userTokenInfo.PriceInUsd}, total usd: {totalValueInUsd}, percent: {percent}");
         }
         

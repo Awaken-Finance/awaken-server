@@ -10,6 +10,7 @@ using AwakenServer.Tokens;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson.IO;
+using Serilog;
 using TransactionFeeCharged = AElf.Contracts.MultiToken.TransactionFeeCharged;
 using TokenInfo = AElf.Contracts.MultiToken.TokenInfo;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
@@ -58,7 +59,7 @@ namespace AwakenServer.Chains
 
             var token = await GetTokenInfoFromChainAsync(chainName, address, symbol);
             
-            _logger.LogInformation($"get token info, chain: {chainName}, address:{address}, symbol: {symbol}, TokenInfo: {JsonConvert.SerializeObject(token)}");
+            Log.Information($"get token info, chain: {chainName}, address:{address}, symbol: {symbol}, TokenInfo: {JsonConvert.SerializeObject(token)}");
             
             var externalInfo = token.ExternalInfo;
             if (externalInfo != null && externalInfo.Value != null)
@@ -142,7 +143,7 @@ namespace AwakenServer.Chains
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "GetTransactionFeeAsync fail.");
+                Log.Error(e, "GetTransactionFeeAsync fail.");
                 return 0;
             }
         }
@@ -161,13 +162,13 @@ namespace AwakenServer.Chains
             };
 
             var from = client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey);
-            _logger.LogInformation($"GenerateTransactionAsync, key: {ChainsInitOptions.PrivateKey}, from: {from}, to: {contractAddress}");
+            Log.Information($"GenerateTransactionAsync, key: {ChainsInitOptions.PrivateKey}, from: {from}, to: {contractAddress}");
             var transactionGetBalance =
                 await client.GenerateTransactionAsync(from,
                     contractAddress,
                     "GetBalance",
                     paramGetBalance);
-            _logger.LogInformation($"transactionGetBalance: {transactionGetBalance}, from: {from}, to: {contractAddress}");
+            Log.Information($"transactionGetBalance: {transactionGetBalance}, from: {from}, to: {contractAddress}");
             var txWithSignGetBalance = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetBalance);
             var transactionGetTokenResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
             {
@@ -200,7 +201,7 @@ namespace AwakenServer.Chains
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Get the current status of a transaction {chainName}:{transactionHash} fail.", chainName, transactionHash);
+                Log.Error(e, "Get the current status of a transaction {chainName}:{transactionHash} fail.", chainName, transactionHash);
                 return -1;
             }
         }

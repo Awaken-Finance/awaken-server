@@ -10,6 +10,7 @@ using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
@@ -48,11 +49,11 @@ namespace AwakenServer.Worker
                 try
                 {
                     var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod), _workerOptions.DataVersion);
-                    _logger.LogInformation($"update user all liquidity address: {address}, affected liquidity count: {count}");
+                    Log.Information($"update user all liquidity address: {address}, affected liquidity count: {count}");
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError($"update user all liquidity faild. address: {address}, {e}");
+                    Log.Error(e, $"update user all liquidity faild. address: {address}, {e.Message}");
                 }
                 
             }

@@ -6,6 +6,7 @@ using AwakenServer.Price;
 using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
 using Volo.Abp.ObjectMapping;
@@ -48,7 +49,7 @@ namespace AwakenServer.Trade.Handlers
             }
             catch (Exception e)
             {
-                _logger.LogError($"Update affected price map from swap failed. {e}");
+                Log.Error(e, $"Update affected price map from swap failed. {e.Message}");
             }
         }
     }

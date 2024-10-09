@@ -7,6 +7,7 @@ using AwakenServer.Trade.Etos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Serilog;
 using Serilog.Core;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
@@ -57,7 +58,7 @@ namespace AwakenServer.Trade.Handlers
                 var tradePairResult = await tradePairGrain.GetAsync();
                 if (!tradePairResult.Success)
                 {
-                    _logger.LogError($"kline handler, can't find trade pair: {eventData.TradePairId}");
+                    Log.Error($"kline handler, can't find trade pair: {eventData.TradePairId}");
                     continue;
                 }
                 

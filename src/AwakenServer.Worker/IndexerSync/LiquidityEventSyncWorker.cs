@@ -8,6 +8,7 @@ using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
@@ -57,7 +58,7 @@ public class LiquidityEventSyncWorker : AwakenServerWorkerBase
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "liquidity event fail.");
+            Log.Error(e, "liquidity event fail.");
         }
 
         return blockHeight;

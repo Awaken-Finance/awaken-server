@@ -10,6 +10,7 @@ using AwakenServer.Common;
 using AwakenServer.Provider;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Serilog;
 
 
 namespace AwakenServer.Worker;
@@ -64,7 +65,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         _workerOptions.DataVersion = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
             optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).DataVersion : "v1";
         
-        _logger.LogInformation($"AwakenServerWorkerBase: BusinessType: {_businessType.ToString()}," +
+        Log.Information($"AwakenServerWorkerBase: BusinessType: {_businessType.ToString()}," +
                                $"Start with config: " +
                                $"TimePeriod: {timer.Period}, " +
                                $"ResetBlockHeightFlag: {_workerOptions.ResetBlockHeightFlag}, " +
@@ -100,11 +101,11 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
                 foreach (var chainHasResetBlockHeight in _chainHasResetBlockHeight)
                 {
                     _chainHasResetBlockHeight[chainHasResetBlockHeight.Key] = false;
-                    _logger.LogInformation($"On options change, chain: {chainHasResetBlockHeight.Key}, HasResetBlockHeight: {_chainHasResetBlockHeight[chainHasResetBlockHeight.Key]}");
+                    Log.Information($"On options change, chain: {chainHasResetBlockHeight.Key}, HasResetBlockHeight: {_chainHasResetBlockHeight[chainHasResetBlockHeight.Key]}");
                 }
             }
             
-            _logger.LogInformation(
+            Log.Information(
                 "The workerSetting of Worker {BusinessType} has changed to Period = {Period} ms, OpenSwitch = {OpenSwitch}, ResetBlockHeightFlag = {ResetBlockHeightFlag}, ResetBlockHeight = {ResetBlockHeight}",
                 _businessType, timer.Period, workerSetting.OpenSwitch, workerSetting.ResetBlockHeightFlag, workerSetting.ResetBlockHeight);
         });
@@ -118,7 +119,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
             await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType,
                 _workerOptions.ResetBlockHeight));
         _chainHasResetBlockHeight[chain.Name] = true;
-        _logger.LogInformation($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}, chain has reset block height: {_chainHasResetBlockHeight[chain.Name]}");
+        Log.Information($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}, chain has reset block height: {_chainHasResetBlockHeight[chain.Name]}");
     }
     
     public async Task DealDataAsync()
@@ -146,7 +147,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
             {
                 var lastEndHeight = await _graphQlProvider.GetLastEndHeightAsync(chain.Name, _businessType);
                 
-                _logger.LogInformation(
+                Log.Information(
                     $"Start deal data for businessType: {_businessType} " +
                     $"chainId: {chain.Name}, " +
                     $"lastEndHeight: {lastEndHeight}, " +
@@ -169,13 +170,13 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
                     }
                 }
                 
-                _logger.LogInformation(
+                Log.Information(
                     "End deal data for businessType: {businessType} chainId: {chainId} blockHeight: {BlockHeight} lastEndHeight:{lastEndHeight}",
                     _businessType, chain.Name, blockHeight, lastEndHeight);
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "DealDataAsync error businessType:{businessType} chainId: {chainId}",
+                Log.Error(e, "DealDataAsync error businessType:{businessType} chainId: {chainId}",
                     _businessType.ToString(), chain.Name);
             }
         }

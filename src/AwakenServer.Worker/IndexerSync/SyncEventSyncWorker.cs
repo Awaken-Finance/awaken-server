@@ -10,6 +10,7 @@ using DnsClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
@@ -43,7 +44,7 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
         
         var queryList = await _graphQlProvider.GetSyncRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        _logger.LogInformation("sync queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Id);
+        Log.Information("sync queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Id);
         
         try
         {
@@ -55,7 +56,7 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "sync event fail.");
+            Log.Error(e, "sync event fail.");
         }
 
         return blockHeight;

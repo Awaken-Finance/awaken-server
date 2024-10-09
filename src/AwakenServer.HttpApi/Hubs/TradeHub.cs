@@ -9,6 +9,7 @@ using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Volo.Abp.AspNetCore.SignalR;
 
 namespace AwakenServer.Hubs
@@ -55,7 +56,7 @@ namespace AwakenServer.Hubs
                 SkipCount = 0,
                 MaxResultCount = maxResultCount
             });
-            _logger.LogInformation("RequestTradeRecord TimestampMin: {timestamp}",
+            Log.Information("RequestTradeRecord TimestampMin: {timestamp}",
                 timestamp == 0 ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8)) : timestamp);
             await Clients.Caller.SendAsync("ReceiveTradeRecords", new TradeRecordModel<List<TradeRecordIndexDto>>
             {

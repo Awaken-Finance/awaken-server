@@ -11,6 +11,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
+using Serilog;
 using Volo.Abp.Caching;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.ObjectMapping;
@@ -62,7 +63,7 @@ namespace AwakenServer.Trade
             var price = await _priceAppService.GetTokenPriceListAsync(new List<string> { symbol });
             if (price == null || price.Items.Count == 0)
             {
-                _logger.LogError("GetTokenUSDPriceAsync，can not find price,token:{symbol},chain:{chainId}",
+                Log.Error("GetTokenUSDPriceAsync，can not find price,token:{symbol},chain:{chainId}",
                     symbol, chainId);
                 return 0;
             }

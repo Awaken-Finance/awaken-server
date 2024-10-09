@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
 using Org.BouncyCastle.Bcpg.OpenPgp;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -88,7 +89,7 @@ namespace AwakenServer.Price
             }
             catch (Exception e)
             {
-                Logger.LogInformation($"Get token price symbol: {symbol}, nonexistent mapping symbol");
+                Log.Information($"Get token price symbol: {symbol}, nonexistent mapping symbol");
                 return null;
             }
         }
@@ -115,7 +116,7 @@ namespace AwakenServer.Price
             
             var rawPrice = await _tokenPriceProvider.GetPriceAsync(pair);
             var result = await ProcessTokenPrice(symbol, rawPrice, null);
-            Logger.LogInformation($"Get token price symbol: {symbol}, pair: {pair}, rawPrice: {rawPrice}, result price: {result}");
+            Log.Information($"Get token price symbol: {symbol}, pair: {pair}, rawPrice: {rawPrice}, result price: {result}");
             return result;
         }
 
@@ -124,14 +125,14 @@ namespace AwakenServer.Price
             var pair = GetTokenApiName(symbol);
             if (String.IsNullOrEmpty(pair))
             {
-                Logger.LogInformation($"Get history token price symbol: {symbol}, nonexistent mapping result price: 0");
+                Log.Information($"Get history token price symbol: {symbol}, nonexistent mapping result price: 0");
                 return 0;
             }
             
             var rawPrice = await _tokenPriceProvider.GetHistoryPriceAsync(pair, time);
             var result = await ProcessTokenPrice(symbol, rawPrice, time);
             
-            Logger.LogInformation($"Get history token price symbol: {symbol}, pair: {pair}, time: {time}, rawPrice: {rawPrice}, result price: {result}");
+            Log.Information($"Get history token price symbol: {symbol}, pair: {pair}, time: {time}, rawPrice: {rawPrice}, result price: {result}");
             
             return result;
         }
@@ -179,11 +180,11 @@ namespace AwakenServer.Price
                             AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
                         });
                     }
-                    Logger.LogError(e, $"Get token price symbol: {symbol} failed. Return old data price: {price.PriceInUsd}");
+                    Log.Error(e, $"Get token price symbol: {symbol} failed. Return old data price: {price.PriceInUsd}");
                 }
             }
                     
-            Logger.LogInformation($"Get token price symbol: {symbol}, return price: {price.PriceInUsd}");
+            Log.Information($"Get token price symbol: {symbol}, return price: {price.PriceInUsd}");
             return new TokenPriceDataDto
             {
                 Symbol = symbol,
@@ -197,7 +198,7 @@ namespace AwakenServer.Price
             var internalPriceDto = await _internalPriceCache.GetAsync(key);
             if (internalPriceDto != null)
             {
-                Logger.LogInformation($"Get internal token price symbol: {symbol}, return price: {internalPriceDto.PriceInUsd}");
+                Log.Information($"Get internal token price symbol: {symbol}, return price: {internalPriceDto.PriceInUsd}");
                 return new TokenPriceDataDto()
                 {
                     Symbol = symbol,
@@ -205,7 +206,7 @@ namespace AwakenServer.Price
                 };
             }
             
-            Logger.LogInformation($"Get internal token price symbol: {symbol}, return price: 0");
+            Log.Information($"Get internal token price symbol: {symbol}, return price: 0");
             return new TokenPriceDataDto()
             {
                 Symbol = symbol,
@@ -238,12 +239,12 @@ namespace AwakenServer.Price
                 }
                 catch (Exception e)
                 {
-                    Logger.LogError(e, $"Get history token price symbol: {input.Symbol}, time: {time} failed. Return old data price: {price.PriceInUsd}");
+                    Log.Error(e, $"Get history token price symbol: {input.Symbol}, time: {time} failed. Return old data price: {price.PriceInUsd}");
                 }
                        
             }
                     
-            Logger.LogInformation($"Get history token price symbol: {input.Symbol}, time: {time}, return price: {price.PriceInUsd}");
+            Log.Information($"Get history token price symbol: {input.Symbol}, time: {time}, return price: {price.PriceInUsd}");
             
             return new TokenPriceDataDto
             {
@@ -259,7 +260,7 @@ namespace AwakenServer.Price
             var internalPriceDto = await _internalPriceCache.GetAsync(historyKey);
             if (internalPriceDto != null)
             {
-                Logger.LogInformation($"Get internal history token price symbol: {input.Symbol}, return price: {internalPriceDto.PriceInUsd}");
+                Log.Information($"Get internal history token price symbol: {input.Symbol}, return price: {internalPriceDto.PriceInUsd}");
                 return new TokenPriceDataDto()
                 {
                     Symbol = input.Symbol,
@@ -268,7 +269,7 @@ namespace AwakenServer.Price
             }
             
             
-            Logger.LogInformation($"Get internal history token price symbol: {input.Symbol}, return price: 0");
+            Log.Information($"Get internal history token price symbol: {input.Symbol}, return price: 0");
             return new TokenPriceDataDto()
             {
                 Symbol = input.Symbol,
@@ -303,7 +304,7 @@ namespace AwakenServer.Price
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Get token price failed.");
+                Log.Error(ex, "Get token price failed.");
                 throw;
             }
 
@@ -326,7 +327,7 @@ namespace AwakenServer.Price
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, $"Get {input.Symbol}, {input.DateTime} history token price failed.");
+                Log.Error(ex, $"Get {input.Symbol}, {input.DateTime} history token price failed.");
                 throw;
             }
         }
@@ -353,7 +354,7 @@ namespace AwakenServer.Price
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Get history token price failed.");
+                Log.Error(ex, "Get history token price failed.");
                 throw;
             }
 
@@ -365,7 +366,7 @@ namespace AwakenServer.Price
         
         public void PrintPricingNodeTree(PricingNode node, int indent = 0)
         {
-            _logger.LogInformation($"{new string(' ', indent * 2)}Price Spread. Tree Depth: {node.Depth}, FromTokenSymbol: {node.FromTokenSymbol}, TokenSymbol: {node.TokenSymbol}, PriceInUsd: {node.PriceInUsd}, FromTradePairAddress: {node.FromTradePairAddress}");
+            Log.Information($"{new string(' ', indent * 2)}Price Spread. Tree Depth: {node.Depth}, FromTokenSymbol: {node.FromTokenSymbol}, TokenSymbol: {node.TokenSymbol}, PriceInUsd: {node.PriceInUsd}, FromTradePairAddress: {node.FromTradePairAddress}");
 
             foreach (var child in node.ToTokens)
             {
@@ -465,7 +466,7 @@ namespace AwakenServer.Price
             var graph = await BuildRelationsAsync(tradePairs);
             var priceTokens = await GetPriceTokensAsync(graph);
             
-            _logger.LogInformation($"Price Spread. Build pricing map. " +
+            Log.Information($"Price Spread. Build pricing map. " +
                                    $"Init: with price tokens: {JsonConvert.SerializeObject(priceTokens.Item1)}, " +
                                    $"no price tokens: {JsonConvert.SerializeObject(priceTokens.Item2)}");
             
@@ -582,7 +583,7 @@ namespace AwakenServer.Price
                     AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
                 });
                 
-                _logger.LogInformation($"Price Spread. Update affected from swap token price. " +
+                Log.Information($"Price Spread. Update affected from swap token price. " +
                                        $"key: {key}, historyKey: {historyKey}, price: {priceDto.PriceInUsd}, update time: {priceDto.PriceUpdateTime}");
             }
         }
@@ -595,7 +596,7 @@ namespace AwakenServer.Price
                 : tradePair.ValueLocked1 / tradePair.ValueLocked0) * tokenPricingMap.TokenToPrice[root.FromTokenSymbol];
             tokenPricingMap.TokenToPrice[root.TokenSymbol] = root.PriceInUsd;
             needUpdateTokenPrice[root.TokenSymbol] = root.PriceInUsd;
-            _logger.LogInformation($"Price Spread. Update pricing map from trade pair. node: {root.TokenSymbol}, price: {root.PriceInUsd}");
+            Log.Information($"Price Spread. Update pricing map from trade pair. node: {root.TokenSymbol}, price: {root.PriceInUsd}");
             foreach (var node in root.ToTokens)
             {
                 await UpdaeNodePriceAsync(tokenPricingMap, node, needUpdateTokenPrice);
@@ -611,7 +612,7 @@ namespace AwakenServer.Price
                     : token1Amount / token0Amount) * tokenPricingMap.TokenToPrice[root.FromTokenSymbol];
                 tokenPricingMap.TokenToPrice[root.TokenSymbol] = root.PriceInUsd;
                 needUpdateTokenPrice[root.TokenSymbol] = root.PriceInUsd;
-                _logger.LogInformation($"Price Spread. Update pricing map from trade pair. Trade pair: {tradePair.Address}, spread from source: {root.TokenSymbol}, price: {root.PriceInUsd}");
+                Log.Information($"Price Spread. Update pricing map from trade pair. Trade pair: {tradePair.Address}, spread from source: {root.TokenSymbol}, price: {root.PriceInUsd}");
                 foreach (var node in root.ToTokens)
                 {
                     await UpdaeNodePriceAsync(tokenPricingMap, node, needUpdateTokenPrice);
@@ -650,11 +651,11 @@ namespace AwakenServer.Price
                 {
                     await _tokenPricingMapCache.SetAsync(pricingMapKey, tokenPricingMap);
                     await UpdateInternalPriceCacheAsync(tokenPricingMap.TokenToPrice);
-                    _logger.LogInformation($"Price Spread. Rebuild pricing tree. Cache key: {pricingMapKey}, price count: {tokenPricingMap.TokenToPrice.Count}");
+                    Log.Information($"Price Spread. Rebuild pricing tree. Cache key: {pricingMapKey}, price count: {tokenPricingMap.TokenToPrice.Count}");
                 }
                 else
                 {
-                    _logger.LogInformation($"Price Spread. Rebuild pricing tree failed, can not get cache lock {pricingMapKey}");
+                    Log.Information($"Price Spread. Rebuild pricing tree failed, can not get cache lock {pricingMapKey}");
                 }
             }
         }
@@ -685,7 +686,7 @@ namespace AwakenServer.Price
                 var pair = await _tradePairIndexRepository.GetAsync(tradePairId);
                 if (pair == null)
                 {
-                    _logger.LogInformation($"Price Spread. Get pair: {tradePairId} failed");
+                    Log.Information($"Price Spread. Get pair: {tradePairId} failed");
                     return;
                 }
 
@@ -698,17 +699,17 @@ namespace AwakenServer.Price
                 if (newTree)
                 {
                     await UpdateInternalPriceCacheAsync(tokenPricingMap.TokenToPrice);
-                    _logger.LogInformation($"Price Spread. Build new tree and cache price. Cache key: {pricingMapKey}, update price count: {tokenPricingMap.TokenToPrice.Count}");
+                    Log.Information($"Price Spread. Build new tree and cache price. Cache key: {pricingMapKey}, update price count: {tokenPricingMap.TokenToPrice.Count}");
                 }
                 else
                 {
                     await UpdateInternalPriceCacheAsync(needUpdateTokenPrice);
-                    _logger.LogInformation($"Price Spread. Update tree and cache price. Cache key: {pricingMapKey}, need update price count: {needUpdateTokenPrice.Count}");
+                    Log.Information($"Price Spread. Update tree and cache price. Cache key: {pricingMapKey}, need update price count: {needUpdateTokenPrice.Count}");
                 }
             }
             else
             {
-                 _logger.LogInformation($"Price Spread. Update tree and cache price failed, can not get cache lock: {pricingMapKey}");
+                 Log.Information($"Price Spread. Update tree and cache price failed, can not get cache lock: {pricingMapKey}");
             }
         }
         

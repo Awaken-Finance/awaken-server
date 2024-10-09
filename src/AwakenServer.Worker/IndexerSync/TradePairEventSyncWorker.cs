@@ -11,6 +11,7 @@ using DnsClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
@@ -55,7 +56,7 @@ public class TradePairEventSyncWorker : AwakenServerWorkerBase
         {
             blockHeight = Math.Max(blockHeight, pair.BlockHeight);
 
-            _logger.LogInformation("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol}",
+            Log.Information("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol}",
                 pair.Id, pair.Address, chain, pair.Token0Symbol, pair.Token1Symbol);
 
             var token0 = await _tradePairAppService.SyncTokenAsync(pair.ChainId, pair.Token0Symbol, chain);
@@ -64,12 +65,12 @@ public class TradePairEventSyncWorker : AwakenServerWorkerBase
             pair.Token1Id = token1.Id;
             if (await _tradePairAppService.SyncPairAsync(pair, chain))
             {
-                _logger.LogInformation("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol} done",
+                Log.Information("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol} done",
                     pair.Id, pair.Address, chain, pair.Token0Symbol, pair.Token1Symbol);
             }
             else
             {
-                _logger.LogError("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol} failed",
+                Log.Error("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol} failed",
                     pair.Id, pair.Address, chain, pair.Token0Symbol, pair.Token1Symbol);
             }
         }

@@ -8,6 +8,7 @@ using CoinGecko.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.CoinGeckoApi;
@@ -59,7 +60,7 @@ public class TokenPriceProvider : ITokenPriceProvider
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "can not get current price: {symbol}.", symbol);
+            Log.Error(ex, "can not get current price: {symbol}.", symbol);
             throw;
         }
     }
@@ -97,11 +98,11 @@ public class TokenPriceProvider : ITokenPriceProvider
             catch (Exception ex)
             {
                 retryAttempts++;
-                _logger.LogWarning($"Get history token price {symbol}, Attempt {retryAttempts} failed: {ex.Message}");
+                Log.Warning($"Get history token price {symbol}, Attempt {retryAttempts} failed: {ex.Message}");
 
                 if (retryAttempts >= MaxRetryAttempts)
                 {
-                    _logger.LogError($"Get history token price {symbol}, Max retry attempts reached. Unable to get coin price.");
+                    Log.Error($"Get history token price {symbol}, Max retry attempts reached. Unable to get coin price.");
                     return 0;
                 }
 

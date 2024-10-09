@@ -4,6 +4,7 @@ using AElf.Indexing.Elasticsearch;
 using AwakenServer.Tokens;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
 using Volo.Abp.EventBus.Distributed;
@@ -32,12 +33,12 @@ public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransient
         try
         {
             await _tokenIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewTokenEvent, Token>(eventData));
-            _logger.LogDebug("Token info add success:{Id}-{Symbol}-{ChainId}, ImageUri:{ImageUri}", eventData.Id, eventData.Symbol,
+            Log.Debug("Token info add success:{Id}-{Symbol}-{ChainId}, ImageUri:{ImageUri}", eventData.Id, eventData.Symbol,
                 eventData.ChainId, eventData.ImageUri);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "{Id}-{Symbol}-{ChainId}", eventData.Id, eventData.Symbol,
+            Log.Error(ex, "{Id}-{Symbol}-{ChainId}", eventData.Id, eventData.Symbol,
                 eventData.ChainId);
         }
     }

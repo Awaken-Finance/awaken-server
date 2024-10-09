@@ -3,6 +3,7 @@ using AwakenServer.Trade.Dtos;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Distributed;
 
@@ -31,7 +32,7 @@ namespace AwakenServer.Hubs
             var tradeRecordGroupName =
                 _tradeHubGroupProvider.GetTradeRecordGroupName(eventData.Message.Data.ChainId,
                     eventData.Message.Data.TradePair.Id, 0);
-            _logger.LogInformation(
+            Log.Information(
                 "NewTradeRecordHandler,ReceiveTradeRecord: {tradeRecordGroupName},address: {address}",
                 tradeRecordGroupName, eventData.Message.Data.Address);
             await _hubContext.Clients.Group(tradeRecordGroupName)
@@ -40,7 +41,7 @@ namespace AwakenServer.Hubs
             var connectionIds = _tradeHubConnectionProvider.GetUserConnectionList(eventData.Message.Data.ChainId,
                 eventData.Message.Data.TradePair.Id, eventData.Message.Data.Address);
             if (connectionIds == null) return;
-            _logger.LogInformation("NewTradeRecordHandler,ReceiveUserTradeRecord: {connectionId},address:{address}",
+            Log.Information("NewTradeRecordHandler,ReceiveUserTradeRecord: {connectionId},address:{address}",
                 connectionIds, eventData.Message.Data.Address);
             foreach (var connectionId in connectionIds)
             {

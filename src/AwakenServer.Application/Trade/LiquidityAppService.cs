@@ -15,6 +15,7 @@ using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -33,7 +34,6 @@ namespace AwakenServer.Trade
         private readonly IClusterClient _clusterClient;
         private readonly IAElfClientProvider _aelfClientProvider;
         private readonly ILocalEventBus _localEventBus;
-        private readonly ILogger<LiquidityAppService> _logger;
         private readonly IRevertProvider _revertProvider;
         private readonly IObjectMapper _objectMapper;
         private readonly IAElfClientProvider _blockchainClientProvider;
@@ -52,7 +52,6 @@ namespace AwakenServer.Trade
             IClusterClient clusterClient,
             IAElfClientProvider aefClientProvider,
             ILocalEventBus localEventBus,
-            ILogger<LiquidityAppService> logger,
             IRevertProvider revertProvider,
             IObjectMapper objectMapper,
             IAElfClientProvider blockchainClientProvider,
@@ -65,7 +64,6 @@ namespace AwakenServer.Trade
             _clusterClient = clusterClient;
             _aelfClientProvider = aefClientProvider;
             _localEventBus = localEventBus;
-            _logger = logger;
             _revertProvider = revertProvider;
             _objectMapper = objectMapper;
             _blockchainClientProvider = blockchainClientProvider;
@@ -75,7 +73,7 @@ namespace AwakenServer.Trade
         
         public async Task<PagedResultDto<LiquidityRecordIndexDto>> GetRecordsAsync(GetLiquidityRecordsInput input)
         {
-            _logger.LogInformation($"GetRecordsAsync, {JsonConvert.SerializeObject(input)}");
+            Log.Information($"GetRecordsAsync, {JsonConvert.SerializeObject(input)}");
             
             var qlQueryInput = new GetLiquidityRecordIndexInput();
 
@@ -90,14 +88,14 @@ namespace AwakenServer.Trade
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Get tradePairIndexDto failed.");
+                Log.Error(ex, "Get tradePairIndexDto failed.");
                 throw;
             }
             
             var queryResult = await _graphQlProvider.QueryLiquidityRecordAsync(qlQueryInput);
             var dataList = new List<LiquidityRecordIndexDto>();
             
-            _logger.LogInformation($"QueryLiquidityRecordAsync data count: {queryResult.Data.Count}");
+            Log.Information($"QueryLiquidityRecordAsync data count: {queryResult.Data.Count}");
             
             if (queryResult.TotalCount == 0 || queryResult.Data.IsNullOrEmpty())
             {
@@ -115,7 +113,7 @@ namespace AwakenServer.Trade
                     t => t);
             
             
-            _logger.LogInformation($"get trade pairs: {JsonConvert.SerializeObject(pairs)}");
+            Log.Information($"get trade pairs: {JsonConvert.SerializeObject(pairs)}");
             foreach (var recordDto in queryResult.Data)
             {
                 var indexDto = new LiquidityRecordIndexDto();
@@ -124,7 +122,7 @@ namespace AwakenServer.Trade
                 indexDto.TradePair = pairs.GetValueOrDefault(recordDto.Pair, null);
                 if (indexDto.TradePair == null)
                 {
-                    _logger.LogError($"can't find trade pair {recordDto.Pair}");
+                    Log.Error($"can't find trade pair {recordDto.Pair}");
                     continue;
                 }
 
@@ -144,7 +142,7 @@ namespace AwakenServer.Trade
                 indexDto.TransactionFee =
                     await _aelfClientProvider.GetTransactionFeeAsync(qlQueryInput.ChainId, recordDto.TransactionHash) /
                     Math.Pow(10, 8);
-                _logger.LogInformation($"liquidity record index, txn hash :{indexDto.TransactionHash}, Txn fee{indexDto.TransactionFee}");
+                Log.Information($"liquidity record index, txn hash :{indexDto.TransactionHash}, Txn fee{indexDto.TransactionFee}");
                 dataList.Add(indexDto);
             }
 
@@ -193,7 +191,7 @@ namespace AwakenServer.Trade
             var dataList = new List<UserLiquidityIndexDto>();
 
             var queryResult = await _graphQlProvider.QueryUserLiquidityAsync(input);
-            _logger.LogInformation($"GetUserLiquidityFromGraphQLAsync data count: {queryResult.Data.Count}");
+            Log.Information($"GetUserLiquidityFromGraphQLAsync data count: {queryResult.Data.Count}");
             
             if (queryResult.TotalCount == 0 || queryResult.Data.IsNullOrEmpty())
             {
@@ -216,7 +214,7 @@ namespace AwakenServer.Trade
                 var tradePairIndex = pairs.GetValueOrDefault(dto.Pair, null);
                 if (tradePairIndex == null)
                 {
-                    _logger.LogError($"can't find trade pair {dto.Pair}");
+                    Log.Error($"can't find trade pair {dto.Pair}");
                     continue;
                 }
 
@@ -232,7 +230,7 @@ namespace AwakenServer.Trade
                     : dto.LpTokenAmount / double.Parse(tradePairIndex.TotalSupply);
                 
                 
-                _logger.LogInformation(
+                Log.Information(
                     "User liquidity, tradePairIndex.TotalSupply: {supply}, " +
                     "dto.LpTokenAmount: {LpTokenAmount}, " +
                     "prop:{prop}, " +
@@ -317,7 +315,7 @@ namespace AwakenServer.Trade
             var tradePair = await _tradePairAppService.GetTradePairAsync(input.ChainId, input.Pair);
             if (tradePair == null)
             {
-                _logger.LogInformation("tradePair not existed,chainId:{chainId}, address:{address}", input.ChainId,
+                Log.Information("tradePair not existed,chainId:{chainId}, address:{address}", input.ChainId,
                     input.Pair);
                 return false;
             }
@@ -371,7 +369,7 @@ namespace AwakenServer.Trade
             }
             catch (Exception e)
             {
-                _logger.LogError("Revert liquidity err:{0}", e);
+                Log.Error(e, "Revert liquidity err.");
             }
         }
         

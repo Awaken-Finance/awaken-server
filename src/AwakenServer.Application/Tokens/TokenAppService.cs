@@ -8,6 +8,7 @@ using AwakenServer.Grains.Grain.Tokens;
 using Microsoft.Extensions.Logging;
 using Nest;
 using Orleans;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.EventBus.Distributed;
@@ -135,7 +136,7 @@ namespace AwakenServer.Tokens
                 SymbolCache.AddOrUpdate(tokenGrainDto.Data.Symbol, tokenDto, (_, existingTokenDto) => tokenDto);
             }
 
-            _logger.LogInformation("token created: Id:{id}, ChainId:{chainId}, Symbol:{symbol}, Decimal:{decimal}, ImageUri:{ImageUri}",
+            Log.Information("token created: Id:{id}, ChainId:{chainId}, Symbol:{symbol}, Decimal:{decimal}, ImageUri:{ImageUri}",
                 token.Id,
                 token.ChainId, token.Symbol, token.Decimals, token.ImageUri);
             
