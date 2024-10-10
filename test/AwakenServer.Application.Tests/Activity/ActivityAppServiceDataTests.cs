@@ -291,7 +291,7 @@ namespace AwakenServer.Activity
             result.ShouldBeTrue();
             
             // snapshot1
-            var createActivityLpSnapshotResult = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime1));
+            var createActivityLpSnapshotResult = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime1), "test");
             createActivityLpSnapshotResult.ShouldBe(true);
             
             var userActivityInfo = await _userActivityInfoRepository.GetListAsync();
@@ -326,7 +326,7 @@ namespace AwakenServer.Activity
             result.ShouldBeTrue();
             
             // snapshot2
-            createActivityLpSnapshotResult = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime2));
+            createActivityLpSnapshotResult = await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime2), "test");
             createActivityLpSnapshotResult.ShouldBe(true);
             
             userActivityInfo = await _userActivityInfoRepository.GetListAsync(sortExp: k=>k.TotalPoint, sortType: SortOrder.Descending);

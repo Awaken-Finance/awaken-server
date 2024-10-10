@@ -525,7 +525,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return result;
     }
 
-    public async Task<bool> CreateLpSnapshotAsync(long executeTime)
+    public async Task<bool> CreateLpSnapshotAsync(long executeTime, string type)
     {
         var snapshotTime = RandomSnapshotHelper.GetLpSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(executeTime));
         foreach (var activity in _activityOptions.ActivityList)
@@ -534,14 +534,18 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             {
                 continue;
             }
+            
             _logger.LogInformation($"Create LP snapshot, " +
+                                   $"from: {type}, " +
                                    $"activityId: {activity.ActivityId}, " +
                                    $"executeTime: {executeTime}, " +
                                    $"activity time: {activity.BeginTime}-{activity.EndTime}, " +
                                    $"whiteList: {string.Join(", ", activity.WhiteList)}," +
                                    $"pools: {string.Join(", ", activity.TradePairs)}");
+            
+            var snapshotTimeStamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
             var activityRankingSnapshotGrainId = GrainIdHelper.GenerateGrainId(activity.Type,
-                activity.ActivityId, snapshotTime);
+                activity.ActivityId, snapshotTimeStamp);
             var activityRankingSnapshotGrain =
                 _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
             var snapshotResult = await activityRankingSnapshotGrain.GetAsync();

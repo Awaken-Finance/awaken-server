@@ -79,7 +79,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
                     // _logger.LogInformation($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor}, isActivityBeginTime: {isActivityBeginTime}");
                     if (isActivityBeginTime)
                     {
-                        var success = await _activityAppService.CreateLpSnapshotAsync(timestamp);
+                        var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker activity begin");
                         if (success)
                         {
                             _logger.LogInformation($"Executing LP snapshot at activity begin done at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
@@ -95,7 +95,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
             if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod * TvlSnapshotTimeFactor / 1000)))
             {
                 SetNextExecutionTime(now);
-                var success = await _activityAppService.CreateLpSnapshotAsync(timestamp);
+                var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker");
                 if (success)
                 {
                     _logger.LogInformation($"Executing LP snapshot done at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");

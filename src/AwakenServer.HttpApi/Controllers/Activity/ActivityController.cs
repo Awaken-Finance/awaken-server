@@ -52,6 +52,6 @@ public class ActivityController : AbpController
     [Route("snapshot/create")]
     public virtual async Task CreateLpSnapshotAsync(CreateSnapshotInput input)
     {
-        await _activityAppService.CreateLpSnapshotAsync(input.ExecuteTime);
+        await _activityAppService.CreateLpSnapshotAsync(input.ExecuteTime, "api");
     }
 }
