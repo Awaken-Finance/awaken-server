@@ -246,7 +246,10 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var rankingListSnapshotIndex = await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow);
         if (rankingListSnapshotIndex == null)
         {
-            return new RankingListDto();
+            return new RankingListDto
+            {
+                ActivityId = input.ActivityId
+            };
         }
 
         rankingListSnapshotIndex.RankingList = rankingListSnapshotIndex.RankingList.Where(t => t.TotalPoint >= 1).ToList();
@@ -290,7 +293,8 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
         return new RankingListDto
         {
-            Items = rankingInfoDtoList
+            Items = rankingInfoDtoList,
+            ActivityId = input.ActivityId
         };
     }
 
