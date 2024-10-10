@@ -268,10 +268,13 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 TotalPoint = (long)rankingInfo.TotalPoint,
             };
             rankingInfoDtoList.Add(rankingInfoDto);
-            if (lastHourRankingListSnapshotIndex == null ||
-                lastHourRankingListSnapshotIndex.Id == rankingListSnapshotIndex.Id)
+            if (lastHourRankingListSnapshotIndex == null)
             {
                 rankingInfoDto.NewStatus = 1;
+                continue;
+            }
+            if (lastHourRankingListSnapshotIndex.Id == rankingListSnapshotIndex.Id)
+            {
                 continue;
             }
 
