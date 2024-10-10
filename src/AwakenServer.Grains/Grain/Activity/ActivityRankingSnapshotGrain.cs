@@ -14,7 +14,7 @@ public class ActivityRankingSnapshotGrain : Grain<ActivityRankingSnapshotState>,
     {
         _objectMapper = objectMapper;
     }
-
+    
     public async Task<GrainResultDto<ActivityRankingSnapshotGrainDto>> AddOrUpdateAsync(
         ActivityRankingSnapshotGrainDto dto)
     {

@@ -554,7 +554,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 continue;
             }
             
-            _logger.LogInformation($"Create LP snapshot, " +
+            _logger.LogInformation($"Create LP snapshot request, " +
                                    $"from: {type}, " +
                                    $"activityId: {activity.ActivityId}, " +
                                    $"executeTime: {executeTime}, " +
@@ -568,11 +568,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             var activityRankingSnapshotGrain =
                 _clusterClient.GetGrain<IActivityRankingSnapshotGrain>(activityRankingSnapshotGrainId);
             var snapshotResult = await activityRankingSnapshotGrain.GetAsync();
-            if (snapshotResult.Success)
+            if (snapshotResult.Success && snapshotResult.Data.RankingList != null && snapshotResult.Data.RankingList.Count > 0)
             {
                 _logger.LogInformation($"Create LP snapshot, {activityRankingSnapshotGrainId} already exist");
                 continue;
             }
+            
             if (executeTime >= activity.BeginTime && executeTime <= activity.EndTime)
             {
                 if (!_activityTradePairAddresses.ContainsKey(activity.ActivityId))
@@ -581,6 +582,13 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                     _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
                 }
                 var activityPairs = _activityTradePairAddresses[activity.ActivityId];
+                _logger.LogInformation($"Create LP snapshot begin, " +
+                                       $"from: {type}, " +
+                                       $"activityId: {activity.ActivityId}, " +
+                                       $"executeTime: {executeTime}, " +
+                                       $"activity time: {activity.BeginTime}-{activity.EndTime}, " +
+                                       $"whiteList: {string.Join(", ", activity.WhiteList)}," +
+                                       $"pools: {string.Join(", ", activity.TradePairs)}");
                 foreach (var activityPair in activityPairs)
                 {
                     var pairLiquidity = await GetCurrentUserLiquidityIndexListAsync(activityPair.PairId, _portfolioOptions.DataVersion);
