@@ -109,7 +109,6 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         
         // 2. Swap Value
         long blockHeight = -1;
-        
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
         _logger.LogInformation("Activity swap queryList count: {count}", swapRecordList.Count);
