@@ -8,6 +8,7 @@ using Orleans;
 using Orleans.Configuration;
 using Orleans.Hosting;
 using Orleans.Providers.MongoDB.Configuration;
+using Orleans.Serialization;
 using Orleans.Statistics;
 using Serilog;
 
@@ -87,6 +88,7 @@ public static class OrleansHostExtensions
                 options.ServiceId = Environment.GetEnvironmentVariable("ORLEANS_SERVICE_ID");
             })
             .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); });
+        
     }
 
     private static void UseDockerHostClustering(ISiloBuilder siloBuilder, IConfigurationSection configSection)
@@ -136,5 +138,6 @@ public static class OrleansHostExtensions
                 })
                 // .UseLinuxEnvironmentStatistics()
                 .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); });
+        
     }
 }

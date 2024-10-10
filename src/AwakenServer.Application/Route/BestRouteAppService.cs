@@ -100,7 +100,7 @@ namespace AwakenServer.Route
                     MaxDepth = maxDepth,
                     SymbolBegin = symbolIn,
                     SymbolEnd = symbolOut,
-                    Relations = pairs
+                    Relations = _objectMapper.Map<List<TradePairWithToken>, List<TradePairWithTokenDto>>(pairs)
                 });
 
             if (!result.Success || result.Data == null)
@@ -591,10 +591,9 @@ namespace AwakenServer.Route
                         Percent = partRoute.Percent,
                         AmountIn = (input.RouteType == RouteType.ExactIn ? partRoute.Exact : partRoute.Quote).ToString(),
                         AmountOut = (input.RouteType == RouteType.ExactOut ? partRoute.Exact : partRoute.Quote).ToString(),
-                        TradePairs =
-                            _objectMapper.Map<List<TradePairWithToken>, List<TradePairWithTokenDto>>(routeMap[partRoute.RouteId].TradePairs),
+                        TradePairs = routeMap[partRoute.RouteId].TradePairs,
                         TradePairExtensions = TradePairExtensios,
-                        Tokens = _objectMapper.Map<List<Token>, List<TokenDto>>(routeMap[partRoute.RouteId].Tokens),
+                        Tokens = routeMap[partRoute.RouteId].Tokens,
                         FeeRates = routeMap[partRoute.RouteId].FeeRates,
                         Amounts = amountsStr
                     });

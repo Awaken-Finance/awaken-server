@@ -1,12 +1,14 @@
+using System;
 using System.Collections.Generic;
+using Orleans;
 
 namespace AwakenServer.Activity;
 
 public class RankingListSnapshot : ActivityBase
 {
-    public long Timestamp { get; set; }
-    public long NumOfJoin { get; set; } // JoinRecord Count union UserActivityInfo count
-    public List<RankingInfo> RankingList { get; set; }
+   public long Timestamp { get; set; }
+   public long NumOfJoin { get; set; } // JoinRecord Count union UserActivityInfo count
+   public List<RankingInfo> RankingList { get; set; }
 }
 
 public class RankingInfo

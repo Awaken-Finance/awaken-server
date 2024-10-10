@@ -205,21 +205,21 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
 
             graph.RelationTokenDictionary[pair.Token0.Symbol][pair.Token1.Symbol] = new PathNode()
             {
-                Token0 = _objectMapper.Map<Token, TokenDto>(pair.Token0),
-                Token1 = _objectMapper.Map<Token, TokenDto>(pair.Token1),
+                Token0 = pair.Token0,
+                Token1 = pair.Token1,
                 Address = pair.Address,
                 FeeRate = pair.FeeRate
             };
             graph.RelationTokenDictionary[pair.Token1.Symbol][pair.Token0.Symbol] = new PathNode()
             {
-                Token0 = _objectMapper.Map<Token, TokenDto>(pair.Token0),
-                Token1 = _objectMapper.Map<Token, TokenDto>(pair.Token1),
+                Token0 = pair.Token0,
+                Token1 = pair.Token1,
                 Address = pair.Address,
                 FeeRate = pair.FeeRate
             };
             
-            graph.TokenDictionary[pair.Token0.Symbol] = _objectMapper.Map<Token, TokenDto>(pair.Token0);
-            graph.TokenDictionary[pair.Token1.Symbol] = _objectMapper.Map<Token, TokenDto>(pair.Token1);
+            graph.TokenDictionary[pair.Token0.Symbol] = pair.Token0;
+            graph.TokenDictionary[pair.Token1.Symbol] = pair.Token1;
         }
         
         return new GrainResultDto()

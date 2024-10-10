@@ -1,4 +1,5 @@
 using Nest;
+using Orleans;
 
 namespace AwakenServer.Activity;
 

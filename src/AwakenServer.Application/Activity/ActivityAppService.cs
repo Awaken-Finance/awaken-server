@@ -137,8 +137,8 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         }
 
         await _distributedEventBus.PublishAsync(
-            ObjectMapper.Map<JoinRecord, JoinRecordEto>(joinRecordGrainResult.Data));
-        await _distributedEventBus.PublishAsync(ObjectMapper.Map<JoinRecord, JoinRecordEto>(joinRecordGrainResult.Data));
+            ObjectMapper.Map<JoinRecordGrainDto, JoinRecordEto>(joinRecordGrainResult.Data));
+        await _distributedEventBus.PublishAsync(ObjectMapper.Map<JoinRecordGrainDto, JoinRecordEto>(joinRecordGrainResult.Data));
 
         var currentActivityRankingGrainId = GrainIdHelper.GenerateGrainId(activity.Type, activity.ActivityId);
         var currentActivityRankingGrain = _clusterClient.GetGrain<ICurrentActivityRankingGrain>(currentActivityRankingGrainId);
@@ -151,7 +151,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         currentActivityRankingResult.Data.Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime);
         var activityRankingSnapshotResult = await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);
         await _distributedEventBus.PublishAsync(
-            ObjectMapper.Map<RankingListSnapshot, RankingListSnapshotEto>(activityRankingSnapshotResult.Data));
+            ObjectMapper.Map<ActivityRankingSnapshotGrainDto, RankingListSnapshotEto>(activityRankingSnapshotResult.Data));
     }
 
     private async Task<JoinRecordIndex> GetJoinRecordAsync(int activity, string address)
@@ -342,7 +342,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             }
         }
         await _distributedEventBus.PublishAsync(
-            ObjectMapper.Map<UserActivityInfo, UserActivityInfoEto>(userActivityResult.Data));
+            ObjectMapper.Map<UserActivityGrainDto, UserActivityInfoEto>(userActivityResult.Data));
 
         // update ranking
         var currentActivityRankingGrainId =
@@ -363,7 +363,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var activityRankingSnapshotResult =
             await activityRankingSnapshotGrain.AddOrUpdateAsync(currentActivityRankingResult.Data);
         await _distributedEventBus.PublishAsync(
-            ObjectMapper.Map<RankingListSnapshot, RankingListSnapshotEto>(
+            ObjectMapper.Map<ActivityRankingSnapshotGrainDto, RankingListSnapshotEto>(
                 activityRankingSnapshotResult.Data));
     }
     

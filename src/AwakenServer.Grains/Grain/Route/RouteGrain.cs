@@ -24,8 +24,8 @@ namespace AwakenServer.Grains.Grain.Route;
 public class Graph
 {
     public Dictionary<string, HashSet<string>> Adjacents { get; set; } = new();
-    public Dictionary<string, TradePairWithToken> RelationTradePairAddressToData { get; set; } = new();
-    public Dictionary<string, Token> TokenDictionary { get; set; } = new();
+    public Dictionary<string, TradePairWithTokenDto> RelationTradePairAddressToData { get; set; } = new();
+    public Dictionary<string, TokenDto> TokenDictionary { get; set; } = new();
 }
 
 public class RawRoute

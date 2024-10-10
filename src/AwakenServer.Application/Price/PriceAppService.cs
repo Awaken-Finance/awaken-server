@@ -160,16 +160,6 @@ namespace AwakenServer.Price
                 }
                 catch (Exception e)
                 {
-                    // TODO: Remove this code in the next version (v2.2)
-                    // This code is temporarily added to fix historical data issues.
-                    if (price.PriceUpdateTime == DateTime.MinValue)
-                    {
-                        price.PriceUpdateTime = DateTime.UtcNow.AddHours(-1);
-                        await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
-                        {
-                            AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                        });
-                    }
                     if (price.PriceInUsd == PriceOptions.DefaultPriceValue)
                     {
                         price.PriceInUsd = 0;

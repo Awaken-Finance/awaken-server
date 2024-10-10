@@ -224,7 +224,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         if (latestSnapshot != null && updateResult.Data.SnapshotDto.Timestamp < latestSnapshot.Timestamp)
         {
             var latestGrain = await GetLatestSnapshotGrainAsync();
-            var latestResult = await latestGrain.AccumulateTotalSupplyAsync(lpAmount);
+            var latestResult = await latestGrain.AccumulateTotalSupplyAsync(lpAmount.ToNormalizeString());
             var updateTradePairByLatestResult = await UpdateFromSnapshotAsync(latestResult.Data);
             return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
             {

@@ -1,4 +1,5 @@
 using System;
+using Orleans;
 using Volo.Abp.Domain.Entities;
 
 namespace AwakenServer.Entities

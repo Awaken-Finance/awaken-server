@@ -76,7 +76,7 @@ namespace AwakenServer.SwapTokenPath
             
             await grain.SetGraphAsync(new GraphDto()
             {
-                Relations = pairs
+                Relations = _objectMapper.Map<List<TradePairWithToken>, List<TradePairWithTokenDto>>(pairs)
             });
 
             var result =

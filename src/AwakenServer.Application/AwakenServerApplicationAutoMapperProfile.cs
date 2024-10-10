@@ -8,6 +8,7 @@ using AwakenServer.Favorite;
 using AwakenServer.Grains.Grain.Chain;
 using AwakenServer.Grains.Grain.Tokens;
 using AwakenServer.Grains.Grain.Favorite;
+using AwakenServer.Grains.Grain.MyPortfolio;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.Grain.SwapTokenPath;
@@ -162,7 +163,9 @@ namespace AwakenServer
 
             CreateMap<CurrentUserLiquidityEto, CurrentUserLiquidityIndex>();
             CreateMap<CurrentUserLiquidityIndex, CurrentUserLiquidityDto>();
+            CreateMap<CurrentUserLiquidityGrainDto, CurrentUserLiquidityEto>();
             CreateMap<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>();
+            CreateMap<UserLiquiditySnapshotGrainDto, UserLiquiditySnapshotEto>();
             
             CreateMap<LimitOrderDto, LimitOrderIndexDto>()
                 .ForMember(dest => dest.AmountIn, opt => opt.Ignore())

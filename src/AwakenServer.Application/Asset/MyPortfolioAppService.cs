@@ -128,7 +128,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             currentUserLiquidityGrainResult.Data.Version = dataVersion;
             currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * pair.TVL;
             await _distributedEventBus.PublishAsync(
-                ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
+                ObjectMapper.Map<CurrentUserLiquidityGrainDto, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
             Log.Information(
                 $"update user all liquidity address: {address}, pair id:{pair.Id}, pair address: {pair.Address}, index: {JsonConvert.SerializeObject(currentUserLiquidityGrainResult.Data)}");
             ++affectedCount;
@@ -167,8 +167,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         
         var currentUserLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(liquidityRecordDto.Address, tradePair.Id), dataVersion));
         var currentUserLiquidityGrainResult = liquidityRecordDto.Type == LiquidityType.Mint
-            ? await currentUserLiquidityGrain.AddLiquidityAsync(tradePair, liquidityRecordDto)
-            : await currentUserLiquidityGrain.RemoveLiquidityAsync(tradePair, liquidityRecordDto);
+            ? await currentUserLiquidityGrain.AddLiquidityAsync(liquidityRecordDto, tradePair.Id, tradePair.Token0.Symbol)
+            : await currentUserLiquidityGrain.RemoveLiquidityAsync(liquidityRecordDto, tradePair.Id, tradePair.Token0.Symbol);
 
         var lpTokenPercentage = currentTradePairGrainResultDto.Data.TotalSupply == 0
             ? 0.0
@@ -178,7 +178,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         currentUserLiquidityGrainResult.Data.Version = dataVersion;
         currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * tradePairGrainResultDto.Data.TVL;
         await _distributedEventBus.PublishAsync(
-            ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
+            ObjectMapper.Map<CurrentUserLiquidityGrainDto, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
         Log.Information(
             $"update user liquidity address: {liquidityRecordDto.Address}, pair id:{tradePair.Id}, pair address: {tradePair.Address}, {currentUserLiquidityGrainResult.Data.LpTokenAmount}, {currentTradePairGrainResultDto.Data.TotalSupply}, {lpTokenPercentage}, {tradePair.TVL}, index: {JsonConvert.SerializeObject(currentUserLiquidityGrainResult.Data)}");
         if (alignUserAllAsset)
@@ -198,7 +198,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var userLiquiditySnapshotResult = await userLiquiditySnapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
         // publish eto
         userLiquiditySnapshotResult.Data.Version = dataVersion;
-        await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshot, UserLiquiditySnapshotEto>(userLiquiditySnapshotResult.Data));
+        await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshotGrainDto, UserLiquiditySnapshotEto>(userLiquiditySnapshotResult.Data));
         await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
         {
             AbsoluteExpiration = DateTimeOffset.UtcNow.AddDays(7)
@@ -270,7 +270,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             currentLiquidityGrainResult.Data.Version = dataVersion;
             currentLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * tradePairGrainResultDto.Data.TVL;
             await _distributedEventBus.PublishAsync(
-                ObjectMapper.Map<CurrentUserLiquidity, CurrentUserLiquidityEto>(currentLiquidityGrainResult.Data));
+                ObjectMapper.Map<CurrentUserLiquidityGrainDto, CurrentUserLiquidityEto>(currentLiquidityGrainResult.Data));
             
             var userLiquiditySnapshotGrainDto = new UserLiquiditySnapshotGrainDto()
             {
@@ -286,7 +286,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var snapshotResult = await snapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
             // publish UserLiquiditySnapshotEto
             snapshotResult.Data.Version = dataVersion;
-            await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshot, UserLiquiditySnapshotEto>(snapshotResult.Data));
+            await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshotGrainDto, UserLiquiditySnapshotEto>(snapshotResult.Data));
         }
         return true;
     }

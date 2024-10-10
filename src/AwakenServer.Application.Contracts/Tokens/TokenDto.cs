@@ -1,14 +1,23 @@
 using System;
+using Orleans;
 using Volo.Abp.Application.Dtos;
 
 namespace AwakenServer.Tokens
 {
-    public class TokenDto : EntityDto<Guid>
+    [GenerateSerializer]
+    public class TokenDto
     {
-        public string Address { get; set; }
-        public string Symbol { get; set; }
-        public int Decimals { get; set; }
+        [Id(0)]
+        public Guid Id { get; set; }
+        [Id(1)]
         public string ChainId { get; set; }
+        [Id(2)]
+        public string Address { get; set; }
+        [Id(3)]
+        public string Symbol { get; set; }
+        [Id(4)]
+        public int Decimals { get; set; }
+        [Id(5)]
         public string ImageUri { get; set; }
     }
 }

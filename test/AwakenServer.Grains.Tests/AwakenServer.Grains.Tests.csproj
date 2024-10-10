@@ -19,6 +19,9 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Moq" Version="4.18.4" />
+        <PackageReference Include="Microsoft.Orleans.Sdk" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Orleans.TestingHost" Version="7.0.0" />
+        <PackageReference Include="Orleans.Providers.MongoDB" Version="7.0.0" />
     </ItemGroup>
 
     <ItemGroup>

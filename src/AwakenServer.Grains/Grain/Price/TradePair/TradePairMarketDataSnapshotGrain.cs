@@ -59,9 +59,9 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         return latestBeforeDto.Timestamp != dto.Timestamp;
     }
 
-    public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AccumulateTotalSupplyAsync(BigDecimal supply)
+    public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AccumulateTotalSupplyAsync(string supply)
     {
-        State.TotalSupply = (BigDecimal.Parse(State.TotalSupply) + supply).ToNormalizeString();
+        State.TotalSupply = (BigDecimal.Parse(State.TotalSupply) + BigDecimal.Parse(supply)).ToNormalizeString();
 
         await WriteStateAsync();
 
