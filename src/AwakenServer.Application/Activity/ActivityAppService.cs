@@ -218,6 +218,11 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     public async Task<MyRankingDto> GetMyRankingAsync(GetMyRankingInput input)
     {
+        var activity = _activityOptions.ActivityList.Find(t => t.ActivityId == input.ActivityId);
+        if (activity == null)
+        {
+            throw new UserFriendlyException("Activity not existed");
+        }
         var userActivityInfoIndex = await GetUserActivityInfoAsync(input.ActivityId, input.Address);
         if (userActivityInfoIndex == null)
         {
@@ -234,15 +239,23 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             }
         }
 
+        var totalPoint = activity.Type == VolumeActivityType
+            ? userActivityInfoIndex.TotalPoint.ToString("0.00")
+            : userActivityInfoIndex.TotalPoint.ToString("0");
         return new MyRankingDto
         {
             Ranking = myRanking,
-            TotalPoint = (long)userActivityInfoIndex.TotalPoint
+            TotalPoint = totalPoint
         };
     }
 
     public async Task<RankingListDto> GetRankingListAsync(ActivityBaseDto input)
     {
+        var activity = _activityOptions.ActivityList.Find(t => t.ActivityId == input.ActivityId);
+        if (activity == null)
+        {
+            throw new UserFriendlyException("Activity not existed");
+        }
         var rankingListSnapshotIndex = await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow);
         if (rankingListSnapshotIndex == null)
         {
@@ -264,11 +277,14 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             {
                 break;
             }
+            var totalPoint = activity.Type == VolumeActivityType
+                ? rankingInfo.TotalPoint.ToString("0.00")
+                : rankingInfo.TotalPoint.ToString("0");
             var rankingInfoDto = new RankingInfoDto()
             {
                 Ranking = ranking,
                 Address = rankingInfo.Address,
-                TotalPoint = (long)rankingInfo.TotalPoint,
+                TotalPoint = totalPoint,
             };
             rankingInfoDtoList.Add(rankingInfoDto);
             if (lastHourRankingListSnapshotIndex == null)
@@ -577,7 +593,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                             ? 0.0
                             : userPairLiquidity.LpTokenAmount / (double)currentTradePair.TotalSupply;
 
-                        var point = lpTokenPercentage * pair.TVL;
+                        var point = 100 * lpTokenPercentage * pair.TVL;
                         await UpdateUserPointAndRankingAsync(userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point);
                     }
                 }

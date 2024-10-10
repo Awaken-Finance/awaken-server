@@ -215,7 +215,7 @@ namespace AwakenServer.Activity
                 Address = "0x10"
             });
             myRankingDto.Ranking.ShouldBe(2);
-            myRankingDto.TotalPoint.ShouldBe(2);
+            myRankingDto.TotalPoint.ShouldBe("2.00");
 
             var rankingList = await _activityAppService.GetRankingListAsync(new ActivityBaseDto()
             {
@@ -223,12 +223,12 @@ namespace AwakenServer.Activity
             });
             rankingList.Items.Count.ShouldBe(2);
             rankingList.Items[0].Ranking.ShouldBe(1);
-            rankingList.Items[0].TotalPoint.ShouldBe(10);
+            rankingList.Items[0].TotalPoint.ShouldBe("10.00");
             rankingList.Items[0].Address.ShouldBe("0x11");
             rankingList.Items[0].NewStatus.ShouldBe(1);
             rankingList.Items[0].RankingChange1H.ShouldBe(0);
             rankingList.Items[1].Ranking.ShouldBe(2);
-            rankingList.Items[1].TotalPoint.ShouldBe(2);
+            rankingList.Items[1].TotalPoint.ShouldBe("2.00");
             rankingList.Items[1].Address.ShouldBe("0x10");
             rankingList.Items[1].NewStatus.ShouldBe(1);
             rankingList.Items[1].RankingChange1H.ShouldBe(0);
