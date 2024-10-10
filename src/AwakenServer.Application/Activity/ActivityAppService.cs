@@ -226,7 +226,10 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var userActivityInfoIndex = await GetUserActivityInfoAsync(input.ActivityId, input.Address);
         if (userActivityInfoIndex == null)
         {
-            return new MyRankingDto();
+            return new MyRankingDto
+            {
+                TotalPoint = "0"
+            };
         }
         var rankingListSnapshotIndex = await GetLatestRankingListSnapshotAsync(input.ActivityId, DateTime.UtcNow);
         var myRanking = 1001;
