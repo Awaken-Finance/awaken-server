@@ -50,7 +50,8 @@ public class ClusterFixture : IDisposable, ISingletonDependency
         builder.Options.BaseSiloPort = 1000 + randomPort;
         builder.Options.InitialSilosCount = 1;
         
-        builder.AddSiloBuilderConfigurator<TestSiloConfigurations>();
+        //todo
+        // builder.AddSiloBuilderConfigurator<TestSiloConfigurations>();
         builder.AddClientBuilderConfigurator<TestClientBuilderConfigurator>();
         Cluster = builder.Build();
         var retryCount = 30;
@@ -85,96 +86,97 @@ public class ClusterFixture : IDisposable, ISingletonDependency
 
     public TestCluster Cluster { get; private set; }
 
-    private class TestSiloConfigurations : ISiloBuilderConfigurator
-    {
-        public void Configure(ISiloHostBuilder hostBuilder)
-        {
-            hostBuilder.ConfigureServices(services =>
-                {
-                    var mockCoinGeckoProvider = new Mock<ICoinGeckoClient>();
-                    mockCoinGeckoProvider.Setup(o => o.CoinsClient.GetHistoryByCoinId("NO-PRICE", DateTime.Now.ToString("dd-MM-yyyy"), "false"))
-                        .ReturnsAsync(new CoinFullData
-                        {
-                            MarketData = null
-                        });
-                    
-                    services.AddSingleton<ICoinGeckoClient>(mockCoinGeckoProvider.Object);
-                    
-                    services.AddMemoryCache();
-                    services.AddDistributedMemoryCache();
-                    services.AddAutoMapper(typeof(AwakenServerGrainsModule).Assembly);
-
-                    services.AddSingleton(typeof(DistributedCache<>));
-                    services.AddSingleton(typeof(IDistributedCache<>), typeof(DistributedCache<>));
-                    services.AddSingleton(typeof(IDistributedCache<,>), typeof(DistributedCache<,>));
-                    services.Configure<AbpDistributedCacheOptions>(cacheOptions =>
-                    {
-                        cacheOptions.GlobalCacheEntryOptions.SlidingExpiration = TimeSpan.FromMinutes(20);
-                    });
-                    services.Configure<CoinGeckoOptions>(o =>
-                    {
-                        o.CoinIdMapping = new Dictionary<string, string>
-                        {
-                            { "ELF", "aelf" }
-                        };
-                    });
-                    services.AddSingleton<ICancellationTokenProvider>(NullCancellationTokenProvider.Instance);
-                    services.AddTransient(
-                        typeof(IDistributedCacheSerializer),
-                        typeof(Utf8JsonDistributedCacheSerializer)
-                    );
-                    services.AddTransient(
-                        typeof(IDistributedCacheKeyNormalizer),
-                        typeof(DistributedCacheKeyNormalizer)
-                    );
-                    services.AddTransient(typeof(AsyncLocalCurrentTenantAccessor));
-                    services.AddTransient(
-                        typeof(ICurrentTenantAccessor),
-                        typeof(AsyncLocalCurrentTenantAccessor)
-                    );
-                    services.AddTransient(
-                        typeof(ICurrentTenant),
-                        typeof(CurrentTenant)
-                    );
-                    // services.OnRegistred(UnitOfWorkInterceptorRegistrar.RegisterIfNeeded);
-                    services.AddTransient(
-                        typeof(IUnitOfWorkManager),
-                        typeof(UnitOfWorkManager)
-                    );
-                    services.AddTransient(
-                        typeof(IAmbientUnitOfWork),
-                        typeof(AmbientUnitOfWork)
-                    );
-                    services.OnExposing(onServiceExposingContext =>
-                    {
-                        var implementedTypes = ReflectionHelper.GetImplementedGenericTypes(
-                            onServiceExposingContext.ImplementationType,
-                            typeof(IObjectMapper<,>)
-                        );
-                        onServiceExposingContext.ExposedTypes.AddRange(
-                            implementedTypes.Select(type => new ServiceIdentifier(type))
-                        );
-                    });
-                    services.AddTransient(
-                        typeof(IObjectMapper<>),
-                        typeof(DefaultObjectMapper<>)
-                    );
-                    services.AddTransient(
-                        typeof(IObjectMapper),
-                        typeof(DefaultObjectMapper)
-                    );
-                    services.AddTransient(typeof(IAutoObjectMappingProvider),
-                        typeof(AutoMapperAutoObjectMappingProvider));
-                    services.AddTransient(sp => new MapperAccessor()
-                    {
-                        Mapper = sp.GetRequiredService<IMapper>()
-                    });
-                    services.AddTransient<IMapperAccessor>(provider => provider.GetRequiredService<MapperAccessor>());
-                })
-                .AddMemoryGrainStorage("PubSubStore")
-                .AddMemoryGrainStorageAsDefault();
-        }
-    }
+    //todo
+    // private class TestSiloConfigurations : ISiloBuilderConfigurator
+    // {
+    //     public void Configure(ISiloHostBuilder hostBuilder)
+    //     {
+    //         hostBuilder.ConfigureServices(services =>
+    //             {
+    //                 var mockCoinGeckoProvider = new Mock<ICoinGeckoClient>();
+    //                 mockCoinGeckoProvider.Setup(o => o.CoinsClient.GetHistoryByCoinId("NO-PRICE", DateTime.Now.ToString("dd-MM-yyyy"), "false"))
+    //                     .ReturnsAsync(new CoinFullData
+    //                     {
+    //                         MarketData = null
+    //                     });
+    //                 
+    //                 services.AddSingleton<ICoinGeckoClient>(mockCoinGeckoProvider.Object);
+    //                 
+    //                 services.AddMemoryCache();
+    //                 services.AddDistributedMemoryCache();
+    //                 services.AddAutoMapper(typeof(AwakenServerGrainsModule).Assembly);
+    //
+    //                 services.AddSingleton(typeof(DistributedCache<>));
+    //                 services.AddSingleton(typeof(IDistributedCache<>), typeof(DistributedCache<>));
+    //                 services.AddSingleton(typeof(IDistributedCache<,>), typeof(DistributedCache<,>));
+    //                 services.Configure<AbpDistributedCacheOptions>(cacheOptions =>
+    //                 {
+    //                     cacheOptions.GlobalCacheEntryOptions.SlidingExpiration = TimeSpan.FromMinutes(20);
+    //                 });
+    //                 services.Configure<CoinGeckoOptions>(o =>
+    //                 {
+    //                     o.CoinIdMapping = new Dictionary<string, string>
+    //                     {
+    //                         { "ELF", "aelf" }
+    //                     };
+    //                 });
+    //                 services.AddSingleton<ICancellationTokenProvider>(NullCancellationTokenProvider.Instance);
+    //                 services.AddTransient(
+    //                     typeof(IDistributedCacheSerializer),
+    //                     typeof(Utf8JsonDistributedCacheSerializer)
+    //                 );
+    //                 services.AddTransient(
+    //                     typeof(IDistributedCacheKeyNormalizer),
+    //                     typeof(DistributedCacheKeyNormalizer)
+    //                 );
+    //                 services.AddTransient(typeof(AsyncLocalCurrentTenantAccessor));
+    //                 services.AddTransient(
+    //                     typeof(ICurrentTenantAccessor),
+    //                     typeof(AsyncLocalCurrentTenantAccessor)
+    //                 );
+    //                 services.AddTransient(
+    //                     typeof(ICurrentTenant),
+    //                     typeof(CurrentTenant)
+    //                 );
+    //                 // services.OnRegistred(UnitOfWorkInterceptorRegistrar.RegisterIfNeeded);
+    //                 services.AddTransient(
+    //                     typeof(IUnitOfWorkManager),
+    //                     typeof(UnitOfWorkManager)
+    //                 );
+    //                 services.AddTransient(
+    //                     typeof(IAmbientUnitOfWork),
+    //                     typeof(AmbientUnitOfWork)
+    //                 );
+    //                 services.OnExposing(onServiceExposingContext =>
+    //                 {
+    //                     var implementedTypes = ReflectionHelper.GetImplementedGenericTypes(
+    //                         onServiceExposingContext.ImplementationType,
+    //                         typeof(IObjectMapper<,>)
+    //                     );
+    //                     onServiceExposingContext.ExposedTypes.AddRange(
+    //                         implementedTypes.Select(type => new ServiceIdentifier(type))
+    //                     );
+    //                 });
+    //                 services.AddTransient(
+    //                     typeof(IObjectMapper<>),
+    //                     typeof(DefaultObjectMapper<>)
+    //                 );
+    //                 services.AddTransient(
+    //                     typeof(IObjectMapper),
+    //                     typeof(DefaultObjectMapper)
+    //                 );
+    //                 services.AddTransient(typeof(IAutoObjectMappingProvider),
+    //                     typeof(AutoMapperAutoObjectMappingProvider));
+    //                 services.AddTransient(sp => new MapperAccessor()
+    //                 {
+    //                     Mapper = sp.GetRequiredService<IMapper>()
+    //                 });
+    //                 services.AddTransient<IMapperAccessor>(provider => provider.GetRequiredService<MapperAccessor>());
+    //             })
+    //             .AddMemoryGrainStorage("PubSubStore")
+    //             .AddMemoryGrainStorageAsDefault();
+    //     }
+    // }
 
     public class MapperAccessor : IMapperAccessor
     {
@@ -694,6 +696,6 @@ public class ClusterFixture : IDisposable, ISingletonDependency
     private class TestClientBuilderConfigurator : IClientBuilderConfigurator
     {
         public void Configure(IConfiguration configuration, IClientBuilder clientBuilder) => clientBuilder
-            .AddSimpleMessageStreamProvider("AwakenServer");
+            .AddMemoryStreams("AwakenServer");
     }
 }

@@ -64,6 +64,7 @@ namespace AwakenServer
                 })
                 .ConfigureAppConfiguration((h, c) => c.AddJsonFile("apollosettings.json"))
                 .UseApollo()
+                .UseOrleansClient()
                 .UseAutofac()
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
