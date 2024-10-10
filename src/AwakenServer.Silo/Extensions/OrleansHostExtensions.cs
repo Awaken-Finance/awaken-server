@@ -86,7 +86,6 @@ public static class OrleansHostExtensions
                 options.ClusterId = Environment.GetEnvironmentVariable("ORLEANS_CLUSTER_ID");
                 options.ServiceId = Environment.GetEnvironmentVariable("ORLEANS_SERVICE_ID");
             })
-            .ConfigureApplicationParts(parts => parts.AddFromApplicationBaseDirectory())
             .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); });
     }
 
@@ -126,7 +125,6 @@ public static class OrleansHostExtensions
                     options.ServiceId = configSection.GetValue<string>("ServiceId");
                 })
                 // .AddMemoryGrainStorage("PubSubStore")
-                .ConfigureApplicationParts(parts => parts.AddFromApplicationBaseDirectory())
                 .UseDashboard(options =>
                 {
                     options.Username = configSection.GetValue<string>("DashboardUserName");
@@ -136,7 +134,7 @@ public static class OrleansHostExtensions
                     options.HostSelf = true;
                     options.CounterUpdateIntervalMs = configSection.GetValue<int>("DashboardCounterUpdateIntervalMs");
                 })
-                .UseLinuxEnvironmentStatistics()
+                // .UseLinuxEnvironmentStatistics()
                 .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); });
     }
 }

@@ -7,7 +7,6 @@ using CoinGecko.Clients;
 using CoinGecko.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Orleans.Runtime;
 using Serilog;
 using Volo.Abp.DependencyInjection;
 

@@ -42,18 +42,18 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
         _clusterClient = clusterClient;
     }
 
-    public override async Task OnActivateAsync()
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         await ReadStateAsync();
         // fix me
         ResetCacheAsync();
-        await base.OnActivateAsync();
+        await base.OnActivateAsync(cancellationToken);
     }
 
-    public override async Task OnDeactivateAsync()
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         await WriteStateAsync();
-        await base.OnDeactivateAsync();
+        await base.OnDeactivateAsync(reason, cancellationToken);
     }
 
     private string GenCacheKey(GetTokenPathGrainDto dto)
