@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Price.Dtos;
@@ -23,6 +24,7 @@ using Volo.Abp.DistributedLocking;
 using Index = System.Index;
 using IndexTradePair = AwakenServer.Trade.Index.TradePair;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace AwakenServer.Price
 {
@@ -75,23 +77,17 @@ namespace AwakenServer.Price
             return await _tokenPriceProvider.GetHistoryPriceAsync(PriceOptions.UsdtPricePair, time);
         }
 
-        private string GetTokenApiName(string symbol)
+        [ExceptionHandler(typeof(Exception),
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
+        protected virtual string GetTokenApiName(string symbol)
         {
             if (String.IsNullOrEmpty(symbol))
             {
                 return null;
             }
-
-            try
-            {
-                _tokenPriceOptions.Value.PriceTokenMapping.TryGetValue(symbol.ToUpper(), out var priceTradePair);
-                return priceTradePair;
-            }
-            catch (Exception e)
-            {
-                Log.Information($"Get token price symbol: {symbol}, nonexistent mapping symbol");
-                return null;
-            }
+            
+            _tokenPriceOptions.Value.PriceTokenMapping.TryGetValue(symbol.ToUpper(), out var priceTradePair);
+            return priceTradePair;
         }
         
         private async Task<decimal> ProcessTokenPrice(string symbol, decimal rawPrice, string time)
@@ -120,7 +116,9 @@ namespace AwakenServer.Price
             return result;
         }
 
-        private async Task<decimal> GetHistoryPriceAsync(string symbol, string time)
+        [ExceptionHandler(typeof(Exception), 
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+        protected virtual async Task<decimal> GetHistoryPriceAsync(string symbol, string time)
         {
             var pair = GetTokenApiName(symbol);
             if (String.IsNullOrEmpty(pair))
@@ -228,20 +226,12 @@ namespace AwakenServer.Price
                     
             if (IsNeedFetchPrice(price))
             {
-                try
+                price.PriceInUsd = await GetHistoryPriceAsync(input.Symbol, time);
+                price.PriceUpdateTime = DateTime.UtcNow;
+                await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
                 {
-                    price.PriceInUsd = await GetHistoryPriceAsync(input.Symbol, time);
-                    price.PriceUpdateTime = DateTime.UtcNow;
-                    await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
-                    {
-                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                    });
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e, $"Get history token price symbol: {input.Symbol}, time: {time} failed. Return old data price: {price.PriceInUsd}");
-                }
-                       
+                    AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                });
             }
                     
             Log.Information($"Get history token price symbol: {input.Symbol}, time: {time}, return price: {price.PriceInUsd}");
@@ -277,6 +267,8 @@ namespace AwakenServer.Price
             };
         }
         
+        [ExceptionHandler(typeof(Exception), 
+            LogOnly = true)]
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols)
         {
             var result = new List<TokenPriceDataDto>();
@@ -285,27 +277,19 @@ namespace AwakenServer.Price
                 return new ListResultDto<TokenPriceDataDto>();
             }
 
-            try
+            var symbolList = symbols.Distinct(StringComparer.InvariantCultureIgnoreCase).ToList();
+            for (var i = 0; i < symbolList.Count; i++)
             {
-                var symbolList = symbols.Distinct(StringComparer.InvariantCultureIgnoreCase).ToList();
-                for (var i = 0; i < symbolList.Count; i++)
+                var tokenApiName = GetTokenApiName(symbolList[i]);
+                if (!string.IsNullOrEmpty(tokenApiName))
                 {
-                    var tokenApiName = GetTokenApiName(symbolList[i]);
-                    if (!string.IsNullOrEmpty(tokenApiName))
-                    {
-                        var price = await GetApiTokenPriceAsync(symbolList[i]);
-                        result.Add(price);
-                    }
-                    else
-                    {
-                        result.Add(await GetInternalTokenPriceAsync(symbolList[i]));
-                    }
+                    var price = await GetApiTokenPriceAsync(symbolList[i]);
+                    result.Add(price);
                 }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Get token price failed.");
-                throw;
+                else
+                {
+                    result.Add(await GetInternalTokenPriceAsync(symbolList[i]));
+                }
             }
 
             return new ListResultDto<TokenPriceDataDto>
@@ -314,48 +298,39 @@ namespace AwakenServer.Price
             };
         }
 
-        public async Task<TokenPriceDataDto> GetTokenHistoryPriceDataAsync(GetTokenHistoryPriceInput input)
+        [ExceptionHandler(typeof(Exception), 
+            LogOnly = true)]
+        public virtual async Task<TokenPriceDataDto> GetTokenHistoryPriceDataAsync(GetTokenHistoryPriceInput input)
         {
-            try
+            var tokenApiName = GetTokenApiName(input.Symbol);
+            if (!string.IsNullOrEmpty(tokenApiName))
             {
-                var tokenApiName = GetTokenApiName(input.Symbol);
-                if (!string.IsNullOrEmpty(tokenApiName))
-                {
-                    return await GetApiHistoryTokenPriceAsync(input);
-                }
-                return await GetInternalHistoryTokenPriceAsync(input);
+                return await GetApiHistoryTokenPriceAsync(input);
             }
-            catch (Exception ex)
-            {
-                Log.Error(ex, $"Get {input.Symbol}, {input.DateTime} history token price failed.");
-                throw;
-            }
+
+            return await GetInternalHistoryTokenPriceAsync(input);
+           
         }
         
+        [ExceptionHandler(typeof(Exception), 
+            LogOnly = true)]
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenHistoryPriceDataAsync(
             List<GetTokenHistoryPriceInput> inputs)
         {
             var result = new List<TokenPriceDataDto>();
-            try
+
+            foreach (var input in inputs)
             {
-                foreach (var input in inputs)
+                var tokenApiName = GetTokenApiName(input.Symbol);
+                if (!string.IsNullOrEmpty(tokenApiName))
                 {
-                    var tokenApiName = GetTokenApiName(input.Symbol);
-                    if (!string.IsNullOrEmpty(tokenApiName))
-                    {
-                        var price = await GetApiHistoryTokenPriceAsync(input);
-                        result.Add(price);
-                    }
-                    else
-                    {
-                        result.Add(await GetInternalHistoryTokenPriceAsync(input));
-                    }
+                    var price = await GetApiHistoryTokenPriceAsync(input);
+                    result.Add(price);
                 }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Get history token price failed.");
-                throw;
+                else
+                {
+                    result.Add(await GetInternalHistoryTokenPriceAsync(input));
+                }
             }
 
             return new ListResultDto<TokenPriceDataDto>
@@ -660,7 +635,9 @@ namespace AwakenServer.Price
             }
         }
         
-        public async Task UpdateAffectedPriceMapAsync(string chainId, Guid tradePairId, string token0Amount, string token1Amount)
+        [ExceptionHandler(typeof(Exception), 
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        public virtual async Task UpdateAffectedPriceMapAsync(string chainId, Guid tradePairId, string token0Amount, string token1Amount)
         {
             var pricingMapKey = $"{PriceOptions.PricingMapCachePrefix}:{chainId}";
             await using var handle = await _distributedLock.TryAcquireAsync(pricingMapKey, TimeSpan.FromSeconds(PriceOptions.CacheLockTimeoutSeconds));

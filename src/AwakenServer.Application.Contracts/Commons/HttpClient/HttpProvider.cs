@@ -6,9 +6,11 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
+using AElf.ExceptionHandler;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Awaken.Samples.HttpClient;
+using AwakenServer;
 using AwakenServer.Commons;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -81,7 +83,10 @@ public class HttpProvider : IHttpProvider
         _logger = logger;
     }
 
-    public async Task<T> InvokeAsync<T>(string domain, ApiInfo apiInfo,
+    
+    [ExceptionHandler(typeof(Exception), LogLevel = LogLevel.Error, 
+        TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithHttpException))]
+    public virtual async Task<T> InvokeAsync<T>(string domain, ApiInfo apiInfo,
         Dictionary<string, string> pathParams = null,
         Dictionary<string, string> param = null,
         string body = null,
@@ -90,17 +95,12 @@ public class HttpProvider : IHttpProvider
     {
         var resp = await InvokeAsync(apiInfo.Method, domain + apiInfo.Path, pathParams, param, body, header, timeout,
             withInfoLog, withDebugLog);
-        try
-        {
-            return JsonConvert.DeserializeObject<T>(resp, settings ?? DefaultJsonSettings);
-        }
-        catch (Exception ex)
-        {
-            throw new HttpRequestException($"Error deserializing service [{apiInfo.Path}] response body: {resp}", ex);
-        }
+        return JsonConvert.DeserializeObject<T>(resp, settings ?? DefaultJsonSettings);
     }
-
-    public async Task<T> InvokeAsync<T>(HttpMethod method, string url,
+    
+    [ExceptionHandler(typeof(Exception), LogLevel = LogLevel.Error, 
+        TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithHttpException))]
+    public virtual async Task<T> InvokeAsync<T>(HttpMethod method, string url,
         Dictionary<string, string> pathParams = null,
         Dictionary<string, string> param = null,
         string body = null,
@@ -108,14 +108,7 @@ public class HttpProvider : IHttpProvider
         bool withInfoLog = false, bool withDebugLog = true)
     {
         var resp = await InvokeAsync(method, url, pathParams, param, body, header, timeout, withInfoLog, withDebugLog);
-        try
-        {
-            return JsonConvert.DeserializeObject<T>(resp, settings ?? DefaultJsonSettings);
-        }
-        catch (Exception ex)
-        {
-            throw new HttpRequestException($"Error deserializing service [{url}] response body: {resp}", ex);
-        }
+        return JsonConvert.DeserializeObject<T>(resp, settings ?? DefaultJsonSettings);
     }
 
     public async Task<HttpResponseMessage> InvokeResponseAsync(string domain, ApiInfo apiInfo,

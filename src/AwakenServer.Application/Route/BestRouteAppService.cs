@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.CSharp.Core;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AElf.Types;
 using AutoMapper;
@@ -29,6 +30,7 @@ using Newtonsoft.Json;
 using Serilog;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 using PercentRouteDto = AwakenServer.Route.Dtos.PercentRouteDto;
 using Token = AwakenServer.Tokens.Token;
 
@@ -288,7 +290,9 @@ namespace AwakenServer.Route
             return null;
         }
 
-        public async Task<BestRoutesDto> GetBestRoutesAsync(GetBestRoutesInput input)
+        [ExceptionHandler(typeof(Exception), 
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
+        public virtual async Task<BestRoutesDto> GetBestRoutesAsync(GetBestRoutesInput input)
         {
             var swapRoutes =
                 await GetRoutesAsync(input.ChainId, input.RouteType, input.SymbolIn, input.SymbolOut, MaxDepth);
@@ -374,26 +378,22 @@ namespace AwakenServer.Route
                     percentSwapRoute.RouteId = originalRoute.FullPathStr;
                     var tokenSymbols = originalRoute.Tokens.Select(x => x.Symbol).ToList();
                     var tradePairIds = originalRoute.TradePairs.Select(x => x.Id).ToList();
-                    try
+
+                    percentSwapRoute.Exact = input.RouteType == RouteType.ExactIn
+                        ? (long) Math.Floor(percent / 100d * input.AmountIn)
+                        : (long) Math.Floor(percent / 100d * input.AmountOut);
+                    var amounts = input.RouteType == RouteType.ExactIn
+                        ? await GetAmountsOutAsync(tradePairMap, tokenSymbols, tradePairIds, percentSwapRoute.Exact)
+                        : await GetAmountsInAsync(tradePairMap, tokenSymbols, tradePairIds, percentSwapRoute.Exact);
+                    if (amounts == null)
                     {
-                        percentSwapRoute.Exact = input.RouteType == RouteType.ExactIn
-                            ? (long)Math.Floor(percent / 100d * input.AmountIn)
-                            : (long)Math.Floor(percent / 100d * input.AmountOut);
-                        var amounts = input.RouteType == RouteType.ExactIn
-                            ? await GetAmountsOutAsync(tradePairMap, tokenSymbols, tradePairIds, percentSwapRoute.Exact)
-                            : await GetAmountsInAsync(tradePairMap, tokenSymbols, tradePairIds, percentSwapRoute.Exact);
-                        if (amounts == null)
-                        {
-                            return null;
-                        }
-                        percentSwapRoute.Amounts = amounts;
-                        percentSwapRoute.Quote = input.RouteType == RouteType.ExactIn ? amounts[amounts.Count - 1] : amounts[0];
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(e, $"Get best routes, Exception: {e.Message}");
                         return null;
                     }
+
+                    percentSwapRoute.Amounts = amounts;
+                    percentSwapRoute.Quote =
+                        input.RouteType == RouteType.ExactIn ? amounts[amounts.Count - 1] : amounts[0];
+                    
                     percentSwapRoute.Percent = percent;
                     return percentSwapRoute;
                 }).ToList();

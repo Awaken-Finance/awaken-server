@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Client.MultiToken;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.Commons;
@@ -262,25 +263,28 @@ public class AssetAppService : ApplicationService, IAssetAppService
             TransactionFee = _assetShowOptions.TransactionFee
         };
     }
-
-    public async Task<CommonResponseDto<Empty>> SetDefaultTokenAsync(SetDefaultTokenDto input)
+    
+    public async Task<FlowBehavior> HandleException(Exception ex)
     {
-        try
+        return new FlowBehavior
         {
-            if (!_assetShowOptions.ShowList.Exists(o => o == input.TokenSymbol))
-            {
-                throw new ArgumentException("no support symbol", input.TokenSymbol);
-            }
+            ExceptionHandlingStrategy = ExceptionHandlingStrategy.Return,
+            ReturnValue = new CommonResponseDto<Empty>().Error(ex)
+        };
+    }
 
-            var defaultTokenGrain = _clusterClient.GetGrain<IDefaultTokenGrain>(input.Address);
-
-            await defaultTokenGrain.SetTokenAsync(input.TokenSymbol);
-            return new CommonResponseDto<Empty>();
-        }
-        catch (Exception e)
+    [ExceptionHandler(typeof(Exception), TargetType = typeof(AssetAppService), MethodName = nameof(HandleException))]
+    public virtual async Task<CommonResponseDto<Empty>> SetDefaultTokenAsync(SetDefaultTokenDto input)
+    {
+        if (!_assetShowOptions.ShowList.Exists(o => o == input.TokenSymbol))
         {
-            return new CommonResponseDto<Empty>().Error(e);
+            throw new ArgumentException("no support symbol", input.TokenSymbol);
         }
+
+        var defaultTokenGrain = _clusterClient.GetGrain<IDefaultTokenGrain>(input.Address);
+
+        await defaultTokenGrain.SetTokenAsync(input.TokenSymbol);
+        return new CommonResponseDto<Empty>();
     }
 
 

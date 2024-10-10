@@ -5,6 +5,7 @@ using Volo.Abp.Threading;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Provider;
@@ -113,7 +114,8 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
     
     public abstract Task<long> SyncDataAsync(ChainDto chain, long startHeight);
 
-    private async Task ResetBlockHeight(ChainDto chain)
+    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    protected virtual async Task ResetBlockHeight(ChainDto chain)
     {
         AsyncHelper.RunSync(async () =>
             await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType,
@@ -121,6 +123,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         _chainHasResetBlockHeight[chain.Name] = true;
         Log.Information($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}, chain has reset block height: {_chainHasResetBlockHeight[chain.Name]}");
     }
+    
     
     public async Task DealDataAsync()
     {
@@ -143,42 +146,34 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         
         foreach (var chain in chains.Items)
         {
-            try
-            {
-                var lastEndHeight = await _graphQlProvider.GetLastEndHeightAsync(chain.Name, _businessType);
-                
-                Log.Information(
-                    $"Start deal data for businessType: {_businessType} " +
-                    $"chainId: {chain.Name}, " +
-                    $"lastEndHeight: {lastEndHeight}, " +
-                    $"ResetBlockHeightFlag: {_workerOptions.ResetBlockHeightFlag}, " +
-                    $"ResetBlockHeight: {_workerOptions.ResetBlockHeight}, " +
-                    $"QueryStartBlockHeightOffset: {_workerOptions.QueryStartBlockHeightOffset}, " +
-                    $"startHeight: {lastEndHeight + _workerOptions.QueryStartBlockHeightOffset}");
-                
-                var blockHeight = await SyncDataAsync(chain, lastEndHeight + _workerOptions.QueryStartBlockHeightOffset);
+            var lastEndHeight = await _graphQlProvider.GetLastEndHeightAsync(chain.Name, _businessType);
 
-                if (blockHeight > 0)
-                {
-                    if (_workerOptions.ResetBlockHeightFlag && !_chainHasResetBlockHeight[chain.Name])
-                    {
-                        await ResetBlockHeight(chain);
-                    }
-                    else
-                    {
-                        await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType, blockHeight);
-                    }
-                }
-                
-                Log.Information(
-                    "End deal data for businessType: {businessType} chainId: {chainId} blockHeight: {BlockHeight} lastEndHeight:{lastEndHeight}",
-                    _businessType, chain.Name, blockHeight, lastEndHeight);
-            }
-            catch (Exception e)
+            Log.Information(
+                $"Start deal data for businessType: {_businessType} " +
+                $"chainId: {chain.Name}, " +
+                $"lastEndHeight: {lastEndHeight}, " +
+                $"ResetBlockHeightFlag: {_workerOptions.ResetBlockHeightFlag}, " +
+                $"ResetBlockHeight: {_workerOptions.ResetBlockHeight}, " +
+                $"QueryStartBlockHeightOffset: {_workerOptions.QueryStartBlockHeightOffset}, " +
+                $"startHeight: {lastEndHeight + _workerOptions.QueryStartBlockHeightOffset}");
+
+            var blockHeight = await SyncDataAsync(chain, lastEndHeight + _workerOptions.QueryStartBlockHeightOffset);
+
+            if (blockHeight > 0)
             {
-                Log.Error(e, "DealDataAsync error businessType:{businessType} chainId: {chainId}",
-                    _businessType.ToString(), chain.Name);
+                if (_workerOptions.ResetBlockHeightFlag && !_chainHasResetBlockHeight[chain.Name])
+                {
+                    await ResetBlockHeight(chain);
+                }
+                else
+                {
+                    await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType, blockHeight);
+                }
             }
+
+            Log.Information(
+                "End deal data for businessType: {businessType} chainId: {chainId} blockHeight: {BlockHeight} lastEndHeight:{lastEndHeight}",
+                _businessType, chain.Name, blockHeight, lastEndHeight);
         }
     }
 }

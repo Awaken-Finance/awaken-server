@@ -42,15 +42,8 @@ namespace AwakenServer.Trade.Handlers
             {
                 return await grain.UpdateTradeRecordAsync(dto, tradeAddressCount24h);
             });
-            try
-            {
-                await _priceAppService.UpdateAffectedPriceMapAsync(eventData.ChainId, eventData.TradePairId,
-                    eventData.Token0Amount, eventData.Token1Amount);
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, $"Update affected price map from swap failed. {e.Message}");
-            }
+            await _priceAppService.UpdateAffectedPriceMapAsync(eventData.ChainId, eventData.TradePairId,
+                eventData.Token0Amount, eventData.Token1Amount);
         }
     }
 }

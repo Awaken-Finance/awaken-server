@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AwakenServer.Asset;
 using AwakenServer.Chains;
 using AwakenServer.Common;
@@ -46,16 +47,8 @@ namespace AwakenServer.Worker
             var addresses = await _myPortfolioAppService.GetAllUserAddressesAsync(_workerOptions.DataVersion);
             foreach (var address in addresses)
             {
-                try
-                {
-                    var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod), _workerOptions.DataVersion);
-                    Log.Information($"update user all liquidity address: {address}, affected liquidity count: {count}");
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e, $"update user all liquidity faild. address: {address}, {e.Message}");
-                }
-                
+                var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod), _workerOptions.DataVersion);
+                Log.Information($"update user all liquidity address: {address}, affected liquidity count: {count}");
             }
             return 0;
         }

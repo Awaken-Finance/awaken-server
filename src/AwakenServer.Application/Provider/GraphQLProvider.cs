@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AwakenServer.Asset;
 using AwakenServer.Common;
 using AwakenServer.ContractEventHandler.Application;
@@ -509,32 +510,19 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         return graphQLResponse.Data.GetUserTokens;
     }
     
-    public async Task<long> GetLastEndHeightAsync(string chainId, WorkerBusinessType type)
+    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnMinusOne))]
+    public virtual async Task<long> GetLastEndHeightAsync(string chainId, WorkerBusinessType type)
     {
-        try
-        {
-            var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() + chainId);
+        var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() + chainId);
             return await grain.GetStateAsync();
-        }
-        catch (Exception e)
-        {
-            Log.Error(e, "GetIndexBlockHeight on chain {id} error", chainId);
-            return AppServiceConstant.LongError;
-        }
     }
 
-    public async Task SetLastEndHeightAsync(string chainId, WorkerBusinessType type, long height)
+    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    public virtual async Task SetLastEndHeightAsync(string chainId, WorkerBusinessType type, long height)
     {
-        try
-        {
-            var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() +
-                                                                              chainId);
-            await grain.SetStateAsync(height);
-        }
-        catch (Exception e)
-        {
-            Log.Error(e, "SetIndexBlockHeight on chain {id} error", chainId);
-        }
+        var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() +
+                                                                          chainId);
+        await grain.SetStateAsync(height);
     }
 
     private void ErrorLog(GraphQLError[] errors)

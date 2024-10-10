@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.MyPortfolio;
@@ -78,7 +79,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return $"{baseKey}:{version}";
     }
 
-    public async Task<int> UpdateUserAllAssetAsync(string address, TimeSpan maxTimeSinceLastUpdate, string dataVersion)
+    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+    public virtual async Task<int> UpdateUserAllAssetAsync(string address, TimeSpan maxTimeSinceLastUpdate, string dataVersion)
     {
         var affectedCount = 0;
         var userLiquidityIndexList = await GetCurrentUserLiquidityIndexListAsync(address, dataVersion);
@@ -135,7 +137,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return affectedCount;
     }
     
-    public async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto, string dataVersion, bool alignUserAllAsset)
+    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    public virtual async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto, string dataVersion, bool alignUserAllAsset)
     {
         var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{liquidityRecordDto.TransactionHash}", dataVersion);
         var existed = await _syncedTransactionIdCache.GetAsync(key);
@@ -180,14 +183,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             $"update user liquidity address: {liquidityRecordDto.Address}, pair id:{tradePair.Id}, pair address: {tradePair.Address}, {currentUserLiquidityGrainResult.Data.LpTokenAmount}, {currentTradePairGrainResultDto.Data.TotalSupply}, {lpTokenPercentage}, {tradePair.TVL}, index: {JsonConvert.SerializeObject(currentUserLiquidityGrainResult.Data)}");
         if (alignUserAllAsset)
         {
-            try
-            {
-                await UpdateUserAllAssetAsync(liquidityRecordDto.Address, TimeSpan.FromMilliseconds(0), dataVersion);
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, $"update user all liquidity faild. address: {liquidityRecordDto.Address}, pair id: {tradePair.Id}, {e.Message}");
-            }
+            await UpdateUserAllAssetAsync(liquidityRecordDto.Address, TimeSpan.FromMilliseconds(0), dataVersion);
         }
         var userLiquiditySnapshotGrainDto = new UserLiquiditySnapshotGrainDto()
         {
@@ -210,7 +206,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return true;
     }
     
-    public async Task<bool> SyncSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion)
+    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    public virtual async Task<bool> SyncSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion)
     {
         var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{swapRecordDto.TransactionHash}", dataVersion);
         var existed = await _syncedTransactionIdCache.GetAsync(key);

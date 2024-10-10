@@ -5,6 +5,7 @@ using AElf;
 using AElf.Client.Dto;
 using AElf.Client.MultiToken;
 using AElf.Client.Service;
+using AElf.ExceptionHandler;
 using AElf.Types;
 using AwakenServer.Tokens;
 using Google.Protobuf;
@@ -127,25 +128,20 @@ namespace AwakenServer.Chains
                     ByteArrayHelper.HexStringToByteArray(transactionGetTokenResult));
         }
 
-        public async Task<long> GetTransactionFeeAsync(string chainName, string transactionId)
+        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+        public virtual async Task<long> GetTransactionFeeAsync(string chainName, string transactionId)
         {
-            try
+            var client = _blockchainClientFactory.GetClient(chainName);
+            var result = await client.GetTransactionResultAsync(transactionId);
+            if (result == null)
             {
-                var client = _blockchainClientFactory.GetClient(chainName);
-                var result = await client.GetTransactionResultAsync(transactionId);
-                if (result == null)
-                {
-                    return 0;
-                }
-                var transactionFeeCharged = TransactionFeeCharged.Parser.
-                    ParseFrom(ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
-                return transactionFeeCharged.Amount;
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "GetTransactionFeeAsync fail.");
                 return 0;
             }
+
+            var transactionFeeCharged = TransactionFeeCharged.Parser.ParseFrom(
+                ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
+            return transactionFeeCharged.Amount;
+           
         }
 
         public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address,
@@ -178,32 +174,27 @@ namespace AwakenServer.Chains
             return GetBalanceOutput.Parser.ParseFrom(ByteArrayHelper.HexStringToByteArray(transactionGetTokenResult));
         }
 
-        public async Task<int> ExistTransactionAsync(string chainName, string transactionHash)
+        
+        [ExceptionHandler(typeof(Exception), 
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnMinusOne))]
+        public virtual async Task<int> ExistTransactionAsync(string chainName, string transactionHash)
         {
-            try
+            var client = _blockchainClientFactory.GetClient(chainName);
+            var result = await client.GetTransactionResultAsync(transactionHash);
+            if (result == null)
             {
-                var client = _blockchainClientFactory.GetClient(chainName);
-                var result = await client.GetTransactionResultAsync(transactionHash);
-                if (result == null)
-                {
-                    return -1;
-                }
-
-                return !string.IsNullOrWhiteSpace(result.Status)
-                       && (result.Status.Equals(TransactionResultStatus.Pending.ToString(),
-                               StringComparison.OrdinalIgnoreCase)
-                           || result.Status.Equals(TransactionResultStatus.Mined.ToString(),
-                               StringComparison.OrdinalIgnoreCase) 
-                           || result.Status.Equals(TransactionResultStatus.PendingValidation.ToString(),
-                               StringComparison.OrdinalIgnoreCase))
-                    ? 1
-                    : 0;
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "Get the current status of a transaction {chainName}:{transactionHash} fail.", chainName, transactionHash);
                 return -1;
             }
+
+            return !string.IsNullOrWhiteSpace(result.Status)
+                   && (result.Status.Equals(TransactionResultStatus.Pending.ToString(),
+                           StringComparison.OrdinalIgnoreCase)
+                       || result.Status.Equals(TransactionResultStatus.Mined.ToString(),
+                           StringComparison.OrdinalIgnoreCase)
+                       || result.Status.Equals(TransactionResultStatus.PendingValidation.ToString(),
+                           StringComparison.OrdinalIgnoreCase))
+                ? 1
+                : 0;
         }
     }
 }

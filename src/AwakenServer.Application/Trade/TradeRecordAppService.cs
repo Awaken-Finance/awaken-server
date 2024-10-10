@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using Awaken.Contracts.Hooks;
 using AwakenServer.Chains;
@@ -34,6 +35,7 @@ using Volo.Abp.EventBus.Distributed;
 using Volo.Abp.EventBus.Local;
 using Volo.Abp.ObjectMapping;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace AwakenServer.Trade
 {
@@ -99,7 +101,8 @@ namespace AwakenServer.Trade
             _tokenAppService = tokenAppService;
         }
 
-        private async Task ProcessSwapRecords(List<Index.TradeRecord> swapRecords)
+        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        protected virtual async Task ProcessSwapRecords(List<Index.TradeRecord> swapRecords)
         {
             foreach (var tradeRecord in swapRecords.Where(t => t.Side == TradeSide.Swap))
             {
@@ -265,16 +268,7 @@ namespace AwakenServer.Trade
                     skip: input.SkipCount);
                 item2 = list.Item2;
             }
-
-            try
-            {
-                await ProcessSwapRecords(item2);
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "Failed to process swap order for trade record");
-            }
-            
+            await ProcessSwapRecords(item2);
             var totalCount = await _tradeRecordIndexRepository.CountAsync(Filter);
 
             return new PagedResultDto<TradeRecordIndexDto>
@@ -1216,19 +1210,13 @@ namespace AwakenServer.Trade
                 });
         }
         
-        public async Task RevertTradeRecordAsync(string chainId)
+        [ExceptionHandler(typeof(Exception), 
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        public virtual async Task RevertTradeRecordAsync(string chainId)
         {
-            try
-            {
-                var needDeletedTradeRecords =
-                    await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.SwapEvent, chainId);
-
-                await DoRevertAsync(chainId, needDeletedTradeRecords);
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "Revert trade record err:{0}", e.Message);
-            }
+            var needDeletedTradeRecords =
+                await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.SwapEvent, chainId);
+            await DoRevertAsync(chainId, needDeletedTradeRecords);
         }
 
         public async Task<int> GetUserTradeAddressCountAsync(string chainId, Guid tradePairId,

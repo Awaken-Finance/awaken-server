@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AwakenServer.Activity;
 using AwakenServer.Activity.Dtos;
 using AwakenServer.Models;
@@ -254,18 +255,13 @@ namespace AwakenServer.Hubs
 
             await base.OnDisconnectedAsync(exception);
         }
-
-        private async Task<bool> TryRemoveFromGroupAsync(string connectionId, string groupName)
+        
+        [ExceptionHandler(typeof(Exception),
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnBool))]
+        protected virtual async Task<bool> TryRemoveFromGroupAsync(string connectionId, string groupName)
         {
-            try
-            {
-                await Groups.RemoveFromGroupAsync(connectionId, groupName);
-                return true;
-            }
-            catch (Exception e)
-            {
-                return false;
-            }
+            await Groups.RemoveFromGroupAsync(connectionId, groupName);
+            return true;
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Client.MultiToken;
+using AElf.ExceptionHandler;
 using Volo.Abp.ObjectMapping;
 using AwakenServer.Chains;
 using AwakenServer.Common;
@@ -70,28 +71,20 @@ namespace AwakenServer.Trade
             _contractsTokenOptions = contractsTokenOptions.Value;
         }
 
-        
-        public async Task<PagedResultDto<LiquidityRecordIndexDto>> GetRecordsAsync(GetLiquidityRecordsInput input)
+        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReThrow))]
+        public virtual async Task<PagedResultDto<LiquidityRecordIndexDto>> GetRecordsAsync(GetLiquidityRecordsInput input)
         {
             Log.Information($"GetRecordsAsync, {JsonConvert.SerializeObject(input)}");
             
             var qlQueryInput = new GetLiquidityRecordIndexInput();
 
-            try
+            ObjectMapper.Map(input, qlQueryInput);
+            if (input.TradePairId.HasValue)
             {
-                ObjectMapper.Map(input, qlQueryInput);
-                if (input.TradePairId.HasValue)
-                {
-                    var tradePairIndexDto = await _tradePairAppService.GetFromGrainAsync(input.TradePairId.Value);
-                    qlQueryInput.Pair = tradePairIndexDto?.Address;
-                }
+                var tradePairIndexDto = await _tradePairAppService.GetFromGrainAsync(input.TradePairId.Value);
+                qlQueryInput.Pair = tradePairIndexDto?.Address;
             }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Get tradePairIndexDto failed.");
-                throw;
-            }
-            
+
             var queryResult = await _graphQlProvider.QueryLiquidityRecordAsync(qlQueryInput);
             var dataList = new List<LiquidityRecordIndexDto>();
             
@@ -358,22 +351,17 @@ namespace AwakenServer.Trade
             }
         }
         
+        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
         public async Task RevertLiquidityAsync(string chainId)
         {
-            try
-            {
-                var needDeletedTradeRecords =
-                    await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.LiquidityEvent, chainId);
+            var needDeletedTradeRecords =
+                await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.LiquidityEvent, chainId);
 
-                await DoRevertAsync(chainId, needDeletedTradeRecords);
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "Revert liquidity err.");
-            }
+            await DoRevertAsync(chainId, needDeletedTradeRecords);
         }
         
-        public async Task<bool> CreateAsync(LiquidityRecordDto input)
+        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        public virtual async Task<bool> CreateAsync(LiquidityRecordDto input)
         {
             var grain = _clusterClient.GetGrain<ILiquidityRecordGrain>(
                 GrainIdHelper.GenerateGrainId(input.ChainId, input.TransactionHash));

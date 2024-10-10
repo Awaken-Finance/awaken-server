@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.Price;
@@ -154,31 +155,25 @@ namespace AwakenServer.EntityHandler.Trade
             return pairWithToken;
         }
             
-        private async Task<double> GetHistoryPriceInUsdAsync(TradeRecord index)
+        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+        protected virtual async Task<double> GetHistoryPriceInUsdAsync(TradeRecord index)
         {
-            try
-            {
-                var list = await _priceAppService.GetTokenHistoryPriceDataAsync(
-                    new List<GetTokenHistoryPriceInput>
-                    {
-                        new GetTokenHistoryPriceInput()
-                        {
-                            Symbol = index.TradePair.Token1.Symbol,
-                            DateTime = index.Timestamp
-                        }
-                    });
-                if (list.Items != null && list.Items.Count >= 1 &&
-                    double.Parse(list.Items[0].PriceInUsd.ToString()) > 0)
+            var list = await _priceAppService.GetTokenHistoryPriceDataAsync(
+                new List<GetTokenHistoryPriceInput>
                 {
-                    Log.Information("{token1Symbol}, time: {time}, get history price: {price}",
-                        index.TradePair.Token1.Symbol, index.Timestamp, list.Items[0].PriceInUsd.ToString());
-                    return index.Price * double.Parse(index.Token0Amount) *
-                           double.Parse(list.Items[0].PriceInUsd.ToString());
-                }
-            }
-            catch (Exception ex)
+                    new GetTokenHistoryPriceInput()
+                    {
+                        Symbol = index.TradePair.Token1.Symbol,
+                        DateTime = index.Timestamp
+                    }
+                });
+            if (list.Items != null && list.Items.Count >= 1 &&
+                double.Parse(list.Items[0].PriceInUsd.ToString()) > 0)
             {
-                Log.Error(ex, "Get history price failed.");
+                Log.Information("{token1Symbol}, time: {time}, get history price: {price}",
+                    index.TradePair.Token1.Symbol, index.Timestamp, list.Items[0].PriceInUsd.ToString());
+                return index.Price * double.Parse(index.Token0Amount) *
+                       double.Parse(list.Items[0].PriceInUsd.ToString());
             }
 
             return 0;

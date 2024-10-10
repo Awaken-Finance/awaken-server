@@ -57,37 +57,33 @@ public class PortfolioEventReSyncWorker : AwakenServerWorkerBase
             liquidityRecordList.Count, swapRecordList.Count);
         long blockHeight = -1;
         var logCount = 0;
-        try
+        for (;;)
         {
-            for (;;)
+            GetEarliestRecord(liquidityRecordList, swapRecordList, out var liquidityRecord, out var swapRecord);
+            if (liquidityRecord == null && swapRecord == null)
             {
-                GetEarliestRecord(liquidityRecordList, swapRecordList, out var liquidityRecord, out var swapRecord);
-                if (liquidityRecord == null && swapRecord == null)
-                {
-                    break;
-                }
-                if (liquidityRecord != null)
-                {
-                    await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord, _workerOptions.DataVersion, !_workerOptions.IsSyncHistoryData);
-                    blockHeight = Math.Max(blockHeight, liquidityRecord.BlockHeight);
-                    await Task.Delay(3000);
-                }
-                else
-                {
-                    await _portfolioAppService.SyncSwapRecordAsync(swapRecord, _workerOptions.DataVersion);
-                    blockHeight = Math.Max(blockHeight, swapRecord.BlockHeight);
-                }
-
-                if (logCount++ == 10)
-                {
-                    Log.Information("Portfolio new version re sync blockHeight : {height}, version: {version}", blockHeight, _workerOptions.DataVersion);
-                    logCount = 0;
-                }
+                break;
             }
-        }
-        catch (Exception e)
-        {
-            Log.Error(e, "Portfolio new version re sync event fail.");
+
+            if (liquidityRecord != null)
+            {
+                await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord, _workerOptions.DataVersion,
+                    !_workerOptions.IsSyncHistoryData);
+                blockHeight = Math.Max(blockHeight, liquidityRecord.BlockHeight);
+                await Task.Delay(3000);
+            }
+            else
+            {
+                await _portfolioAppService.SyncSwapRecordAsync(swapRecord, _workerOptions.DataVersion);
+                blockHeight = Math.Max(blockHeight, swapRecord.BlockHeight);
+            }
+
+            if (logCount++ == 10)
+            {
+                Log.Information("Portfolio new version re sync blockHeight : {height}, version: {version}", blockHeight,
+                    _workerOptions.DataVersion);
+                logCount = 0;
+            }
         }
 
         return blockHeight;

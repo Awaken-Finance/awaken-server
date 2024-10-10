@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Provider;
@@ -45,21 +46,17 @@ public class LiquidityEventSyncWorker : AwakenServerWorkerBase
         var queryList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
         long blockHeight = -1;
-        try
+
+        foreach (var queryDto in queryList)
         {
-            foreach (var queryDto in queryList)
+            if (!await _liquidityService.CreateAsync(queryDto))
             {
-                if (!await _liquidityService.CreateAsync(queryDto))
-                {
-                    continue;
-                }
-                blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
+                continue;
             }
+
+            blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
         }
-        catch (Exception e)
-        {
-            Log.Error(e, "liquidity event fail.");
-        }
+       
 
         return blockHeight;
     }

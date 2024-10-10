@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Client.MultiToken;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.CMS;
@@ -37,6 +38,7 @@ using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 using TokenInfo = AElf.Contracts.MultiToken.TokenInfo;
 using IndexTradePair = AwakenServer.Trade.Index.TradePair;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace AwakenServer.Trade
 {
@@ -343,22 +345,16 @@ namespace AwakenServer.Trade
             }
         }
         
-        public async Task RevertTradePairAsync(string chainId)
+        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        public virtual async Task RevertTradePairAsync(string chainId)
         {
-            try
-            {
-                var needDeletedTradeRecords =
+            var needDeletedTradeRecords =
                     await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.TradePairEvent, chainId);
-
-                await DoRevertAsync(chainId, needDeletedTradeRecords);
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, $"Revert trade pair err {e.Message}");
-            }
+            await DoRevertAsync(chainId, needDeletedTradeRecords);
         }
         
-        public async Task CreateSyncAsync(SyncRecordDto dto)
+        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        public virtual async Task CreateSyncAsync(SyncRecordDto dto)
         {
             var grain = _clusterClient.GetGrain<ISyncRecordGrain>(GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash, dto.PairAddress));
             if (await grain.ExistAsync())
@@ -409,30 +405,25 @@ namespace AwakenServer.Trade
             ));
         }
 
-        private async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
+        [ExceptionHandler(typeof(Exception), 
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
+        protected virtual async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
         {
-            try
-            {
-                var tradePairIndexDto = await GetAsync(tradePairId);
-                
-                if (tradePairIndexDto == null || !_contractsTokenOptions.Contracts.TryGetValue(
-                        tradePairIndexDto.FeeRate.ToString(),
-                        out var address))
-                {
-                    Log.Error("GetTokenInfoAsync, Get tradePairIndexDto failed");
-                    return null;
-                }
+            var tradePairIndexDto = await GetAsync(tradePairId);
 
-                var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
-                    TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
-                Log.Information($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
-                return token;
-            }
-            catch (Exception e)
+            if (tradePairIndexDto == null || !_contractsTokenOptions.Contracts.TryGetValue(
+                    tradePairIndexDto.FeeRate.ToString(),
+                    out var address))
             {
-                Log.Error(e, "Get token info failed");
+                Log.Error("GetTokenInfoAsync, Get tradePairIndexDto failed");
                 return null;
             }
+
+            var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
+                TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
+            Log.Information(
+                $"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
+            return token;
         }
         
         
@@ -622,14 +613,8 @@ namespace AwakenServer.Trade
 
             var items = ObjectMapper.Map<List<Index.TradePair>, List<TradePairIndexDto>>(list.Item2);
 
-            try
-            {
-                items = await AddFavoriteInfoAsync(items, input);
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "add favorite info error");
-            }
+           
+            items = await AddFavoriteInfoAsync(items, input);
 
             return new PagedResultDto<TradePairIndexDto>
             {
@@ -638,7 +623,9 @@ namespace AwakenServer.Trade
             };
         }
 
-        private async Task<List<TradePairIndexDto>> AddFavoriteInfoAsync(List<TradePairIndexDto> inTradePairIndexDtos,
+        [ExceptionHandler(typeof(Exception),
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        protected virtual async Task<List<TradePairIndexDto>> AddFavoriteInfoAsync(List<TradePairIndexDto> inTradePairIndexDtos,
             GetTradePairsInput input)
         {
             if (string.IsNullOrEmpty(input.Address) || inTradePairIndexDtos.Count == 0)

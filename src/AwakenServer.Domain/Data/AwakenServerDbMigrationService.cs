@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Serilog;
@@ -41,7 +42,7 @@ namespace AwakenServer.Data
 
         public async Task MigrateAsync()
         {
-            var initialMigrationAdded = AddInitialMigrationIfNotExist();
+            var initialMigrationAdded = await AddInitialMigrationIfNotExist();
 
             if (initialMigrationAdded)
             {
@@ -107,35 +108,22 @@ namespace AwakenServer.Data
             );
         }
 
-        private bool AddInitialMigrationIfNotExist()
+        [ExceptionHandler(typeof(Exception), LogLevel = LogLevel.Error, 
+            TargetType = typeof(DomainHandlerExceptionService), MethodName = nameof(DomainHandlerExceptionService.HandleWithReturnBool))]
+        protected virtual async Task<bool> AddInitialMigrationIfNotExist()
         {
-            try
-            {
-                if (!DbMigrationsProjectExists())
-                {
-                    return false;
-                }
-            }
-            catch (Exception)
+            if (!DbMigrationsProjectExists())
             {
                 return false;
             }
 
-            try
+            if (!MigrationsFolderExists())
             {
-                if (!MigrationsFolderExists())
-                {
-                    AddInitialMigration();
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                await AddInitialMigration();
+                return true;
             }
-            catch (Exception e)
+            else
             {
-                Log.Warning(e, "Couldn't determinate if any migrations exist : {message}", e.Message);
                 return false;
             }
         }
@@ -154,7 +142,8 @@ namespace AwakenServer.Data
             return Directory.Exists(Path.Combine(dbMigrationsProjectFolder, "Migrations"));
         }
 
-        private void AddInitialMigration()
+        [ExceptionHandler(typeof(Exception), LogOnly = true)]
+        protected virtual async Task AddInitialMigration()
         {
             Log.Information("Creating initial migration...");
 
@@ -175,15 +164,8 @@ namespace AwakenServer.Data
             var procStartInfo = new ProcessStartInfo(fileName,
                 $"{argumentPrefix} \"abp create-migration-and-run-migrator \"{GetEntityFrameworkCoreProjectFolderPath()}\"\""
             );
-
-            try
-            {
-                Process.Start(procStartInfo);
-            }
-            catch (Exception)
-            {
-                throw new Exception("Couldn't run ABP CLI...");
-            }
+            
+            Process.Start(procStartInfo);
         }
 
         private string GetEntityFrameworkCoreProjectFolderPath()

@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using Aetherlink.PriceServer;
 using Aetherlink.PriceServer.Dtos;
 using AwakenServer.AetherLinkApi;
@@ -24,48 +25,37 @@ public class AetherLinkTokenPriceProvider : ITokenPriceProvider
 
     
     
-    public async Task<decimal> GetPriceAsync(string pair)
+    [ExceptionHandler(typeof(Exception), LogOnly = true)]
+    public virtual async Task<decimal> GetPriceAsync(string pair)
     {
-        try
+        var result = (await _priceServerProvider.GetAggregatedTokenPriceAsync(new()
         {
-            var result = (await _priceServerProvider.GetAggregatedTokenPriceAsync(new()
-            {
-                TokenPair = pair,
-                AggregateType = AggregateType.Latest
-            })).Data;
+            TokenPair = pair,
+            AggregateType = AggregateType.Latest
+        })).Data;
 
-            Log.Information($"Get token price from Aetherlink price service, pair: {result.TokenPair}, price: {result.Price}, decimal: {result.Decimal}");
-    
-            return (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
-        }
-        catch (Exception e)
-        {
-            Log.Error($"Get token price from Aetherlink price service faild, pair: {pair}, exception: {e}");
-            throw;
-        }
+        Log.Information(
+            $"Get token price from Aetherlink price service, pair: {result.TokenPair}, price: {result.Price}, decimal: {result.Decimal}");
+
+        return (decimal) (result.Price / Math.Pow(10, (double) result.Decimal));
     }
 
+    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
     public async Task<decimal> GetHistoryPriceAsync(string pair, string dateTime)
     {
         var date = DateTime.ParseExact(dateTime, "dd-MM-yyyy", CultureInfo.InvariantCulture).ToString("yyyyMMdd");
-        try
-        {
-            var tokenPair = pair;
-            var result = (await _priceServerProvider.GetDailyPriceAsync(new()
-            {
-                TokenPair = tokenPair,
-                TimeStamp = date
-            })).Data;
 
-            Log.Information($"Get history token price from Aetherlink price service, tokenPair: {tokenPair}, TimeStamp: {date}, result.Price: {result.Price}, result.Decimal: {result.Decimal}");
-    
-            return (decimal)(result.Price / Math.Pow(10, (double)result.Decimal));
-        }
-        catch (Exception e)
+        var tokenPair = pair;
+        var result = (await _priceServerProvider.GetDailyPriceAsync(new()
         {
-            Log.Error(e, $"Get history token price from Aetherlink price service faild, {pair}, {dateTime}, {e.Message}");
-            return 0;
-        }
+            TokenPair = tokenPair,
+            TimeStamp = date
+        })).Data;
+
+        Log.Information(
+            $"Get history token price from Aetherlink price service, tokenPair: {tokenPair}, TimeStamp: {date}, result.Price: {result.Price}, result.Decimal: {result.Decimal}");
+
+        return (decimal) (result.Price / Math.Pow(10, (double) result.Decimal));
     }
     
 }

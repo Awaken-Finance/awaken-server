@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Tokens;
 using Microsoft.Extensions.Logging;
@@ -28,19 +29,12 @@ public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransient
         _logger = logger;
     }
     
-    public async Task HandleEventAsync(NewTokenEvent eventData)
+    [ExceptionHandler(typeof(Exception), LogOnly = true)]
+    public virtual async Task HandleEventAsync(NewTokenEvent eventData)
     {
-        try
-        {
-            await _tokenIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewTokenEvent, Token>(eventData));
+        await _tokenIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewTokenEvent, Token>(eventData));
             Log.Debug("Token info add success:{Id}-{Symbol}-{ChainId}, ImageUri:{ImageUri}", eventData.Id, eventData.Symbol,
                 eventData.ChainId, eventData.ImageUri);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "{Id}-{Symbol}-{ChainId}", eventData.Id, eventData.Symbol,
-                eventData.ChainId);
-        }
     }
     
 }

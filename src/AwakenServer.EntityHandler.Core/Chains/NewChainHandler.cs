@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using Microsoft.Extensions.Logging;
@@ -26,18 +27,12 @@ public class NewChainHandler : IDistributedEventHandler<NewChainEvent>, ITransie
         _logger = logger;
     }
     
-    public async Task HandleEventAsync(NewChainEvent eventData)
+    [ExceptionHandler(typeof(Exception), LogLevel = LogLevel.Error, 
+        TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    public virtual async Task HandleEventAsync(NewChainEvent eventData)
     {
-        try
-        {
-            await _chainIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewChainEvent, Chain>(eventData));
+        await _chainIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewChainEvent, Chain>(eventData));
             Log.Debug("Chain info add success: {Id}-{Name}-{AElfChainId}", eventData.Id, 
                 eventData.Name, eventData.AElfChainId);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Chain info add Fail: {Id}-{Name}-{AElfChainId}", eventData.Id,
-                eventData.Name, eventData.AElfChainId);
-        }
     }
 }

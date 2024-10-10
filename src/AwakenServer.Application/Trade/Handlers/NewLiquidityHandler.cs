@@ -2,6 +2,7 @@ using System;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using AElf.Client.MultiToken;
+using AElf.ExceptionHandler;
 using AwakenServer.Chains;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Trade;
@@ -41,30 +42,25 @@ namespace AwakenServer.Trade.Handlers
             _contractsTokenOptions = contractsTokenOptions.Value;
         }
 
-        private async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
+        [ExceptionHandler(typeof(Exception),
+            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        protected virtual async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
         {
-            try
-            {
-                var tradePairIndexDto = await _tradePairAppService.GetAsync(tradePairId);
-                
-                if (tradePairIndexDto == null || !_contractsTokenOptions.Contracts.TryGetValue(
-                        tradePairIndexDto.FeeRate.ToString(),
-                        out var address))
-                {
-                    Log.Error("GetTokenInfoAsync, Get tradePairIndexDto failed");
-                    return null;
-                }
+            var tradePairIndexDto = await _tradePairAppService.GetAsync(tradePairId);
 
-                var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
-                    TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
-                Log.Information($"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
-                return token;
-            }
-            catch (Exception e)
+            if (tradePairIndexDto == null || !_contractsTokenOptions.Contracts.TryGetValue(
+                    tradePairIndexDto.FeeRate.ToString(),
+                    out var address))
             {
-                Log.Error(e, "Get token info failed");
+                Log.Error("GetTokenInfoAsync, Get tradePairIndexDto failed");
                 return null;
             }
+
+            var token = await _blockchainClientProvider.GetTokenInfoFromChainAsync(chainId, address,
+                TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol));
+            Log.Information(
+                $"lp token {TradePairHelper.GetLpToken(tradePairIndexDto.Token0.Symbol, tradePairIndexDto.Token1.Symbol)}, supply {token.Supply}");
+            return token;
         }
 
         

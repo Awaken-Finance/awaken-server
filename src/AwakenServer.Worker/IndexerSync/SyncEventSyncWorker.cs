@@ -46,17 +46,10 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
         
         Log.Information("sync queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Id);
         
-        try
+        foreach (var queryDto in queryList)
         {
-            foreach (var queryDto in queryList)
-            {
-                await _tradePairAppService.CreateSyncAsync(queryDto);
-                blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
-            }
-        }
-        catch (Exception e)
-        {
-            Log.Error(e, "sync event fail.");
+            await _tradePairAppService.CreateSyncAsync(queryDto);
+            blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
         }
 
         return blockHeight;

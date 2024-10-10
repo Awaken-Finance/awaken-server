@@ -1,4 +1,5 @@
-﻿using AwakenServer.MultiTenancy;
+﻿using AElf.ExceptionHandler;
+using AwakenServer.MultiTenancy;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Etos;
 using AElf.Indexing.Elasticsearch;
@@ -21,7 +22,8 @@ namespace AwakenServer
         typeof(AbpSettingManagementDomainModule),
         typeof(AbpTenantManagementDomainModule),
         typeof(AbpEmailingModule),
-        typeof(AElfIndexingElasticsearchModule)
+        typeof(AElfIndexingElasticsearchModule),
+        typeof(AOPExceptionModule)
     )]
     public class AwakenServerDomainModule : AbpModule
     {

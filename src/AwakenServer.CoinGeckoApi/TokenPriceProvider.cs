@@ -1,6 +1,7 @@
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Price;
 using CoinGecko.Clients;
@@ -31,7 +32,8 @@ public class TokenPriceProvider : ITokenPriceProvider
         _logger = logger;
     }
 
-    public async Task<decimal> GetPriceAsync(string symbol)
+    [ExceptionHandler(typeof(Exception), LogOnly = true)]
+    public virtual async Task<decimal> GetPriceAsync(string symbol)
     {
         if (string.IsNullOrEmpty(symbol))
         {
@@ -45,24 +47,17 @@ public class TokenPriceProvider : ITokenPriceProvider
             return 0;
         }
 
-        try
-        {
-            var coinData =
-                await RequestAsync(async () =>
-                    await _coinGeckoClient.SimpleClient.GetSimplePrice(new[] { coinId }, new[] { CoinGeckoApiConsts.UsdSymbol }));
+        var coinData =
+            await RequestAsync(async () =>
+                await _coinGeckoClient.SimpleClient.GetSimplePrice(new[] {coinId},
+                    new[] {CoinGeckoApiConsts.UsdSymbol}));
 
-            if (!coinData.TryGetValue(coinId, out var value))
-            {
-                return 0;
-            }
-
-            return value[CoinGeckoApiConsts.UsdSymbol].Value;
-        }
-        catch (Exception ex)
+        if (!coinData.TryGetValue(coinId, out var value))
         {
-            Log.Error(ex, "can not get current price: {symbol}.", symbol);
-            throw;
+            return 0;
         }
+
+        return value[CoinGeckoApiConsts.UsdSymbol].Value;
     }
 
     public async Task<decimal> GetHistoryPriceAsync(string symbol, string dateTime)
