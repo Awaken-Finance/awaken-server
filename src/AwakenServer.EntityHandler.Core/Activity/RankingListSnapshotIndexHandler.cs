@@ -39,6 +39,12 @@ public class RankingListSnapshotIndexHandler : TradeIndexHandlerBase,
     {
         var rankingListSnapshotIndex = ObjectMapper.Map<RankingListSnapshotEto, RankingListSnapshotIndex>(eventData);
         await _rankingListSnapshotIndexRepository.AddOrUpdateAsync(rankingListSnapshotIndex);
+        PublishRankingListAsync(eventData);
+    }
+
+    private async Task PublishRankingListAsync(RankingListSnapshotEto eventData)
+    {
+        await Task.Delay(3000);
         var rankingListDto = await _activityAppService.GetRankingListAsync(new ActivityBaseDto()
         {
             ActivityId = eventData.ActivityId
