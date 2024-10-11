@@ -298,11 +298,11 @@ namespace AwakenServer.Activity
             userActivityInfo.Item2.Count.ShouldBe(2);
             userActivityInfo.Item2[0].ActivityId.ShouldBe(2);
             userActivityInfo.Item2[0].Address.ShouldBe("0x1");
-            userActivityInfo.Item2[0].TotalPoint.ShouldBe(5050); // 50% * 10100
+            userActivityInfo.Item2[0].TotalPoint.ShouldBe(505000); // 50% * 10100
             
             userActivityInfo.Item2[1].ActivityId.ShouldBe(2);
             userActivityInfo.Item2[1].Address.ShouldBe("0x2");
-            userActivityInfo.Item2[1].TotalPoint.ShouldBe(5050); // 50% * 10100
+            userActivityInfo.Item2[1].TotalPoint.ShouldBe(505000); // 50% * 10100
             
             
             result = await _myPortfolioAppService.SyncLiquidityRecordAsync(new LiquidityRecordDto()
@@ -333,11 +333,11 @@ namespace AwakenServer.Activity
             userActivityInfo.Item2.Count.ShouldBe(2);
             userActivityInfo.Item2[0].ActivityId.ShouldBe(2);
             userActivityInfo.Item2[0].Address.ShouldBe("0x1");
-            userActivityInfo.Item2[0].TotalPoint.ShouldBe(15150); // 100% * 10100 + 5050
+            userActivityInfo.Item2[0].TotalPoint.ShouldBe(1515000); // 100% * 10100 + 5050
             
             userActivityInfo.Item2[1].ActivityId.ShouldBe(2);
             userActivityInfo.Item2[1].Address.ShouldBe("0x2");
-            userActivityInfo.Item2[1].TotalPoint.ShouldBe(5050); // 0% * 10100 + 5050
+            userActivityInfo.Item2[1].TotalPoint.ShouldBe(505000); // 0% * 10100 + 5050
             
             
             var ranking = await _rankingListSnapshotRepository.GetListAsync(sortExp: k => k.Timestamp);
@@ -347,18 +347,18 @@ namespace AwakenServer.Activity
             ranking.Item2[0].NumOfJoin.ShouldBe(2);
             ranking.Item2[0].RankingList.Count.ShouldBe(2);
             ranking.Item2[0].RankingList[0].Address.ShouldBe("0x1");
-            ranking.Item2[0].RankingList[0].TotalPoint.ShouldBe(5050);
+            ranking.Item2[0].RankingList[0].TotalPoint.ShouldBe(505000);
             ranking.Item2[0].RankingList[1].Address.ShouldBe("0x2");
-            ranking.Item2[0].RankingList[1].TotalPoint.ShouldBe(5050);
+            ranking.Item2[0].RankingList[1].TotalPoint.ShouldBe(505000);
             
             ranking.Item2[1].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(snapshotTime2.Date.AddHours(snapshotTime2.Hour)));
             ranking.Item2[1].ActivityId.ShouldBe(2);
             ranking.Item2[1].NumOfJoin.ShouldBe(2);
             ranking.Item2[1].RankingList.Count.ShouldBe(2);
             ranking.Item2[1].RankingList[0].Address.ShouldBe("0x1");
-            ranking.Item2[1].RankingList[0].TotalPoint.ShouldBe(15150);
+            ranking.Item2[1].RankingList[0].TotalPoint.ShouldBe(1515000);
             ranking.Item2[1].RankingList[1].Address.ShouldBe("0x2");
-            ranking.Item2[1].RankingList[1].TotalPoint.ShouldBe(5050);
+            ranking.Item2[1].RankingList[1].TotalPoint.ShouldBe(505000);
         }
         
     }
