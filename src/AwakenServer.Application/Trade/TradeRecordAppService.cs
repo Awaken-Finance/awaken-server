@@ -102,7 +102,7 @@ namespace AwakenServer.Trade
         }
 
         [ExceptionHandler(typeof(Exception), Message = "ProcessSwapRecords Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
-        protected virtual async Task ProcessSwapRecords(List<Index.TradeRecord> swapRecords)
+        public virtual async Task ProcessSwapRecords(List<Index.TradeRecord> swapRecords)
         {
             foreach (var tradeRecord in swapRecords.Where(t => t.Side == TradeSide.Swap))
             {
@@ -1211,7 +1211,7 @@ namespace AwakenServer.Trade
         }
         
         [ExceptionHandler(typeof(Exception),  Message = "RevertTradeRecord Error",
-            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+            TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
         public virtual async Task RevertTradeRecordAsync(string chainId)
         {
             var needDeletedTradeRecords =

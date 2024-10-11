@@ -405,8 +405,8 @@ namespace AwakenServer.Trade
         }
 
         [ExceptionHandler(typeof(Exception), Message = "GetTokenInfo Error", 
-            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
-        protected virtual async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
+            TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
+        public virtual async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
         {
             var tradePairIndexDto = await GetAsync(tradePairId);
 
@@ -623,8 +623,8 @@ namespace AwakenServer.Trade
         }
 
         [ExceptionHandler(typeof(Exception), Message = "AddFavoriteInfo Error", 
-            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
-        protected virtual async Task<List<TradePairIndexDto>> AddFavoriteInfoAsync(List<TradePairIndexDto> inTradePairIndexDtos,
+            TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        public virtual async Task<List<TradePairIndexDto>> AddFavoriteInfoAsync(List<TradePairIndexDto> inTradePairIndexDtos,
             GetTradePairsInput input)
         {
             if (string.IsNullOrEmpty(input.Address) || inTradePairIndexDtos.Count == 0)

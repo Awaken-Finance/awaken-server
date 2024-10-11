@@ -108,9 +108,9 @@ namespace AwakenServer.Data
             );
         }
 
-        [ExceptionHandler(typeof(Exception), LogLevel = LogLevel.Error, 
+        [ExceptionHandler(typeof(Exception),
             TargetType = typeof(DomainHandlerExceptionService), MethodName = nameof(DomainHandlerExceptionService.HandleWithReturnBool))]
-        protected virtual async Task<bool> AddInitialMigrationIfNotExist()
+        public virtual async Task<bool> AddInitialMigrationIfNotExist()
         {
             if (!DbMigrationsProjectExists())
             {
@@ -143,7 +143,7 @@ namespace AwakenServer.Data
         }
 
         [ExceptionHandler(typeof(Exception), LogOnly = true)]
-        protected virtual async Task AddInitialMigration()
+        public virtual async Task AddInitialMigration()
         {
             Log.Information("Creating initial migration...");
 

@@ -115,7 +115,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
     public abstract Task<long> SyncDataAsync(ChainDto chain, long startHeight);
 
     [ExceptionHandler(typeof(Exception), Message = "ResetBlockHeight Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
-    protected virtual async Task ResetBlockHeight(ChainDto chain)
+    public virtual async Task ResetBlockHeight(ChainDto chain)
     {
         AsyncHelper.RunSync(async () =>
             await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType,

@@ -42,7 +42,7 @@ public class AetherLinkTokenPriceProvider : ITokenPriceProvider
     }
 
     [ExceptionHandler(typeof(Exception), Message = "GetHistoryPrice Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
-    public async Task<decimal> GetHistoryPriceAsync(string pair, string dateTime)
+    public virtual async Task<decimal> GetHistoryPriceAsync(string pair, string dateTime)
     {
         var date = DateTime.ParseExact(dateTime, "dd-MM-yyyy", CultureInfo.InvariantCulture).ToString("yyyyMMdd");
 

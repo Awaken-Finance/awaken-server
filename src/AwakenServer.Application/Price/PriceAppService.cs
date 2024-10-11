@@ -79,7 +79,7 @@ namespace AwakenServer.Price
 
         [ExceptionHandler(typeof(Exception), Message = "GetTokenApi Error",
             LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
-        protected virtual string GetTokenApiName(string symbol)
+        public virtual string GetTokenApiName(string symbol)
         {
             if (String.IsNullOrEmpty(symbol))
             {
@@ -116,9 +116,8 @@ namespace AwakenServer.Price
             return result;
         }
 
-        [ExceptionHandler(typeof(Exception), Message = "GetHistoryPrice Error",
-            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
-        protected virtual async Task<decimal> GetHistoryPriceAsync(string symbol, string time)
+        [ExceptionHandler(typeof(Exception), Message = "GetHistoryPrice Error",TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+        public virtual async Task<decimal> GetHistoryPriceAsync(string symbol, string time)
         {
             var pair = GetTokenApiName(symbol);
             if (String.IsNullOrEmpty(pair))
@@ -625,8 +624,7 @@ namespace AwakenServer.Price
             }
         }
         
-        [ExceptionHandler(typeof(Exception), Message = "UpdateAffectedPrice Error",
-            LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        [ExceptionHandler(typeof(Exception), Message = "UpdateAffectedPrice Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
         public virtual async Task UpdateAffectedPriceMapAsync(string chainId, Guid tradePairId, string token0Amount, string token1Amount)
         {
             var pricingMapKey = $"{PriceOptions.PricingMapCachePrefix}:{chainId}";

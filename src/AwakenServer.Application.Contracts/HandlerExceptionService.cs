@@ -10,8 +10,6 @@ public class HandlerExceptionService
 {
     public static async Task<FlowBehavior> HandleWithReturn(Exception ex)
     {
-        Log.Error(ex, $"Handled exception: {ex.Message}");
-        Console.WriteLine($"Handled exception: {ex.Message}");
         return new FlowBehavior
         {
             ExceptionHandlingStrategy = ExceptionHandlingStrategy.Return,
@@ -20,8 +18,6 @@ public class HandlerExceptionService
     
     public static async Task<FlowBehavior> HandleWithReturnNull(Exception ex)
     {
-        Log.Error(ex, $"Handled exception: {ex.Message}");
-        Console.WriteLine($"Handled exception: {ex.Message}");
         return new FlowBehavior
         {
             ExceptionHandlingStrategy = ExceptionHandlingStrategy.Return,
@@ -31,8 +27,6 @@ public class HandlerExceptionService
     
     public static async Task<FlowBehavior> HandleWithReThrow(Exception ex)
     {
-        Log.Error(ex, $"Handled exception: {ex.Message}");
-        Console.WriteLine($"Handled exception: {ex.Message}");
         return new FlowBehavior
         {
             ExceptionHandlingStrategy = ExceptionHandlingStrategy.Rethrow
@@ -41,8 +35,6 @@ public class HandlerExceptionService
     
     public static async Task<FlowBehavior> HandleWithHttpException(Exception ex)
     {
-        Log.Error(ex, $"Handled exception: {ex.Message}");
-        Console.WriteLine($"Handled exception: {ex.Message}");
         return new FlowBehavior
         {
             ExceptionHandlingStrategy = ExceptionHandlingStrategy.Throw,
@@ -52,8 +44,6 @@ public class HandlerExceptionService
     
     public static async Task<FlowBehavior> HandleWithReturn0(Exception ex)
     {
-        Log.Error(ex, $"Handled exception: {ex.Message}");
-        Console.WriteLine($"Handled exception: {ex.Message}");
         return new FlowBehavior
         {
             ExceptionHandlingStrategy = ExceptionHandlingStrategy.Return,
@@ -63,8 +53,6 @@ public class HandlerExceptionService
     
     public static async Task<FlowBehavior> HandleWithReturnMinusOne(Exception ex)
     {
-        Log.Error(ex, $"Handled exception: {ex.Message}");
-        Console.WriteLine($"Handled exception: {ex.Message}");
         return new FlowBehavior
         {
             ExceptionHandlingStrategy = ExceptionHandlingStrategy.Return,
@@ -74,8 +62,6 @@ public class HandlerExceptionService
     
     public static async Task<FlowBehavior> HandleWithReturnBool(Exception ex)
     {
-        Log.Error(ex, $"Handled exception: {ex.Message}");
-        Console.WriteLine($"Handled exception: {ex.Message}");
         return new FlowBehavior
         {
             ExceptionHandlingStrategy = ExceptionHandlingStrategy.Return,

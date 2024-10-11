@@ -156,7 +156,7 @@ namespace AwakenServer.EntityHandler.Trade
         }
             
         [ExceptionHandler(typeof(Exception), Message = "GetHistoryPriceInUsd Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
-        protected virtual async Task<double> GetHistoryPriceInUsdAsync(TradeRecord index)
+        public virtual async Task<double> GetHistoryPriceInUsdAsync(TradeRecord index)
         {
             var list = await _priceAppService.GetTokenHistoryPriceDataAsync(
                 new List<GetTokenHistoryPriceInput>
