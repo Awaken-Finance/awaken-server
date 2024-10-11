@@ -290,7 +290,7 @@ namespace AwakenServer.Route
             return null;
         }
 
-        [ExceptionHandler(typeof(Exception), 
+        [ExceptionHandler(typeof(Exception), Message = "GetBestRoutes Error", 
             LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
         public virtual async Task<BestRoutesDto> GetBestRoutesAsync(GetBestRoutesInput input)
         {

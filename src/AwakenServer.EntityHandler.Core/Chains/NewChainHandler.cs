@@ -27,7 +27,7 @@ public class NewChainHandler : IDistributedEventHandler<NewChainEvent>, ITransie
         _logger = logger;
     }
     
-    [ExceptionHandler(typeof(Exception), LogLevel = LogLevel.Error, 
+    [ExceptionHandler(typeof(Exception), Message = "Handle NewChainEvent Error", LogLevel = LogLevel.Error, 
         TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
     public virtual async Task HandleEventAsync(NewChainEvent eventData)
     {

@@ -351,8 +351,8 @@ namespace AwakenServer.Trade
             }
         }
         
-        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
-        public async Task RevertLiquidityAsync(string chainId)
+        [ExceptionHandler(typeof(Exception), Message = "RevertLiquidity Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        public virtual async Task RevertLiquidityAsync(string chainId)
         {
             var needDeletedTradeRecords =
                 await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.LiquidityEvent, chainId);

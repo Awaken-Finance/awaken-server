@@ -175,7 +175,7 @@ namespace AwakenServer.Chains
         }
 
         
-        [ExceptionHandler(typeof(Exception), 
+        [ExceptionHandler(typeof(Exception), Message = "ExistTransaction Error",
             LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnMinusOne))]
         public virtual async Task<int> ExistTransactionAsync(string chainName, string transactionHash)
         {

@@ -79,7 +79,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return $"{baseKey}:{version}";
     }
 
-    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+    [ExceptionHandler(typeof(Exception), Message = "UpdateUserAllAsset Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
     public virtual async Task<int> UpdateUserAllAssetAsync(string address, TimeSpan maxTimeSinceLastUpdate, string dataVersion)
     {
         var affectedCount = 0;
@@ -137,7 +137,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return affectedCount;
     }
     
-    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    [ExceptionHandler(typeof(Exception), Message = "SyncLiquidityRecord Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
     public virtual async Task<bool> SyncLiquidityRecordAsync(LiquidityRecordDto liquidityRecordDto, string dataVersion, bool alignUserAllAsset)
     {
         var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{liquidityRecordDto.TransactionHash}", dataVersion);
@@ -206,7 +206,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return true;
     }
     
-    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    [ExceptionHandler(typeof(Exception), Message = "SyncSwapRecord Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
     public virtual async Task<bool> SyncSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion)
     {
         var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{swapRecordDto.TransactionHash}", dataVersion);

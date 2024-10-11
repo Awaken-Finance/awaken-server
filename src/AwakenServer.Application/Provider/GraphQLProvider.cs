@@ -510,14 +510,14 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         return graphQLResponse.Data.GetUserTokens;
     }
     
-    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnMinusOne))]
+    [ExceptionHandler(typeof(Exception), Message = "GetLastEndHeight Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnMinusOne))]
     public virtual async Task<long> GetLastEndHeightAsync(string chainId, WorkerBusinessType type)
     {
         var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() + chainId);
             return await grain.GetStateAsync();
     }
 
-    [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    [ExceptionHandler(typeof(Exception), Message = "SetLastEndHeight Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
     public virtual async Task SetLastEndHeightAsync(string chainId, WorkerBusinessType type, long height)
     {
         var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() +

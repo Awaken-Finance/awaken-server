@@ -77,7 +77,7 @@ namespace AwakenServer.Price
             return await _tokenPriceProvider.GetHistoryPriceAsync(PriceOptions.UsdtPricePair, time);
         }
 
-        [ExceptionHandler(typeof(Exception),
+        [ExceptionHandler(typeof(Exception), Message = "GetTokenApi Error",
             LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
         protected virtual string GetTokenApiName(string symbol)
         {
@@ -116,7 +116,7 @@ namespace AwakenServer.Price
             return result;
         }
 
-        [ExceptionHandler(typeof(Exception), 
+        [ExceptionHandler(typeof(Exception), Message = "GetHistoryPrice Error",
             LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
         protected virtual async Task<decimal> GetHistoryPriceAsync(string symbol, string time)
         {
@@ -267,7 +267,7 @@ namespace AwakenServer.Price
             };
         }
         
-        [ExceptionHandler(typeof(Exception), 
+        [ExceptionHandler(typeof(Exception), Message = "GetTokenPriceList Error",
             LogOnly = true)]
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols)
         {
@@ -298,7 +298,7 @@ namespace AwakenServer.Price
             };
         }
 
-        [ExceptionHandler(typeof(Exception), 
+        [ExceptionHandler(typeof(Exception), Message = "GetTokenHistoryPriceData Error",
             LogOnly = true)]
         public virtual async Task<TokenPriceDataDto> GetTokenHistoryPriceDataAsync(GetTokenHistoryPriceInput input)
         {
@@ -312,7 +312,7 @@ namespace AwakenServer.Price
            
         }
         
-        [ExceptionHandler(typeof(Exception), 
+        [ExceptionHandler(typeof(Exception), Message = "GetTokenHistoryPriceData Error",
             LogOnly = true)]
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenHistoryPriceDataAsync(
             List<GetTokenHistoryPriceInput> inputs)
@@ -635,7 +635,7 @@ namespace AwakenServer.Price
             }
         }
         
-        [ExceptionHandler(typeof(Exception), 
+        [ExceptionHandler(typeof(Exception), Message = "UpdateAffectedPrice Error",
             LogLevel = LogLevel.Error, TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
         public virtual async Task UpdateAffectedPriceMapAsync(string chainId, Guid tradePairId, string token0Amount, string token1Amount)
         {

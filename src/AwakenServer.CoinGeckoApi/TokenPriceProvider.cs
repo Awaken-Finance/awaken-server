@@ -31,7 +31,7 @@ public class TokenPriceProvider : ITokenPriceProvider
         _logger = logger;
     }
 
-    [ExceptionHandler(typeof(Exception), LogOnly = true)]
+    [ExceptionHandler(typeof(Exception), Message = "GetPrice Error", LogOnly = true)]
     public virtual async Task<decimal> GetPriceAsync(string symbol)
     {
         if (string.IsNullOrEmpty(symbol))
