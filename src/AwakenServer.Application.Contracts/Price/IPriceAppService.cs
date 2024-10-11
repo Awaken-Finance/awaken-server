@@ -14,6 +14,7 @@ namespace AwakenServer.Price
         Task<string> GetTokenPriceAsync(GetTokenPriceInput input);
         Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols);
         Task<ListResultDto<TokenPriceDataDto>> GetTokenHistoryPriceDataAsync(List<GetTokenHistoryPriceInput> inputs);
+        Task<TokenPriceDataDto> GetTokenHistoryPriceDataAsync(GetTokenHistoryPriceInput input);
         Task RebuildPricingMapAsync(string chainId);
         Task UpdateAffectedPriceMapAsync(string chainId, Guid tradePairId, string token0Amount, string token1Amount);
     }

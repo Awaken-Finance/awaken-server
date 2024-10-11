@@ -138,7 +138,8 @@ namespace AwakenServer.Price
 
         private bool IsNeedFetchPrice(PriceDto priceDto)
         {
-            return priceDto.PriceInUsd == PriceOptions.DefaultPriceValue ||
+            return priceDto.PriceInUsd == 0 || 
+                   priceDto.PriceInUsd == PriceOptions.DefaultPriceValue ||
                    priceDto.PriceUpdateTime.AddSeconds(_tokenPriceOptions.Value.PriceExpirationTimeSeconds) <= DateTime.UtcNow;
         }
         
@@ -313,6 +314,24 @@ namespace AwakenServer.Price
             };
         }
 
+        public async Task<TokenPriceDataDto> GetTokenHistoryPriceDataAsync(GetTokenHistoryPriceInput input)
+        {
+            try
+            {
+                var tokenApiName = GetTokenApiName(input.Symbol);
+                if (!string.IsNullOrEmpty(tokenApiName))
+                {
+                    return await GetApiHistoryTokenPriceAsync(input);
+                }
+                return await GetInternalHistoryTokenPriceAsync(input);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, $"Get {input.Symbol}, {input.DateTime} history token price failed.");
+                throw;
+            }
+        }
+        
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenHistoryPriceDataAsync(
             List<GetTokenHistoryPriceInput> inputs)
         {

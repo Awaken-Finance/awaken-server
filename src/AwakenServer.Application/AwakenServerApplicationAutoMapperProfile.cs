@@ -1,5 +1,7 @@
 using System;
 using AutoMapper;
+using AwakenServer.Activity.Eto;
+using AwakenServer.Activity.Index;
 using AwakenServer.Asset;
 using AwakenServer.Chains;
 using AwakenServer.Favorite;
@@ -159,6 +161,7 @@ namespace AwakenServer
             CreateMap<GetTokenPathsInput, GetTokenPathGrainDto>();
 
             CreateMap<CurrentUserLiquidityEto, CurrentUserLiquidityIndex>();
+            CreateMap<CurrentUserLiquidityIndex, CurrentUserLiquidityDto>();
             CreateMap<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>();
             
             CreateMap<LimitOrderDto, LimitOrderIndexDto>()
@@ -172,6 +175,10 @@ namespace AwakenServer
             
             //Favorite
             CreateMapForFavorite();
+
+            CreateMap<RankingListSnapshotEto, RankingListSnapshotIndex>();
+            CreateMap<UserActivityInfoEto, UserActivityInfoIndex>();
+            CreateMap<JoinRecordEto, JoinRecordIndex>();
         }
 
         private void CreateMapForFavorite()

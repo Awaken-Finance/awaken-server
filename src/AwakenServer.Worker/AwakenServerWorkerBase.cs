@@ -40,6 +40,9 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
 
         timer.Period = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).TimePeriod;
         
+        _workerOptions.TimePeriod = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
+            optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).TimePeriod : 3000;
+        
         _workerOptions.OpenSwitch = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
             optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).OpenSwitch : false;
         
@@ -142,6 +145,11 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
             try
             {
                 var lastEndHeight = await _graphQlProvider.GetLastEndHeightAsync(chain.Name, _businessType);
+
+                if (lastEndHeight == AppServiceConstant.LongError)
+                {
+                    continue;
+                }
                 
                 _logger.LogInformation(
                     $"Start deal data for businessType: {_businessType} " +

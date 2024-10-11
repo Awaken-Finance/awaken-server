@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AwakenServer.Activity;
 using AwakenServer.Applications.GameOfTrust;
 using AwakenServer.Chains;
 using AwakenServer.CMS;
@@ -118,6 +119,46 @@ namespace AwakenServer.Trade
                 };
             });
 
+            context.Services.Configure<ActivityOptions>(o =>
+            {
+                o.PricingTokens = new List<string>()
+                {
+                    "ELF",
+                    "USDT"
+                };
+                o.ActivityList = new List<Activity.Activity>();
+                o.ActivityList.Add(new Activity.Activity()
+                {
+                    ActivityId = 1,
+                    Type = "volume",
+                    BeginTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                    EndTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(3)),
+                    TradePairs = new List<string>()
+                    {
+                        "ETH_USDT",
+                        "BTC_USDT"
+                    },
+                    WhiteList = new List<string>()
+                    {
+                        "AAA"
+                    }
+                });
+                o.ActivityList.Add(new Activity.Activity()
+                {
+                    ActivityId = 2,
+                    Type = "tvl",
+                    BeginTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                    EndTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(3)),
+                    TradePairs = new List<string>()
+                    {
+                        "ETH_USDT",
+                        "BTC_USDT"
+                    },
+                });
+    
+            });
+
+            
             context.Services.Configure<CmsOptions>(o => { o.CmsAddress = "https://test-cms.awaken.finance/"; });
 
             context.Services.Configure<ContractsTokenOptions>(o =>
