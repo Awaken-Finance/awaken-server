@@ -398,7 +398,7 @@ namespace AwakenServer.Activity
                 TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
                 AmountInFilled = NumberFormatter.WithDecimals(10, 8),
                 AmountOutFilled = NumberFormatter.WithDecimals(100, 6),
-                TotalFee = 150000,
+                TotalFee = 50000,
                 TransactionTime = DateTimeHelper.ToUnixTimeMilliseconds(swapTime)
             };
             var createActivityLimitFillRecordResult = await _activityAppService.CreateLimitOrderFillRecordAsync(limitFillRecord);

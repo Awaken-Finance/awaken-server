@@ -64,6 +64,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     private const string TvlActivityType = "tvl";
     private const long TvlActivityInitNum = 1000;
     private const double LabsFeeRate = 0.0015;
+    private const double LimitLabsFeeRate = 0.0005;
 
     public ActivityAppService(
         ILogger<ActivityAppService> logger,
@@ -369,7 +370,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             // check symbol out is special token and add value
             if (pricingTokensSet.Contains(swapRecord.SymbolIn))
             {
-                var swapValueFromPricingToken = await GetTokenValueInUsdAsync(swapRecord.SymbolIn, swapRecord.AmountOut, dto.Timestamp);
+                var swapValueFromPricingToken = await GetTokenValueInUsdAsync(swapRecord.SymbolIn, swapRecord.AmountIn, dto.Timestamp);
                 if (!swapValueFromPricingTokenMap.ContainsKey(swapRecord.SymbolIn))
                 {
                     swapValueFromPricingTokenMap.Add(swapRecord.SymbolIn, 0);
@@ -401,18 +402,18 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         }
         
         var labsFeeInUsd = await GetTokenValueInUsdAsync(dto.SymbolOut, dto.TotalFee, dto.TransactionTime);
-        var swapValueFromLabsFee = labsFeeInUsd / LabsFeeRate;
+        var swapValueFromLabsFee = labsFeeInUsd / LimitLabsFeeRate;
         
         var pricingTokensSet = new HashSet<string>(_activityOptions.PricingTokens);
         if (pricingTokensSet.Contains(dto.SymbolOut))
         {
-            _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, symbol: {dto.SymbolOut}, swapValueFromLabsFee: {swapValueFromLabsFee}");
+            _logger.LogInformation($"Get trade limit fill record point, txn: {dto.TransactionHash}, symbol: {dto.SymbolOut}, swapValueFromLabsFee: {swapValueFromLabsFee}");
             return swapValueFromLabsFee;
         }
 
         var swapValueFromPricingToken = await GetTokenValueInUsdAsync(dto.SymbolIn, dto.AmountInFilled, dto.TransactionTime);
         var finalPoint = Math.Min(swapValueFromLabsFee, swapValueFromPricingToken);
-        _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPricingToken: {swapValueFromPricingToken}, final point: {finalPoint}");
+        _logger.LogInformation($"Get trade limit fill record point, txn: {dto.TransactionHash}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPricingToken: {swapValueFromPricingToken}, final point: {finalPoint}");
         return finalPoint;
     }
 
