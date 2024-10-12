@@ -12,5 +12,6 @@ public interface IActivityAppService
     Task<MyRankingDto> GetMyRankingAsync(GetMyRankingInput input);
     Task<RankingListDto> GetRankingListAsync(ActivityBaseDto input);
     Task<bool> CreateSwapAsync(SwapRecordDto dto);
+    Task<bool> CreateLimitOrderFillRecordAsync(LimitOrderFillRecordDto dto);
     Task<bool> CreateLpSnapshotAsync(long executeTime, string type);
 }

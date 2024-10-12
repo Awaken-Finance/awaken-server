@@ -48,13 +48,13 @@ namespace AwakenServer.Activity
         [Fact]
         public async Task SwapRepeatScanTest()
         {
+            var swapTime = DateTime.UtcNow;
             var swapRecord = new SwapRecordDto
             {
                 ChainId = ChainId,
-                PairAddress = TradePairEthUsdtAddress,
                 Sender = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
                 TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
-                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(swapTime),
                 AmountOut = NumberFormatter.WithDecimals(10, 8),
                 AmountIn = NumberFormatter.WithDecimals(100, 6),
                 SymbolIn = TokenUsdtSymbol,
@@ -62,13 +62,34 @@ namespace AwakenServer.Activity
                 Channel = "test",
                 BlockHeight = 99,
                 LabsFee = 150000,
-                LabsFeeSymbol = TokenEthSymbol
+                LabsFeeSymbol = TokenEthSymbol,
+                IsLimitOrder = true
             };
             var createActivitySwapResult = await _activityAppService.CreateSwapAsync(swapRecord);
             createActivitySwapResult.ShouldBe(true);
             
             createActivitySwapResult = await _activityAppService.CreateSwapAsync(swapRecord);
             createActivitySwapResult.ShouldBe(false);
+
+            var limitFillRecord = new LimitOrderFillRecordDto()
+            {
+                ChainId = ChainId,
+                OrderId = 1,
+                MakerAddress = "0x123",
+                SymbolIn = TokenEthSymbol,
+                SymbolOut = TokenUsdtSymbol,
+                TakerAddress = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                AmountInFilled = NumberFormatter.WithDecimals(10, 8),
+                AmountOutFilled = NumberFormatter.WithDecimals(100, 6),
+                TotalFee = 150000,
+                TransactionTime = DateTimeHelper.ToUnixTimeMilliseconds(swapTime)
+            };
+            var createActivityLimitFillRecordResult = await _activityAppService.CreateLimitOrderFillRecordAsync(limitFillRecord);
+            createActivityLimitFillRecordResult.ShouldBe(true);
+            
+            createActivityLimitFillRecordResult = await _activityAppService.CreateLimitOrderFillRecordAsync(limitFillRecord);
+            createActivityLimitFillRecordResult.ShouldBe(false);
         }
         
         [Fact]
@@ -361,5 +382,42 @@ namespace AwakenServer.Activity
             ranking.Item2[1].RankingList[1].TotalPoint.ShouldBe(505000);
         }
         
+        [Fact]
+        public async Task LimitFillRecordTest()
+        {
+            var swapTime = DateTime.UtcNow;
+
+            var limitFillRecord = new LimitOrderFillRecordDto()
+            {
+                ChainId = ChainId,
+                OrderId = 1,
+                MakerAddress = "0x123",
+                SymbolIn = TokenUsdtSymbol,
+                SymbolOut = TokenEthSymbol,
+                TakerAddress = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                AmountInFilled = NumberFormatter.WithDecimals(10, 8),
+                AmountOutFilled = NumberFormatter.WithDecimals(100, 6),
+                TotalFee = 50000,
+                TransactionTime = DateTimeHelper.ToUnixTimeMilliseconds(swapTime)
+            };
+            var createActivityLimitFillRecordResult = await _activityAppService.CreateLimitOrderFillRecordAsync(limitFillRecord);
+            createActivityLimitFillRecordResult.ShouldBe(true);
+            
+            var userActivityInfo = await _userActivityInfoRepository.GetListAsync();
+            userActivityInfo.Item2.Count.ShouldBe(1);
+            userActivityInfo.Item2[0].ActivityId.ShouldBe(1);
+            userActivityInfo.Item2[0].Address.ShouldBe("0x123");
+            userActivityInfo.Item2[0].TotalPoint.ShouldBe(1);
+            
+            var ranking = await _rankingListSnapshotRepository.GetListAsync(sortExp: k => k.Timestamp);
+            ranking.Item2.Count.ShouldBe(1);
+            ranking.Item2[0].Timestamp.ShouldBe(DateTimeHelper.ToUnixTimeMilliseconds(swapTime.Date.AddHours(swapTime.Hour)));
+            ranking.Item2[0].ActivityId.ShouldBe(1);
+            ranking.Item2[0].NumOfJoin.ShouldBe(1);
+            ranking.Item2[0].RankingList.Count.ShouldBe(1);
+            ranking.Item2[0].RankingList[0].Address.ShouldBe("0x123");
+            ranking.Item2[0].RankingList[0].TotalPoint.ShouldBe(1);
+        }
     }
 }

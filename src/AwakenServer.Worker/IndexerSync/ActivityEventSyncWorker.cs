@@ -110,9 +110,15 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         // 2. Swap Value
         long blockHeight = -1;
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
+        var limitOrderFillRecordList = await _graphQlProvider.GetLimitOrderFillRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        _logger.LogInformation("Activity swap queryList count: {count}", swapRecordList.Count);
-            
+        _logger.LogInformation($"Activity swap queryList count: {swapRecordList.Count}, limit fill record count: {limitOrderFillRecordList.Count}");
+
+        foreach (var limitOrderFillRecord in limitOrderFillRecordList)
+        {
+            await _activityAppService.CreateLimitOrderFillRecordAsync(limitOrderFillRecord);
+        }
+        
         foreach (var swapRecordDto in swapRecordList)
         {
             if (!await _activityAppService.CreateSwapAsync(swapRecordDto))
