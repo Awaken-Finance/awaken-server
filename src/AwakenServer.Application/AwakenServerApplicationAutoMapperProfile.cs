@@ -5,6 +5,7 @@ using AwakenServer.Activity.Index;
 using AwakenServer.Asset;
 using AwakenServer.Chains;
 using AwakenServer.Favorite;
+using AwakenServer.Grains.Grain.Activity;
 using AwakenServer.Grains.Grain.Chain;
 using AwakenServer.Grains.Grain.Tokens;
 using AwakenServer.Grains.Grain.Favorite;
@@ -182,6 +183,9 @@ namespace AwakenServer
             CreateMap<RankingListSnapshotEto, RankingListSnapshotIndex>();
             CreateMap<UserActivityInfoEto, UserActivityInfoIndex>();
             CreateMap<JoinRecordEto, JoinRecordIndex>();
+            CreateMap<UserActivityGrainDto, UserActivityInfoEto>();
+            CreateMap<ActivityRankingSnapshotGrainDto, RankingListSnapshotEto>();
+            CreateMap<JoinRecordGrainDto, JoinRecordEto>();
         }
 
         private void CreateMapForFavorite()

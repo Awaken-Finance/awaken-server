@@ -101,8 +101,9 @@ namespace AwakenServer.Price
             return rawPrice;
         }
         
-        
-        private async Task<decimal> GetPriceAsync(string symbol)
+        [ExceptionHandler(typeof(Exception),
+            TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+        public virtual async Task<decimal> GetPriceAsync(string symbol)
         {
             var pair = GetTokenApiName(symbol);
             if (String.IsNullOrEmpty(pair))
@@ -148,27 +149,12 @@ namespace AwakenServer.Price
                     
             if (IsNeedFetchPrice(price))
             {
-                try
+                price.PriceInUsd = await GetPriceAsync(symbol);
+                price.PriceUpdateTime = DateTime.UtcNow;
+                await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
                 {
-                    price.PriceInUsd = await GetPriceAsync(symbol);
-                    price.PriceUpdateTime = DateTime.UtcNow;
-                    await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
-                    {
-                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                    });
-                }
-                catch (Exception e)
-                {
-                    if (price.PriceInUsd == PriceOptions.DefaultPriceValue)
-                    {
-                        price.PriceInUsd = 0;
-                        await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
-                        {
-                            AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                        });
-                    }
-                    Log.Error(e, $"Get token price symbol: {symbol} failed. Return old data price: {price.PriceInUsd}");
-                }
+                    AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                });
             }
                     
             Log.Information($"Get token price symbol: {symbol}, return price: {price.PriceInUsd}");
@@ -256,8 +242,9 @@ namespace AwakenServer.Price
             };
         }
         
+        //log only
         [ExceptionHandler(typeof(Exception), Message = "GetTokenPriceList Error",
-            LogOnly = true)]
+            TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols)
         {
             var result = new List<TokenPriceDataDto>();
@@ -378,12 +365,12 @@ namespace AwakenServer.Price
             var noPriceTokens = new List<string>();
             foreach (var relation in graph.Relations)
             {
-                try
+                var price = await GetPriceAsync(relation.Key);
+                if (price > 0)
                 {
-                    var price = await GetPriceAsync(relation.Key);
-                    withPriceTokens[relation.Key] = (double)price;
+                    withPriceTokens[relation.Key] = (double) price;
                 }
-                catch (Exception e)
+                else
                 {
                     noPriceTokens.Add(relation.Key);
                 }

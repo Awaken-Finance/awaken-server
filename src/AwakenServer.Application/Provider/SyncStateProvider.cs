@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using Awaken.Common.HttpClient;
 using Awaken.Samples.HttpClient;
 using AwakenServer.ContractEventHandler.Application;
@@ -50,33 +51,39 @@ public class SyncStateProvider : ISyncStateProvider
         int retryCount = 0;
         while (retryCount < SyncStateRequestMaxRetries)
         {
-            try
+            var height = await GetLastIrreversibleBlockHeightAsync(chainId, key);
+            if (height > 0)
             {
-                var res = await _httpProvider.InvokeAsync<SyncStateResponse>(HttpMethod.Get, _syncStateOption.Value.Url);
-                var syncStateResponse = res.CurrentVersion.Items.FirstOrDefault(i => i.ChainId == chainId);
-                if (syncStateResponse != null)
-                {
-                    await _syncStateCache.SetAsync(key, syncStateResponse, new DistributedCacheEntryOptions
-                    {
-                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(SyncStateCacheExpirationTimeSeconds)
-                    });
-
-                    Log.Debug($"Update sync state cache, key: {key}, LastIrreversibleBlockHeight: {syncStateResponse.LastIrreversibleBlockHeight}");
-                    return syncStateResponse.LastIrreversibleBlockHeight;
-                }
-                Log.Error($"Update sync state failed. can't find chainId: {chainId} in response");
+                return height;
             }
-            catch (Exception e)
+            retryCount++;
+            Log.Error($"Attempt {retryCount} failed: GetLastIrreversibleBlockHeightAsync failed.");
+            if (retryCount >= SyncStateRequestMaxRetries)
             {
-                retryCount++;
-                Log.Error(e, $"Attempt {retryCount} failed: GetLastIrreversibleBlockHeightAsync failed.");
-                if (retryCount >= SyncStateRequestMaxRetries)
-                {
-                    break;
-                }
+                break;
             }
         }
         Log.Error($"Get sync state Maximum retry attempts reached, failing with 0.");
+        return 0;
+    }
+
+    [ExceptionHandler(typeof(Exception),
+        TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+    public virtual async Task<long> GetLastIrreversibleBlockHeightAsync(string chainId, string key)
+    {
+        var res = await _httpProvider.InvokeAsync<SyncStateResponse>(HttpMethod.Get, _syncStateOption.Value.Url);
+        var syncStateResponse = res.CurrentVersion.Items.FirstOrDefault(i => i.ChainId == chainId);
+        if (syncStateResponse != null)
+        {
+            await _syncStateCache.SetAsync(key, syncStateResponse, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(SyncStateCacheExpirationTimeSeconds)
+            });
+
+            Log.Debug($"Update sync state cache, key: {key}, LastIrreversibleBlockHeight: {syncStateResponse.LastIrreversibleBlockHeight}");
+            return syncStateResponse.LastIrreversibleBlockHeight;
+        }
+        Log.Error($"Update sync state failed. can't find chainId: {chainId} in response");
         return 0;
     }
 }

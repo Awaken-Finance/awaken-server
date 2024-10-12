@@ -52,6 +52,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
     private const string userAssetInfoDtoPrefix = "AwakenServer:Asset:";
     private readonly IClusterClient _clusterClient;
     private readonly ILogger<AssetAppService> _logger;
+    private readonly AddressHelper _addressHelper;
 
     public AssetAppService(IGraphQLProvider graphQlProvider,
         ITokenAppService tokenAppService,
@@ -62,7 +63,8 @@ public class AssetAppService : ApplicationService, IAssetAppService
         IDistributedCache<UserAssetInfoDto> userAssetInfoDtoCache, IClusterClient clusterClient,
         ILogger<AssetAppService> logger,
         IOptionsSnapshot<PortfolioOptions> portfolioOptions,
-        INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiquidityIndexRepository)
+        INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiquidityIndexRepository,
+        AddressHelper addressHelper)
     {
         _graphQlProvider = graphQlProvider;
         _tokenAppService = tokenAppService;
@@ -75,6 +77,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
         _logger = logger;
         _portfolioOptions = portfolioOptions;
         _currentUserLiquidityIndexRepository = currentUserLiquidityIndexRepository;
+        _addressHelper = addressHelper;
     }
 
     private string AddVersionToKey(string baseKey, string version)
@@ -290,6 +293,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
 
     public async Task<DefaultTokenDto> GetDefaultTokenAsync(GetDefaultTokenDto input)
     {
+        await _addressHelper.CheckAddressAsync(input.Address);
         var defaultTokenGrain = _clusterClient.GetGrain<IDefaultTokenGrain>(input.Address);
 
         var result = defaultTokenGrain.GetAsync();

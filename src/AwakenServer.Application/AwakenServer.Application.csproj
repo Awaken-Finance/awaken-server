@@ -30,7 +30,7 @@
     <PackageReference Include="Orleans.Providers.MongoDB" Version="7.0.0" />
     <PackageReference Include="Microsoft.Orleans.Client" Version="7.0.0" />
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="7.0.0" />
-    <PackageReference Include="AElf.ExceptionHandler" Version="1.4.0" />
+    <PackageReference Include="AElf.ExceptionHandler" Version="1.5.0" />
   </ItemGroup>
 
   <ItemGroup>

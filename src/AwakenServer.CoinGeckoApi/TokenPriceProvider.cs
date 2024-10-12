@@ -31,7 +31,8 @@ public class TokenPriceProvider : ITokenPriceProvider
         _logger = logger;
     }
 
-    [ExceptionHandler(typeof(Exception), Message = "GetPrice Error", LogOnly = true)]
+    [ExceptionHandler(typeof(Exception), Message = "GetPrice Error", TargetType = typeof(HandlerExceptionService), 
+        MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
     public virtual async Task<decimal> GetPriceAsync(string symbol)
     {
         if (string.IsNullOrEmpty(symbol))
@@ -78,30 +79,28 @@ public class TokenPriceProvider : ITokenPriceProvider
         
         while (retryAttempts < MaxRetryAttempts)
         {
-            try
+            var coinData = await RequestAsync(async () =>
+                await _coinGeckoClient.CoinsClient.GetHistoryByCoinId(coinId, dateTime, "false"));
+
+            if (coinData == null || coinData.MarketData == null)
             {
-                var coinData = await RequestAsync(async () => await _coinGeckoClient.CoinsClient.GetHistoryByCoinId(coinId, dateTime, "false"));
-
-                if (coinData.MarketData == null)
-                {
-                    throw new Exception($"Get history token price {symbol}, Unexpected CoinGecko response: MarketData is null");
-                }
-
-                return (decimal)coinData.MarketData.CurrentPrice[CoinGeckoApiConsts.UsdSymbol].Value;
+                Log.Error($"Get history token price {symbol}, Unexpected CoinGecko response: MarketData is null");
             }
-            catch (Exception ex)
+            else
             {
-                retryAttempts++;
-                Log.Warning($"Get history token price {symbol}, Attempt {retryAttempts} failed: {ex.Message}");
-
-                if (retryAttempts >= MaxRetryAttempts)
-                {
-                    Log.Error($"Get history token price {symbol}, Max retry attempts reached. Unable to get coin price.");
-                    return 0;
-                }
-
-                await Task.Delay(TimeSpan.FromSeconds(DelayBetweenRetriesInSeconds));
+                return (decimal) coinData.MarketData.CurrentPrice[CoinGeckoApiConsts.UsdSymbol].Value;
             }
+
+            retryAttempts++;
+            Log.Warning($"Get history token price {symbol}, Attempt {retryAttempts} failed.");
+
+            if (retryAttempts >= MaxRetryAttempts)
+            {
+                Log.Error($"Get history token price {symbol}, Max retry attempts reached. Unable to get coin price.");
+                return 0;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(DelayBetweenRetriesInSeconds));
         }
 
         return 0;
@@ -112,7 +111,9 @@ public class TokenPriceProvider : ITokenPriceProvider
         return _coinGeckoOptions.CoinIdMapping.TryGetValue(symbol.ToUpper(), out var id) ? id : null;
     }
 
-    private async Task<T> RequestAsync<T>(Func<Task<T>> task)
+    [ExceptionHandler(typeof(Exception),
+        TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
+    public virtual async Task<T> RequestAsync<T>(Func<Task<T>> task)
     {
         await _requestLimitProvider.RecordRequestAsync();
         return await task();

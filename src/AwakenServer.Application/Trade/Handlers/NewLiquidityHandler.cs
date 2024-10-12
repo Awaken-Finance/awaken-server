@@ -42,7 +42,7 @@ namespace AwakenServer.Trade.Handlers
             _contractsTokenOptions = contractsTokenOptions.Value;
         }
 
-        [ExceptionHandler(typeof(Exception), 
+        [ExceptionHandler(typeof(Exception),
              TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
         public virtual async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
         {
