@@ -690,7 +690,7 @@ namespace AwakenServer.Price
                     return;
                 }
 
-                Dictionary<string, double> needUpdateTokenPrice = new Dictionary<string, double>();
+                var needUpdateTokenPrice = new Dictionary<string, double>();
                 foreach (var root in tokenPricingMap.PriceSpreadTrees)
                 {
                     await UpdateAffectedTokenPricesAsync(tokenPricingMap, root, pair, double.Parse(token0Amount), double.Parse(token1Amount), needUpdateTokenPrice);

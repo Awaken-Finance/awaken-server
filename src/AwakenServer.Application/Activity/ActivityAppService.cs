@@ -16,6 +16,7 @@ using AwakenServer.Grains.Grain.MyPortfolio;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Price;
 using AwakenServer.Price.Dtos;
+using AwakenServer.Provider;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
@@ -36,6 +37,7 @@ namespace AwakenServer.Activity;
 public class ActivityAppService : ApplicationService, IActivityAppService
 {
     private const string SyncedTransactionCachePrefix = "ActivitySynced";
+    private const string SyncedLimitFillRecordTransactionCachePrefix = "ActivityLimitFillRecordSynced";
     private const int MaxRankingCount = 50;
     private INESTRepository<JoinRecordIndex, Guid> _joinRecordRepository;
     private INESTRepository<UserActivityInfoIndex, Guid> _userActivityInfoRepository;
@@ -43,6 +45,8 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     private INESTRepository<CurrentUserLiquidityIndex, Guid> _currentUserLiquidityIndexRepository;
     private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
     private readonly IDistributedCache<string> _syncedTransactionIdCache;
+    protected readonly IGraphQLProvider _graphQlProvider;
+
 
 
     private IClusterClient _clusterClient;
@@ -74,6 +78,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         INESTRepository<RankingListSnapshotIndex, Guid> rankingListSnapshotRepository,
         INESTRepository<TradePair, Guid> tradePairIndexRepository,
         IDistributedEventBus distributedEventBus,
+        IGraphQLProvider graphQlProvider,
         IDistributedCache<string> syncedTransactionIdCache)
     {
         _logger = logger;
@@ -90,6 +95,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         _userActivityInfoRepository = userActivityInfoRepository;
         _rankingListSnapshotRepository = rankingListSnapshotRepository;
         _syncedTransactionIdCache = syncedTransactionIdCache;
+        _graphQlProvider = graphQlProvider;
     }
 
     private string AddVersionToKey(string baseKey, string version)
@@ -349,80 +355,124 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var labsFeeInUsd = await GetTokenValueInUsdAsync(dto.LabsFeeSymbol, dto.LabsFee, dto.Timestamp);
         var swapValueFromLabsFee = labsFeeInUsd / LabsFeeRate;
         
+        _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, labsFeeSymbol: {dto.LabsFeeSymbol}, swapValueFromLabsFee: {swapValueFromLabsFee}");
+        
         var pricingTokensSet = new HashSet<string>(_activityOptions.PricingTokens);
         if (pricingTokensSet.Contains(dto.LabsFeeSymbol))
         {
-            _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, symbol: {dto.LabsFeeSymbol}, swapValueFromLabsFee: {swapValueFromLabsFee}");
+            _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, from labs fee token, symbol: {dto.LabsFeeSymbol}, final point: {swapValueFromLabsFee}");
             return swapValueFromLabsFee;
         }
 
-        if (dto.SwapRecords == null)
-        {
-            dto.SwapRecords = new List<SwapRecord>();
-        }
-        
-        dto.SwapRecords.AddFirst(new Trade.Dtos.SwapRecord()
-        {
-            PairAddress = dto.PairAddress,
-            AmountIn = dto.AmountIn,
-            AmountOut = dto.AmountOut,
-            SymbolIn = dto.SymbolIn,
-            SymbolOut = dto.SymbolOut,
-            TotalFee = dto.TotalFee,
-            Channel = dto.Channel,
-            IsLimitOrder = dto.IsLimitOrder
-        });
-        
+        var swapValueFromPricingTokenMap = new Dictionary<string, double>();
         foreach (var swapRecord in dto.SwapRecords)
         {
+            // check symbol out is special token and add value
             if (pricingTokensSet.Contains(swapRecord.SymbolIn))
             {
-                var swapValueFromPool = await GetTokenValueInUsdAsync(swapRecord.SymbolIn, swapRecord.AmountIn, dto.Timestamp);
-                _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, symbolIn: {swapRecord.SymbolIn}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPool: {swapValueFromPool}");
-                return Math.Min(swapValueFromLabsFee, swapValueFromPool);
-            }
-            if (pricingTokensSet.Contains(swapRecord.SymbolOut))
-            {
-                var swapValueFromPool = await GetTokenValueInUsdAsync(swapRecord.SymbolOut, swapRecord.AmountOut, dto.Timestamp);
-                _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, symbolOut: {swapRecord.SymbolOut}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPool: {swapValueFromPool}");
-                return Math.Min(swapValueFromLabsFee, swapValueFromPool);
+                var swapValueFromPricingToken = await GetTokenValueInUsdAsync(swapRecord.SymbolIn, swapRecord.AmountOut, dto.Timestamp);
+                if (!swapValueFromPricingTokenMap.ContainsKey(swapRecord.SymbolIn))
+                {
+                    swapValueFromPricingTokenMap.Add(swapRecord.SymbolIn, 0);
+                }
+                swapValueFromPricingTokenMap[swapRecord.SymbolIn] += swapValueFromPricingToken;
             }
         }
 
-        return 0d;
-    }
-
-    private async Task<bool> IsActivityPoolAsync(Activity activity, SwapRecordDto dto)
-    {
-        if (!_activityTradePairAddresses.ContainsKey(activity.ActivityId))
+        var finalPoint = swapValueFromLabsFee;
+        if (swapValueFromPricingTokenMap.Values != null && swapValueFromPricingTokenMap.Values.Count > 0)
         {
-            var activityPools = await GetActivityPair(activity);
-            _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
-        }
-
-        var activityPoolSet = new HashSet<string>(_activityTradePairAddresses[activity.ActivityId].Select(t => t.PairAddress));
-        if (activityPoolSet.Contains(dto.PairAddress))
-        {
-            return true;
+            finalPoint = Math.Min(swapValueFromPricingTokenMap.Values.Min(), finalPoint);
         }
         
+        foreach (var swapValueFromPricingToken in swapValueFromPricingTokenMap)
+        {
+            _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, pricing token: {swapValueFromPricingToken.Key}, swapValue: {swapValueFromPricingToken.Value}");
+        }
+        
+        _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, from pricing token, final point: {finalPoint}");
+        return finalPoint;
+    }
+    
+    private async Task<double> GetPointAsync(LimitOrderFillRecordDto dto)
+    {
+        if (dto.TotalFee <= 0)
+        {
+            return 0d;
+        }
+        
+        var labsFeeInUsd = await GetTokenValueInUsdAsync(dto.SymbolOut, dto.TotalFee, dto.TransactionTime);
+        var swapValueFromLabsFee = labsFeeInUsd / LabsFeeRate;
+        
+        var pricingTokensSet = new HashSet<string>(_activityOptions.PricingTokens);
+        if (pricingTokensSet.Contains(dto.SymbolOut))
+        {
+            _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, symbol: {dto.SymbolOut}, swapValueFromLabsFee: {swapValueFromLabsFee}");
+            return swapValueFromLabsFee;
+        }
+
+        var swapValueFromPricingToken = await GetTokenValueInUsdAsync(dto.SymbolIn, dto.AmountInFilled, dto.TransactionTime);
+        var finalPoint = Math.Min(swapValueFromLabsFee, swapValueFromPricingToken);
+        _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPricingToken: {swapValueFromPricingToken}, final point: {finalPoint}");
+        return finalPoint;
+    }
+
+    private async Task<bool> BelongsAvtivityAsync(SwapRecord swapRecord, Activity activity)
+    {
+        foreach (var activityTradePair in activity.TradePairs)
+        {
+            var activityPool = activityTradePair.Split('_').ToList();
+            if (activityPool.Count != 2)
+            {
+                continue;
+            }
+            if (swapRecord.SymbolIn == activityPool[0] && swapRecord.SymbolOut == activityPool[1]
+                || swapRecord.SymbolIn == activityPool[1] && swapRecord.SymbolOut == activityPool[0])
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
+    private async Task<bool> ContainsActivityAsync(SwapRecordDto dto, Activity activity)
+    {
         if (dto.SwapRecords != null)
         {
             foreach (var swapRecord in dto.SwapRecords)
             {
-                if (!string.IsNullOrEmpty(swapRecord.PairAddress) && activityPoolSet.Contains(swapRecord.PairAddress))
+                if (await BelongsAvtivityAsync(swapRecord, activity))
                 {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+    
+    private async Task<bool> BelongsAvtivityAsync(LimitOrderFillRecordDto record, Activity activity)
+    {
+        foreach (var activityTradePair in activity.TradePairs)
+        {
+            var activityPool = activityTradePair.Split('_').ToList();
+            if (activityPool.Count != 2)
+            {
+                continue;
+            }
+            if (record.SymbolIn == activityPool[0] && record.SymbolOut == activityPool[1]
+                || record.SymbolIn == activityPool[1] && record.SymbolOut == activityPool[0])
+            {
+                return true;
             }
         }
 
         return false;
     }
 
-    private async Task UpdateUserPointAndRankingAsync(string chainId, long timestamp, DateTime snapshotTime, Activity activity, string userAddress, double point)
+    private async Task UpdateUserPointAndRankingAsync(string chainId, long timestamp, DateTime snapshotTime, Activity activity, string userAddress, double point, string type)
     {
-        _logger.LogInformation($"Update user point and ranking, updatePointType: snapshotTime: {snapshotTime}, activityId: {activity.ActivityId}, userAddress: {userAddress}, point: {point}");
+        _logger.LogInformation($"Update user point and ranking by: {type}, updatePointType: snapshotTime: {snapshotTime}, activityId: {activity.ActivityId}, userAddress: {userAddress}, point: {point}");
         // update user point
         var userActivityGrainId =
             GrainIdHelper.GenerateGrainId(chainId, activity.Type, activity.ActivityId, userAddress);
@@ -457,6 +507,40 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             ObjectMapper.Map<RankingListSnapshot, RankingListSnapshotEto>(
                 activityRankingSnapshotResult.Data));
     }
+
+    public async Task<bool> CreateLimitOrderFillRecordAsync(LimitOrderFillRecordDto dto)
+    {
+        foreach (var activity in _activityOptions.ActivityList)
+        {
+            var key = $"{SyncedLimitFillRecordTransactionCachePrefix}:{dto.OrderId}:{dto.TransactionHash}:{activity.ActivityId}";
+            var existed = await _syncedTransactionIdCache.GetAsync(key);
+            if (!existed.IsNullOrWhiteSpace())
+            {
+                return false;
+            }
+            if (activity.Type == VolumeActivityType)
+            {
+                if (dto.TransactionTime >= activity.BeginTime && dto.TransactionTime <= activity.EndTime)
+                {
+                    
+                    if (!await BelongsAvtivityAsync(dto, activity))
+                    {
+                        continue;
+                    }
+                    
+                    var point = await GetPointAsync(dto);
+                    var snapshotTime = GetNormalSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(dto.TransactionTime));
+                    await UpdateUserPointAndRankingAsync(dto.ChainId, dto.TransactionTime, snapshotTime, activity, dto.MakerAddress, point, "LimitMaker");
+                }
+            }
+            
+            await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
+            {
+                AbsoluteExpiration = DateTimeOffset.UtcNow.AddDays(14)
+            });
+        }
+        return true;
+    }
     
     public async Task<bool> CreateSwapAsync(SwapRecordDto dto)
     {
@@ -470,18 +554,36 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             }
             if (activity.Type == VolumeActivityType)
             {
-                if (!await IsActivityPoolAsync(activity, dto))
-                {
-                    continue;
-                }
-
                 if (dto.Timestamp >= activity.BeginTime && dto.Timestamp <= activity.EndTime)
                 {
+                    if (dto.SwapRecords == null)
+                    {
+                        dto.SwapRecords = new List<SwapRecord>();
+                    }
+                    
+                    dto.SwapRecords.AddFirst(new Trade.Dtos.SwapRecord()
+                    {
+                        PairAddress = dto.PairAddress,
+                        AmountIn = dto.AmountIn,
+                        AmountOut = dto.AmountOut,
+                        SymbolIn = dto.SymbolIn,
+                        SymbolOut = dto.SymbolOut,
+                        TotalFee = dto.TotalFee,
+                        Channel = dto.Channel,
+                        IsLimitOrder = dto.IsLimitOrder
+                    });
+                    
+                    if (!await ContainsActivityAsync(dto, activity))
+                    {
+                        continue;
+                    }
+                    
                     var point = await GetPointAsync(dto);
                     var snapshotTime = GetNormalSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(dto.Timestamp));
-                    await UpdateUserPointAndRankingAsync(dto.ChainId, dto.Timestamp, snapshotTime, activity, dto.Sender, point);
+                    await UpdateUserPointAndRankingAsync(dto.ChainId, dto.Timestamp, snapshotTime, activity, dto.Sender, point, "Swap");
                 }
             }
+            
             await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
             {
                 AbsoluteExpiration = DateTimeOffset.UtcNow.AddDays(14)
@@ -605,7 +707,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                             : userPairLiquidity.LpTokenAmount / (double)currentTradePair.TotalSupply;
 
                         var point = 100 * lpTokenPercentage * pair.TVL;
-                        await UpdateUserPointAndRankingAsync(userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point);
+                        await UpdateUserPointAndRankingAsync(userPairLiquidity.ChainId, executeTime, snapshotTime, activity, userPairLiquidity.Address, point, "LP");
                     }
                 }
             }
