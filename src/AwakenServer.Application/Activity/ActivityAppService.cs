@@ -511,7 +511,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             var existed = await _syncedTransactionIdCache.GetAsync(key);
             if (!existed.IsNullOrWhiteSpace())
             {
-                return false;
+                return true;
             }
             if (activity.Type == VolumeActivityType)
             {
@@ -545,7 +545,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             var existed = await _syncedTransactionIdCache.GetAsync(key);
             if (!existed.IsNullOrWhiteSpace())
             {
-                return false;
+                return true;
             }
             if (activity.Type == VolumeActivityType)
             {
