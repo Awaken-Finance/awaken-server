@@ -28,12 +28,17 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
     private readonly Random _random = new Random();
     private TimeSpan _nextLpSnapshotExecutionTime;
     private bool _firstExecution = true;
+    private readonly ActivityOptions _activityOptions;
 
+    private const string VolumeActivityType = "volume";
+    private const string TvlActivityType = "tvl";
+    private const int TvlSnapshotTimeFactor = 3;
 
     public ActivityEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
         ITradeRecordAppService tradeRecordAppService, ILogger<AwakenServerWorkerBase> logger,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
+        IOptionsSnapshot<ActivityOptions> activityOptions,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider,
@@ -44,64 +49,78 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         _graphQlProvider = graphQlProvider;
         _tradeRecordAppService = tradeRecordAppService;
         _activityAppService = activityAppService;
+        _activityOptions = activityOptions.Value;
     }
 
-    private void SetNextExecutionTime()
+    private void SetNextExecutionTime(DateTime lastExecuteTime)
     {
-        var now = DateTime.Now;
-        int nextHour = now.Hour;
-
-        if (now.Minute < 50)
-        {
-            int randomMinute = _random.Next(50, 60);
-            int randomSecond = _random.Next(0, 60);
-            _nextLpSnapshotExecutionTime = new TimeSpan(nextHour, randomMinute, randomSecond);
-        }
-        else
-        {
-            nextHour = (nextHour + 1) % 24; 
-            int randomMinute = _random.Next(0, 11); 
-            int randomSecond = _random.Next(0, 60);
-            _nextLpSnapshotExecutionTime = new TimeSpan(nextHour, randomMinute, randomSecond);
-        }
-        var endTime = _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000));
-        Log.Information($"Next execution time set to: {_nextLpSnapshotExecutionTime}, {endTime}");
+        _nextLpSnapshotExecutionTime = RandomSnapshotHelper.GetNextLpSnapshotExecutionTime(_random, lastExecuteTime);
     }
-
     
     public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
     {
-        var now = DateTime.Now;
+        var now = DateTime.UtcNow;
+        var timestamp = DateTimeHelper.ToUnixTimeMilliseconds(now);
         // 1. Lp Snapshot: random execute
         if (_firstExecution)
         {
-            Log.Information("Executing LP task at first startup: {time}", DateTime.Now);
-            await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
             _firstExecution = false; 
-            SetNextExecutionTime();
+            SetNextExecutionTime(now);
+            _logger.LogInformation($"Init LP snapshot worker, Next executing time set to: {_nextLpSnapshotExecutionTime}");
         }
         else
         {
-  
-            // var endTime = _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000));
-            // var result = now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < endTime;
-            // Log.Information($"now: {now}, nextLpSnapshotExecutionTime: {_nextLpSnapshotExecutionTime}, endTime:{endTime}, exec: {result}");
-            
-            if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod / 1000)))
+            // activity begin
+            foreach (var activity in _activityOptions.ActivityList)
             {
-                Log.Information("Executing LP snapshot task at: {time}", now);
-                await _activityAppService.CreateLpSnapshotAsync(DateTimeHelper.ToUnixTimeMilliseconds(now));
-                SetNextExecutionTime();
+                if (activity.Type == TvlActivityType)
+                {
+                    var isActivityBeginTime = timestamp >= activity.BeginTime &&
+                                      timestamp < activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor;
+                    // _logger.LogInformation($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor}, isActivityBeginTime: {isActivityBeginTime}");
+                    if (isActivityBeginTime)
+                    {
+                        var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker activity begin");
+                        if (success)
+                        {
+                            _logger.LogInformation($"Executing LP snapshot at activity begin done at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
+                        }
+                        else
+                        {
+                            _logger.LogError($"Executing LP snapshot at activity begin failed at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
+                        }
+                    }
+                }
+            }
+            
+            if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod * TvlSnapshotTimeFactor / 1000)))
+            {
+                SetNextExecutionTime(now);
+                var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker");
+                if (success)
+                {
+                    _logger.LogInformation($"Executing LP snapshot done at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
+                }
+                else
+                {
+                    _logger.LogError($"Executing LP snapshot at activity failed at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
+                }
+
             }
         }
         
         // 2. Swap Value
         long blockHeight = -1;
-        
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
+        var limitOrderFillRecordList = await _graphQlProvider.GetLimitOrderFillRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        Log.Information("Activity swap queryList count: {count}", swapRecordList.Count);
-            
+        Log.Information($"Activity swap queryList count: {swapRecordList.Count}, limit fill record count: {limitOrderFillRecordList.Count}");
+
+        foreach (var limitOrderFillRecord in limitOrderFillRecordList)
+        {
+            await _activityAppService.CreateLimitOrderFillRecordAsync(limitOrderFillRecord);
+        }
+        
         foreach (var swapRecordDto in swapRecordList)
         {
             if (!await _activityAppService.CreateSwapAsync(swapRecordDto))

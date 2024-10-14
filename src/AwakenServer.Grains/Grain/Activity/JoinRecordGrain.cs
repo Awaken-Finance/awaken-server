@@ -13,24 +13,6 @@ public class JoinRecordGrain : Grain<JoinRecordState>, IJoinRecordGrain
         _objectMapper = objectMapper;
     }
 
-    public async Task<GrainResultDto<JoinRecordGrainDto>> GetAsync()
-    {
-        await ReadStateAsync();
-        if (string.IsNullOrEmpty(State.Address))
-        {
-            return new GrainResultDto<JoinRecordGrainDto>
-            {
-                Success = false
-            };
-        }
-
-        return new GrainResultDto<JoinRecordGrainDto>
-        {
-            Success = true,
-            Data = _objectMapper.Map<JoinRecordState, JoinRecordGrainDto>(State)
-        };
-    }
-
     public async Task<GrainResultDto<JoinRecordGrainDto>> AddOrUpdateAsync(JoinRecordGrainDto grainDto)
     {
         if (!string.IsNullOrEmpty(State.Address) && State.Address == grainDto.Address)
