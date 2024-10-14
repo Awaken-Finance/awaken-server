@@ -35,11 +35,6 @@ public class ClusterFixture : IDisposable, ISingletonDependency
 {
     public ClusterFixture()
     {
-        // var builder = new TestClusterBuilder();
-        // builder.AddSiloBuilderConfigurator<TestSiloConfigurations>();
-        // builder.AddClientBuilderConfigurator<TestClientBuilderConfigurator>();
-        // Cluster = builder.Build();
-        // Cluster.Deploy();
         var builder = new TestClusterBuilder();
         
         builder.ConfigureHostConfiguration(configBuilder =>

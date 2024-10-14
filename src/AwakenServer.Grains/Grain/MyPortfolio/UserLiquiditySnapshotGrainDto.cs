@@ -3,7 +3,7 @@ using AwakenServer.Trade;
 namespace AwakenServer.Grains.Grain.MyPortfolio;
 
 [GenerateSerializer]
-public class UserLiquiditySnapshotGrainDto/* : UserLiquiditySnapshot*/
+public class UserLiquiditySnapshotGrainDto
 {
     [Id(0)]
     public Guid Id { get; set; }

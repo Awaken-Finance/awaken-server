@@ -16,7 +16,6 @@ namespace AwakenServer.Trade.Dtos
         public string ChainId { get; set; }
         [Id(3)]
         public double FeeRate { get; set; }
-
         [Id(4)]
         public bool IsTokenReversed { get; set; }
         [Id(5)]
