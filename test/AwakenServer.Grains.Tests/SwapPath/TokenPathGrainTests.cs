@@ -22,93 +22,93 @@ public class TokenPathGrainTests : AwakenServerGrainTestBase
     {
         var feeRate1 = 0.03;
         var feeRate2 = 0.005;
-        var pairs = new List<TradePairWithToken>()
+        var pairs = new List<TradePairWithTokenDto>()
         {
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "ELEPHANT-1"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "ELF"
                 },
                 Address = "0x1",
                 FeeRate = feeRate1
             },
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "SGR"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "USDT"
                 },
                 Address = "0x2",
                 FeeRate = feeRate1
             },
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "ELF"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "USDT"
                 },
                 Address = "0x3",
                 FeeRate = feeRate1
             },
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "ELEPHANT-1"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "USDT"
                 },
                 Address = "0x4",
                 FeeRate = feeRate1
             },
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "ELEPHANT-1"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "ELF"
                 },
                 Address = "0x5",
                 FeeRate = feeRate2
             },
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "SGR"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "USDT"
                 },
                 Address = "0x6",
                 FeeRate = feeRate2
             },
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "ELF"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "USDT"
                 },
@@ -117,40 +117,37 @@ public class TokenPathGrainTests : AwakenServerGrainTestBase
             }
         };
         
-        //todo open
-        // var grain = Cluster.Client.GetGrain<ITokenPathGrain>(GrainIdHelper.GenerateGrainId(ChainId));
-        // await grain.SetGraphAsync(new GraphDto()
-        // {
-        //     Relations = pairs
-        // });
-        //
-        // var dto = new GetTokenPathGrainDto()
-        // {
-        //     ChainId = ChainName,
-        //     StartSymbol = "ELEPHANT-1",
-        //     EndSymbol = "SGR",
-        //     MaxDepth = 3
-        // };
-        //
-        // // first search, save to cache
-        // var pathResult = await grain.GetPathAsync(dto);
-        //
-        // pathResult.Data.Path.Count.ShouldBe(3);
-        // pathResult.Data.Path[1].FeeRate.ShouldBe(feeRate1);
-        // pathResult.Data.Path[1].Path.Count.ShouldBe(2);
-        // pathResult.Data.Path[1].Path[0].Address.ShouldBe("0x4");
-        // pathResult.Data.Path[1].Path[1].Address.ShouldBe("0x2");
-        // pathResult.Data.Path[2].FeeRate.ShouldBe(feeRate2);
-        // pathResult.Data.Path[2].Path.Count.ShouldBe(3);
-        // pathResult.Data.Path[2].Path[0].Address.ShouldBe("0x5");
-        // pathResult.Data.Path[2].Path[1].Address.ShouldBe("0x7");
-        // pathResult.Data.Path[2].Path[2].Address.ShouldBe("0x6");
-        //
-        // // get from cache
-        // var cachedPathResult = await grain.GetCachedPathAsync(dto);
-        // cachedPathResult.Success.ShouldBe(true);
-        // pathResult.Data.Path.Count.ShouldBe(3);
+        var grain = Cluster.Client.GetGrain<ITokenPathGrain>(GrainIdHelper.GenerateGrainId(ChainId));
+        await grain.SetGraphAsync(new GraphDto()
+        {
+            Relations = pairs
+        });
         
+        var dto = new GetTokenPathGrainDto()
+        {
+            ChainId = ChainName,
+            StartSymbol = "ELEPHANT-1",
+            EndSymbol = "SGR",
+            MaxDepth = 3
+        };
         
+        // first search, save to cache
+        var pathResult = await grain.GetPathAsync(dto);
+        
+        pathResult.Data.Path.Count.ShouldBe(3);
+        pathResult.Data.Path[1].FeeRate.ShouldBe(feeRate1);
+        pathResult.Data.Path[1].Path.Count.ShouldBe(2);
+        pathResult.Data.Path[1].Path[0].Address.ShouldBe("0x4");
+        pathResult.Data.Path[1].Path[1].Address.ShouldBe("0x2");
+        pathResult.Data.Path[2].FeeRate.ShouldBe(feeRate2);
+        pathResult.Data.Path[2].Path.Count.ShouldBe(3);
+        pathResult.Data.Path[2].Path[0].Address.ShouldBe("0x5");
+        pathResult.Data.Path[2].Path[1].Address.ShouldBe("0x7");
+        pathResult.Data.Path[2].Path[2].Address.ShouldBe("0x6");
+        
+        // get from cache
+        var cachedPathResult = await grain.GetCachedPathAsync(dto);
+        cachedPathResult.Success.ShouldBe(true);
+        pathResult.Data.Path.Count.ShouldBe(3);
     }
 }
