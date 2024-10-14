@@ -14,17 +14,38 @@ public class ActivityRankingSnapshotGrain : Grain<ActivityRankingSnapshotState>,
     {
         _objectMapper = objectMapper;
     }
-
+    
     public async Task<GrainResultDto<ActivityRankingSnapshotGrainDto>> AddOrUpdateAsync(
         ActivityRankingSnapshotGrainDto dto)
     {
         if (State.Id == Guid.Empty)
         {
             State.Id = Guid.NewGuid();
+            State.ActivityId = dto.ActivityId;
+            State.Timestamp = dto.Timestamp;
         }
         
-        _objectMapper.Map(dto, State);
+        State.RankingList = _objectMapper.Map<List<AwakenServer.Activity.RankingInfo>, List<RankingInfo>>(dto.RankingList);
+        State.NumOfJoin = dto.NumOfJoin;
+        
         await WriteStateAsync();
+        return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
+        {
+            Success = true,
+            Data = _objectMapper.Map<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>(State)
+        };
+    }
+
+    public async Task<GrainResultDto<ActivityRankingSnapshotGrainDto>> GetAsync()
+    {
+        if (State.Id == Guid.Empty)
+        {
+            return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
+            {
+                Success = false
+            };
+        }
+        
         return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
         {
             Success = true,

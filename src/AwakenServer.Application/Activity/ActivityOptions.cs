@@ -5,6 +5,7 @@ namespace AwakenServer.Activity;
 public class ActivityOptions
 {
     public List<Activity> ActivityList { get; set; } = new();
+    public List<string> PricingTokens { get; set; } = new();
 }
 
 public class Activity

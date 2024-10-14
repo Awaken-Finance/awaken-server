@@ -1,3 +1,4 @@
+using System.Text;
 using System.Threading.Tasks;
 using AElf;
 using AElf.Types;
@@ -27,7 +28,8 @@ public class ActivityAppServiceTests : TradeTestBase
         var address = Address.FromPublicKey("AAA".HexToByteArray());
         var message = "Join";
         var keyPair = CryptoHelper.GenerateKeyPair();
-        var sign = CryptoHelper.SignWithPrivateKey(keyPair.PrivateKey, HashHelper.ComputeFrom(message).ToByteArray());
+        var messageHash = ByteExtensions.ToHex(Encoding.UTF8.GetBytes(message));
+        var sign = ByteExtensions.ToHex(CryptoHelper.SignWithPrivateKey(keyPair.PrivateKey, HashHelper.ComputeFrom(messageHash).ToByteArray()));
         
         var joinStatusDto = await _activityAppService.GetJoinStatusAsync(new GetJoinStatusInput()
         {
@@ -40,7 +42,7 @@ public class ActivityAppServiceTests : TradeTestBase
         await _activityAppService.JoinAsync(new JoinInput()
         {
             Message = message,
-            Signature = ByteExtensions.ToHex(sign),
+            Signature = sign,
             PublicKey = ByteExtensions.ToHex(keyPair.PublicKey),
             Address = address.ToBase58(),
             ActivityId = 1

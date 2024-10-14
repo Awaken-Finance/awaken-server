@@ -250,6 +250,50 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         return graphQlResponse.Data.GetSwapRecords;
     }
 
+
+    public async Task<List<LimitOrderFillRecordDto>> GetLimitOrderFillRecordsAsync(string chainId, long startBlockHeight,
+        long endBlockHeight, int skipCount, int maxResultCount)
+    {
+        var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderFillRecordResultDto>(new GraphQLRequest
+        {
+            Query =
+                @"query($chainId:String,$startBlockHeight:Long!,$endBlockHeight:Long!,$maxResultCount:Int!,$skipCount:Int!){
+            getLimitOrderFillRecords(dto: {chainId:$chainId,startBlockHeight:$startBlockHeight,endBlockHeight:$endBlockHeight,maxResultCount:$maxResultCount,skipCount:$skipCount})
+            {
+                chainId
+                orderId
+                makerAddress
+                symbolIn
+                symbolOut
+                takerAddress
+                transactionHash
+                amountInFilled
+                amountOutFilled
+                totalFee
+                transactionTime
+                transactionFee
+            }}",
+            Variables = new
+            {
+                chainId,
+                startBlockHeight,
+                endBlockHeight,
+                maxResultCount,
+                skipCount
+            }
+        });
+        if (graphQlResponse.Errors != null)
+        {
+            ErrorLog(graphQlResponse.Errors);
+            return new List<LimitOrderFillRecordDto>();
+        }
+        if (graphQlResponse.Data.GetLimitOrderFillRecords.IsNullOrEmpty())
+        {
+            return new List<LimitOrderFillRecordDto>();
+        }
+        return graphQlResponse.Data.GetLimitOrderFillRecords;
+    }
+
     public async Task<List<SyncRecordDto>> GetSyncRecordsAsync(string chainId, long startBlockHeight, long endBlockHeight, int skipCount, int maxResultCount)
     {
 
