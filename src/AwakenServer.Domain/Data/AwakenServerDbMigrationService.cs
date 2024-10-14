@@ -108,8 +108,7 @@ namespace AwakenServer.Data
             );
         }
 
-        [ExceptionHandler(typeof(Exception),
-            TargetType = typeof(DomainHandlerExceptionService), MethodName = nameof(DomainHandlerExceptionService.HandleWithReturnBool))]
+        [ExceptionHandler(typeof(Exception), ReturnDefault = ReturnDefault.Default)]
         public virtual async Task<bool> AddInitialMigrationIfNotExist()
         {
             if (!DbMigrationsProjectExists())

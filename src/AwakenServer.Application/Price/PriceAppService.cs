@@ -101,14 +101,14 @@ namespace AwakenServer.Price
             return rawPrice;
         }
         
-        [ExceptionHandler(typeof(Exception),
-            TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+        [ExceptionHandler(typeof(Exception), ReturnDefault = ReturnDefault.Default)]
         public virtual async Task<decimal> GetPriceAsync(string symbol)
         {
             var pair = GetTokenApiName(symbol);
             if (String.IsNullOrEmpty(pair))
             {
-                throw new Exception($"Get token price symbol: {symbol}, nonexistent mapping result price: 0");
+                Log.Error($"Get token price symbol: {symbol}, nonexistent mapping result price: 0");
+                return 0;
             }
             
             var rawPrice = await _tokenPriceProvider.GetPriceAsync(pair);
@@ -150,12 +150,16 @@ namespace AwakenServer.Price
                     
             if (IsNeedFetchPrice(price))
             {
-                price.PriceInUsd = await GetPriceAsync(symbol);
-                price.PriceUpdateTime = DateTime.UtcNow;
-                await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                var priceInUsd = await GetPriceAsync(symbol);
+                if (priceInUsd > 0)
                 {
-                    AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                });
+                    price.PriceInUsd = priceInUsd;
+                    price.PriceUpdateTime = DateTime.UtcNow;
+                    await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                    });
+                }
             }
                     
             Log.Information($"Get token price symbol: {symbol}, return price: {price.PriceInUsd}");
@@ -243,9 +247,7 @@ namespace AwakenServer.Price
             };
         }
         
-        //log only
-        [ExceptionHandler(typeof(Exception), Message = "GetTokenPriceList Error",
-            TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
+        [ExceptionHandler(typeof(Exception), Message = "GetTokenPriceList Error", ReturnDefault = ReturnDefault.New)]
         public async Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols)
         {
             var result = new List<TokenPriceDataDto>();

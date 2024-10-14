@@ -2,7 +2,6 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using AElf.ExceptionHandler;
-using Serilog;
 
 namespace AwakenServer;
 

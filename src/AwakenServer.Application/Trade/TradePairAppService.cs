@@ -404,8 +404,7 @@ namespace AwakenServer.Trade
             ));
         }
 
-        [ExceptionHandler(typeof(Exception), Message = "GetTokenInfo Error", 
-            TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnNull))]
+        [ExceptionHandler(typeof(Exception), Message = "GetTokenInfo Error", ReturnDefault = ReturnDefault.Default)]
         public virtual async Task<TokenInfo> GetTokenInfoAsync(Guid tradePairId, string chainId)
         {
             var tradePairIndexDto = await GetAsync(tradePairId);
