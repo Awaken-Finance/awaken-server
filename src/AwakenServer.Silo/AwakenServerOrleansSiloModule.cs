@@ -1,4 +1,3 @@
-using AElf.ExceptionHandler.Orleans.Extensions;
 using AwakenServer.AetherLinkApi;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains;
@@ -19,7 +18,6 @@ public class AwakenServerServerOrleansSiloModule : AbpModule
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
         context.Services.AddHostedService<AwakenServerHostedService>();
-        context.Services.AddOrleansExceptionHandler();
         var configuration = context.Services.GetConfiguration();
     }
 }
