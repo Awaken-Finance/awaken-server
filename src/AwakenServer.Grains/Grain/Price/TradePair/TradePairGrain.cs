@@ -74,13 +74,14 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
     {
         if (State.Id == Guid.Empty || State.IsDeleted)
         {
-            Log.Error($"TradePairGrain, GetAsync, State.Id: {State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}");
+            Log.Error($"TradePairGrain, GetAsync error, State.Id: {State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, address: {State.Address}, feeRate: {State.FeeRate}");
             return new GrainResultDto<TradePairGrainDto>
             {
                 Success = false
             };
         }
 
+        Log.Information($"TradePairGrain, GetAsync find result, State.Id: {State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, address: {State.Address}, feeRate: {State.FeeRate}");
         return new GrainResultDto<TradePairGrainDto>
         {
             Success = true,
