@@ -16,8 +16,8 @@ namespace AwakenServer.Tokens
         [Id(3)]
         public int Decimals { get; set; }
         [Id(4)]
-        public string ChainId { get; set; }
-        [Id(5)]
         public string ImageUri { get; set; }
+        [Id(5)]
+        public string ChainId { get; set; }
     }
 }
