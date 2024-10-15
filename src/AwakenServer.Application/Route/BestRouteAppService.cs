@@ -120,7 +120,7 @@ namespace AwakenServer.Route
         {
             if (!tradePairReserveMap.ContainsKey(tradePairId))
             {
-                Log.Error("Get best route, can't find trade pair: {tradePairId}");
+                Log.Error($"Get best route, can't find trade pair: {tradePairId}");
                 return new Tuple<long, long, double>(0, 0, 0);
             }
             
