@@ -346,7 +346,7 @@ namespace AwakenServer.Route
                     var pairResult = await tradePairGrain.GetAsync();
                     if (!pairResult.Success)
                     {
-                        Log.Error($"GetReservesAsync failed. Can not find trade pair: {tradePair.Id}");
+                        Log.Error($"GetReservesAsync failed. Can not find trade pair: {tradePair.Id}, result: {pairResult.Success}, {pairResult.Data}, {pairResult.Message}");
                         continue;
                     }
 

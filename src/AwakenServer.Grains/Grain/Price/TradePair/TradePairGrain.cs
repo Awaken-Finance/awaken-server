@@ -74,6 +74,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
     {
         if (State.Id == Guid.Empty || State.IsDeleted)
         {
+            Log.Error($"TradePairGrain, GetAsync, State.Id: {State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}");
             return new GrainResultDto<TradePairGrainDto>
             {
                 Success = false
