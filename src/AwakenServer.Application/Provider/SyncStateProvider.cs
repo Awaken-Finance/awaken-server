@@ -4,11 +4,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using AElf.ExceptionHandler;
 using Awaken.Common.HttpClient;
-using Awaken.Samples.HttpClient;
 using AwakenServer.ContractEventHandler.Application;
 using AwakenServer.Dtos.GraphQL;
-using AwakenServer.Price;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Volo.Abp.Caching;
@@ -19,7 +16,7 @@ namespace AwakenServer.Provider;
 public class SyncStateProvider : ISyncStateProvider
 {
     private readonly HttpProvider _httpProvider;
-    private readonly ILogger<SyncStateProvider> _logger;
+    private readonly ILogger _logger;
     private readonly IOptionsSnapshot<SyncStateOptions> _syncStateOption;
     private readonly IDistributedCache<BlockChainStatus> _syncStateCache;
     protected const string SyncStatePrefix = "SyncState";
@@ -28,12 +25,11 @@ public class SyncStateProvider : ISyncStateProvider
     
     public SyncStateProvider(
         HttpProvider httpProvider,
-        ILogger<SyncStateProvider> logger,
         IOptionsSnapshot<SyncStateOptions> syncStateOption,
         IDistributedCache<BlockChainStatus> syncStateCache)
     {
         _httpProvider = httpProvider;
-        _logger = logger;
+        _logger = Log.ForContext<SyncStateProvider>();
         _syncStateOption = syncStateOption;
         _syncStateCache = syncStateCache;
     }
@@ -44,7 +40,7 @@ public class SyncStateProvider : ISyncStateProvider
         var chainSyncState = await _syncStateCache.GetAsync(key);
         if (chainSyncState != null)
         {
-            Log.Debug($"Get sync state cache, key: {key}, LastIrreversibleBlockHeight: {chainSyncState.LastIrreversibleBlockHeight}");
+            _logger.Debug($"Get sync state cache, key: {key}, LastIrreversibleBlockHeight: {chainSyncState.LastIrreversibleBlockHeight}");
             return chainSyncState.LastIrreversibleBlockHeight;
         }
         
@@ -57,13 +53,13 @@ public class SyncStateProvider : ISyncStateProvider
                 return height;
             }
             retryCount++;
-            Log.Error($"Attempt {retryCount} failed: GetLastIrreversibleBlockHeightAsync failed.");
+            _logger.Error($"Attempt {retryCount} failed: GetLastIrreversibleBlockHeightAsync failed.");
             if (retryCount >= SyncStateRequestMaxRetries)
             {
                 break;
             }
         }
-        Log.Error($"Get sync state Maximum retry attempts reached, failing with 0.");
+        _logger.Error($"Get sync state Maximum retry attempts reached, failing with 0.");
         return 0;
     }
 
@@ -80,10 +76,10 @@ public class SyncStateProvider : ISyncStateProvider
                 AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(SyncStateCacheExpirationTimeSeconds)
             });
 
-            Log.Debug($"Update sync state cache, key: {key}, LastIrreversibleBlockHeight: {syncStateResponse.LastIrreversibleBlockHeight}");
+            _logger.Debug($"Update sync state cache, key: {key}, LastIrreversibleBlockHeight: {syncStateResponse.LastIrreversibleBlockHeight}");
             return syncStateResponse.LastIrreversibleBlockHeight;
         }
-        Log.Error($"Update sync state failed. can't find chainId: {chainId} in response");
+        _logger.Error($"Update sync state failed. can't find chainId: {chainId} in response");
         return 0;
     }
 }

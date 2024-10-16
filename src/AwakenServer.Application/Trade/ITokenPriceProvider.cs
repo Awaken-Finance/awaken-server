@@ -6,9 +6,7 @@ using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.Price;
 using AwakenServer.Tokens;
-using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
 using Serilog;
@@ -34,7 +32,7 @@ namespace AwakenServer.Trade
         private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
         private readonly IPriceAppService _priceAppService;
         private readonly IObjectMapper _objectMapper;
-        private readonly ILogger<TokenPriceProvider> _logger;
+        private readonly ILogger _logger;
         private readonly IDistributedCache<Dictionary<Guid, TokenPrice>> _tokenPriceCache;
 
         private const int MaxLevel = 2;
@@ -44,8 +42,7 @@ namespace AwakenServer.Trade
             IOptionsSnapshot<StableCoinOptions> stableCoinOptions, INESTRepository<Chain, string> chainIndexRepository,
             TokenAppService tokenAppService, ITradePairMarketDataProvider tradePairMarketDataProvider,
             IPriceAppService priceAppService,
-            IObjectMapper objectMapper,
-            ILogger<TokenPriceProvider> logger)
+            IObjectMapper objectMapper)
         {
             _tradePairInfoIndex = tradePairInfoIndex;
             _tokenPriceCache = tokenPriceCache;
@@ -55,7 +52,7 @@ namespace AwakenServer.Trade
             _stableCoinOptions = stableCoinOptions.Value;
             _priceAppService = priceAppService;
             _objectMapper = objectMapper;
-            _logger = logger;
+            _logger = Log.ForContext<TokenPriceProvider>();
         }
 
         public async Task<double> GetTokenUSDPriceAsync(string chainId, string symbol)
@@ -63,7 +60,7 @@ namespace AwakenServer.Trade
             var price = await _priceAppService.GetTokenPriceListAsync(new List<string> { symbol });
             if (price == null || price.Items.Count == 0)
             {
-                Log.Error("GetTokenUSDPriceAsync，can not find price,token:{symbol},chain:{chainId}",
+                _logger.Error("GetTokenUSDPriceAsync，can not find price,token:{symbol},chain:{chainId}",
                     symbol, chainId);
                 return 0;
             }

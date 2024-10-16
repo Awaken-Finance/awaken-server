@@ -19,8 +19,6 @@ using AwakenServer.Trade.Etos;
 using AwakenServer.Worker;
 using Google.Protobuf;
 using MassTransit;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson.IO;
 using Nest;
@@ -48,7 +46,7 @@ namespace AwakenServer.Trade
         private readonly IClusterClient _clusterClient;
         private readonly IObjectMapper _objectMapper;
         private readonly ILocalEventBus _localEventBus;
-        private readonly ILogger<TradeRecordAppService> _logger;
+        private readonly ILogger _logger;
         private readonly TradeRecordRevertWorkerSettings _tradeRecordRevertWorkerOptions;
         private readonly IDistributedEventBus _distributedEventBus;
         private readonly IBus _bus;
@@ -76,7 +74,6 @@ namespace AwakenServer.Trade
             IClusterClient clusterClient,
             IObjectMapper objectMapper,
             ILocalEventBus localEventBus,
-            ILogger<TradeRecordAppService> logger,
             IOptionsSnapshot<TradeRecordRevertWorkerSettings> tradeRecordOptions,
             IDistributedEventBus distributedEventBus,
             IBus bus,
@@ -91,7 +88,7 @@ namespace AwakenServer.Trade
             _clusterClient = clusterClient;
             _objectMapper = objectMapper;
             _localEventBus = localEventBus;
-            _logger = logger;
+            _logger = Log.ForContext<TradeRecordAppService>();
             _tradeRecordRevertWorkerOptions = tradeRecordOptions.Value;
             _distributedEventBus = distributedEventBus;
             _bus = bus;
@@ -441,7 +438,7 @@ namespace AwakenServer.Trade
                 var tradePairResult = await tradePairGrain.GetAsync();
                 if (!tradePairResult.Success)
                 {
-                    Log.Error($"fill kline, can't find trade pair: {dto.TradePairId}");
+                    _logger.Error($"fill kline, can't find trade pair: {dto.TradePairId}");
                     continue;
                 }
                 
@@ -479,7 +476,7 @@ namespace AwakenServer.Trade
 
                     if (existIndex != null)
                     {
-                        Log.Information($"fill kline, existIndex: {JsonConvert.SerializeObject(existIndex)}, " +
+                        _logger.Information($"fill kline, existIndex: {JsonConvert.SerializeObject(existIndex)}, " +
                                                $"OpenWithoutFee: {result.Data.OpenWithoutFee}, " +
                                                $"CloseWithoutFee: {result.Data.CloseWithoutFee}, " +
                                                $"HighWithoutFee: {result.Data.HighWithoutFee}, " +
@@ -517,7 +514,7 @@ namespace AwakenServer.Trade
                 var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
                 if (tradePair == null)
                 {
-                    Log.Error("fill kline index can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                    _logger.Error("fill kline index can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
                         swapRecord.PairAddress);
                     return false;
                 } 
@@ -584,7 +581,7 @@ namespace AwakenServer.Trade
             var pair = await GetAsync(dto.ChainId, dto.PairAddress);
             if (pair == null)
             {
-                Log.Information("swap can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                _logger.Information("swap can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
                     dto.PairAddress);
                 return false;
             } 
@@ -610,7 +607,7 @@ namespace AwakenServer.Trade
                 BlockHeight = dto.BlockHeight
             };
 
-            Log.Information(
+            _logger.Information(
                 "SwapEvent, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
                 "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
                 "blockHeight: {blockHeight}, totalFee: {totalFee}", dto.ChainId, pair.Id, dto.Sender,
@@ -735,7 +732,7 @@ namespace AwakenServer.Trade
 
         private async Task<List<List<SwapRecord>>> RebuildSwapAsync(SwapRecordDto dto, List<Index.TradePair> pairList, List<SwapRecord> swapRecords)
         {
-            Log.Information($"RebuildSwapAsync, dto: {JsonConvert.SerializeObject(dto)}");
+            _logger.Information($"RebuildSwapAsync, dto: {JsonConvert.SerializeObject(dto)}");
             
             var indexSwapRecordDistributions = new List<List<SwapRecord>>();
             var paths = new List<List<string>>();
@@ -775,7 +772,7 @@ namespace AwakenServer.Trade
 
             if (paths.Count != feeRates.Count)
             {
-                Log.Error($"RebuildSwapAsync, paths count: {paths.Count}, feeRates count: {feeRates.Count}");
+                _logger.Error($"RebuildSwapAsync, paths count: {paths.Count}, feeRates count: {feeRates.Count}");
                 return indexSwapRecordDistributions;
             }
 
@@ -786,7 +783,7 @@ namespace AwakenServer.Trade
                 var recordPath = new List<SwapRecord>();
                 if (path.Count != pathFee.Count + 1)
                 {
-                    Log.Error($"RebuildSwapAsync, path count: {path.Count}, pathFee count: {pathFee.Count}");
+                    _logger.Error($"RebuildSwapAsync, path count: {path.Count}, pathFee count: {pathFee.Count}");
                     return indexSwapRecordDistributions;
                 }
                 for (int j = 0; j < path.Count-1; j++)
@@ -857,7 +854,7 @@ namespace AwakenServer.Trade
                             }
                             else
                             {
-                                Log.Error($"RebuildSwapAsync, limit records not match. " +
+                                _logger.Error($"RebuildSwapAsync, limit records not match. " +
                                                  $"full path: {JsonConvert.SerializeObject(fullPath)}, " +
                                                  $"record: {JsonConvert.SerializeObject(limitRecord)}");
                             }
@@ -907,7 +904,7 @@ namespace AwakenServer.Trade
                             }
                             else
                             {
-                                Log.Error($"RebuildSwapAsync, limit records not match. " +
+                                _logger.Error($"RebuildSwapAsync, limit records not match. " +
                                                  $"full path: {JsonConvert.SerializeObject(fullPath)}, " +
                                                  $"record: {JsonConvert.SerializeObject(limitRecord)}");
                             }
@@ -920,7 +917,7 @@ namespace AwakenServer.Trade
         
         public async Task<bool> CreateMultiSwapAsync(SwapRecordDto dto)
         {
-            Log.Information($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, method name: {dto.MethodName}, input args: {dto.InputArgs}");
+            _logger.Information($"creare multi swap records begin, chain: {dto.ChainId}, txn: {dto.TransactionHash}, method name: {dto.MethodName}, input args: {dto.InputArgs}");
             var tradeRecordGrain =
                 _clusterClient.GetGrain<ITradeRecordGrain>(
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
@@ -948,7 +945,7 @@ namespace AwakenServer.Trade
                 IsLimitOrder = dto.IsLimitOrder
             });
             
-            Log.Information($"creare multi swap, txn id: {dto.TransactionHash}, swap records: {JsonConvert.SerializeObject(dto.SwapRecords)}");
+            _logger.Information($"creare multi swap, txn id: {dto.TransactionHash}, swap records: {JsonConvert.SerializeObject(dto.SwapRecords)}");
             
             var pairList = new List<Index.TradePair>();
             var indexSwapRecords = new List<SwapRecord>();
@@ -981,7 +978,7 @@ namespace AwakenServer.Trade
                     var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
                     if (tradePair == null)
                     {
-                        Log.Information("creare multi swap records can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                        _logger.Information("creare multi swap records can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
                             swapRecord.PairAddress);
                         return false;
                     } 
@@ -994,7 +991,7 @@ namespace AwakenServer.Trade
                 }
             }
             
-            Log.Information($"creare multi swap, txn id: {dto.TransactionHash}, index swap records: {JsonConvert.SerializeObject(indexSwapRecords)}");
+            _logger.Information($"creare multi swap, txn id: {dto.TransactionHash}, index swap records: {JsonConvert.SerializeObject(indexSwapRecords)}");
 
             var indexSwapRecordDistributions = await RebuildSwapAsync(dto, pairList, indexSwapRecords);
             
@@ -1018,7 +1015,7 @@ namespace AwakenServer.Trade
                 InputArgs = dto.InputArgs
             };
 
-            Log.Information(
+            _logger.Information(
                 "creare multi swap records, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
                 "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
                 "blockHeight: {blockHeight}, totalFee: {totalFee}, MethodName: {MethodName}", dto.ChainId, "multiSwap no tradePairId", dto.Sender,
@@ -1037,7 +1034,7 @@ namespace AwakenServer.Trade
             tradeRecord.LabsFee = dto.LabsFee / Math.Pow(10, labsFeeToken.Decimals);
             tradeRecord.LabsFeeSymbol = dto.LabsFeeSymbol;
             
-            Log.Information($"creare multi swap records, transactionHash: {dto.TransactionHash}, " +
+            _logger.Information($"creare multi swap records, transactionHash: {dto.TransactionHash}, " +
                                    $"MethodName: {record.MethodName}, " +
                                    $"PercentRoutes: {JsonConvert.SerializeObject(tradeRecord.PercentRoutes)}");
             
@@ -1070,7 +1067,7 @@ namespace AwakenServer.Trade
                 await _localEventBus.PublishAsync(ObjectMapper.Map<TradeRecord, NewTradeRecordEvent>(tradeRecord));
             }
             
-            Log.Information($"creare multi swap records done, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}");
+            _logger.Information($"creare multi swap records done, chain: {dto.ChainId}, txn: {dto.TransactionHash}, swap count: {dto.SwapRecords.Count+1}");
             return true;
         }
 
@@ -1081,7 +1078,7 @@ namespace AwakenServer.Trade
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
             if (!tradeRecordGrain.Exist().Result)
             {
-                Log.Information("revert transactionHash not existed: {transactionHash}", dto.TransactionHash);
+                _logger.Information("revert transactionHash not existed: {transactionHash}", dto.TransactionHash);
                 return false;
             }
             
@@ -1091,7 +1088,7 @@ namespace AwakenServer.Trade
                 var tradePair = await GetAsync(dto.ChainId, swapRecord.PairAddress);
                 if (tradePair == null)
                 {
-                    Log.Information("swap can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                    _logger.Information("swap can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
                         swapRecord.PairAddress);
                     return false;
                 }
@@ -1138,19 +1135,19 @@ namespace AwakenServer.Trade
                     GrainIdHelper.GenerateGrainId(dto.ChainId, dto.TransactionHash));
             if (!tradeRecordGrain.Exist().Result)
             {
-                Log.Information("revert transactionHash not existed: {transactionHash}", dto.TransactionHash);
+                _logger.Information("revert transactionHash not existed: {transactionHash}", dto.TransactionHash);
                 return false;
             }
 
             var pair = await GetAsync(dto.ChainId, dto.TradePair.Address);
             if (pair == null)
             {
-                Log.Information("revert can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
+                _logger.Information("revert can not find trade pair: {chainId}, {pairAddress}", dto.ChainId,
                     dto.TradePair.Address);
                 return false;
             }
 
-            Log.Information(
+            _logger.Information(
                 "Revert SwapEvent, input chainId: {chainId}, tradePairId: {tradePairId}, address: {address}, " +
                 "transactionHash: {transactionHash}, timestamp: {timestamp}, side: {side}, channel: {channel}, token0Amount: {token0Amount}, token1Amount: {token1Amount}, " +
                 "blockHeight: {blockHeight}, totalFee: {totalFee}", dto.ChainId, pair.Id, dto.Sender,

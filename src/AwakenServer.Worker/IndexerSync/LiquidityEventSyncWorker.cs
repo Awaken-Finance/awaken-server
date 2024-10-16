@@ -28,13 +28,12 @@ public class LiquidityEventSyncWorker : AwakenServerWorkerBase
 
     public LiquidityEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
         ILiquidityAppService liquidityService,
-        ILogger<AwakenServerWorkerBase> logger,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;

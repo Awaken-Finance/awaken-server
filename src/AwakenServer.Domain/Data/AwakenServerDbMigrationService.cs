@@ -7,13 +7,13 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using AElf.ExceptionHandler;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Serilog;
 using Volo.Abp.Data;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.Identity;
 using Volo.Abp.MultiTenancy;
 using Volo.Abp.TenantManagement;
+using ILogger = Serilog.ILogger;
 
 namespace AwakenServer.Data
 {
@@ -25,6 +25,7 @@ namespace AwakenServer.Data
         private readonly IEnumerable<IAwakenServerDbSchemaMigrator> _dbSchemaMigrators;
         private readonly ITenantRepository _tenantRepository;
         private readonly ICurrentTenant _currentTenant;
+        private readonly ILogger _logger;
 
         public AwakenServerDbMigrationService(
             IDataSeeder dataSeeder,
@@ -36,8 +37,7 @@ namespace AwakenServer.Data
             _dbSchemaMigrators = dbSchemaMigrators;
             _tenantRepository = tenantRepository;
             _currentTenant = currentTenant;
-
-            Logger = NullLogger<AwakenServerDbMigrationService>.Instance;
+            _logger = Log.ForContext<AwakenServerDbMigrationService>();
         }
 
         public async Task MigrateAsync()
@@ -49,12 +49,12 @@ namespace AwakenServer.Data
                 return;
             }
 
-            Log.Information("Started database migrations...");
+            _logger.Information("Started database migrations...");
 
             await MigrateDatabaseSchemaAsync();
             await SeedDataAsync();
 
-            Log.Information($"Successfully completed host database migrations.");
+            _logger.Information($"Successfully completed host database migrations.");
 
             var tenants = await _tenantRepository.GetListAsync(includeDetails: true);
 
@@ -80,16 +80,16 @@ namespace AwakenServer.Data
                     await SeedDataAsync(tenant);
                 }
 
-                Log.Information($"Successfully completed {tenant.Name} tenant database migrations.");
+                _logger.Information($"Successfully completed {tenant.Name} tenant database migrations.");
             }
 
-            Log.Information("Successfully completed all database migrations.");
-            Log.Information("You can safely end this process...");
+            _logger.Information("Successfully completed all database migrations.");
+            _logger.Information("You can safely end this process...");
         }
 
         private async Task MigrateDatabaseSchemaAsync(Tenant tenant = null)
         {
-            Log.Information(
+            _logger.Information(
                 $"Migrating schema for {(tenant == null ? "host" : tenant.Name + " tenant")} database...");
 
             foreach (var migrator in _dbSchemaMigrators)
@@ -100,7 +100,7 @@ namespace AwakenServer.Data
 
         private async Task SeedDataAsync(Tenant tenant = null)
         {
-            Log.Information($"Executing {(tenant == null ? "host" : tenant.Name + " tenant")} database seed...");
+            _logger.Information($"Executing {(tenant == null ? "host" : tenant.Name + " tenant")} database seed...");
 
             await _dataSeeder.SeedAsync(new DataSeedContext(tenant?.Id)
                 .WithProperty(IdentityDataSeedContributor.AdminEmailPropertyName, IdentityDataSeedContributor.AdminEmailDefaultValue)
@@ -144,7 +144,7 @@ namespace AwakenServer.Data
         [ExceptionHandler(typeof(Exception), LogOnly = true)]
         public virtual async Task AddInitialMigration()
         {
-            Log.Information("Creating initial migration...");
+            _logger.Information("Creating initial migration...");
 
             string argumentPrefix;
             string fileName;

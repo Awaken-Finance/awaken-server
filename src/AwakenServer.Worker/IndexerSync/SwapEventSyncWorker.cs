@@ -24,13 +24,13 @@ public class TradeRecordEventSwapWorker : AwakenServerWorkerBase
 
 
     public TradeRecordEventSwapWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        ITradeRecordAppService tradeRecordAppService, ILogger<AwakenServerWorkerBase> logger,
+        ITradeRecordAppService tradeRecordAppService,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
@@ -43,7 +43,7 @@ public class TradeRecordEventSwapWorker : AwakenServerWorkerBase
         
         var queryList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        Log.Information("swap queryList count: {count}", queryList.Count);
+        _logger.Information("swap queryList count: {count}", queryList.Count);
             
         foreach (var queryDto in queryList)
         {

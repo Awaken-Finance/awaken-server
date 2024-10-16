@@ -26,13 +26,13 @@ public class TradePairEventSyncWorker : AwakenServerWorkerBase
     private readonly ITradePairAppService _tradePairAppService;
     
     public TradePairEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        ITradePairAppService tradePairAppService, ILogger<AwakenServerWorkerBase> logger,
+        ITradePairAppService tradePairAppService,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
@@ -56,7 +56,7 @@ public class TradePairEventSyncWorker : AwakenServerWorkerBase
         {
             blockHeight = Math.Max(blockHeight, pair.BlockHeight);
 
-            Log.Information("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol}",
+            _logger.Information("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol}",
                 pair.Id, pair.Address, chain, pair.Token0Symbol, pair.Token1Symbol);
 
             var token0 = await _tradePairAppService.SyncTokenAsync(pair.ChainId, pair.Token0Symbol, chain);
@@ -65,12 +65,12 @@ public class TradePairEventSyncWorker : AwakenServerWorkerBase
             pair.Token1Id = token1.Id;
             if (await _tradePairAppService.SyncPairAsync(pair, chain))
             {
-                Log.Information("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol} done",
+                _logger.Information("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol} done",
                     pair.Id, pair.Address, chain, pair.Token0Symbol, pair.Token1Symbol);
             }
             else
             {
-                Log.Error("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol} failed",
+                _logger.Error("Syncing {pairId}/{pairAddress} on {chainName}, {Token0Symbol}/{Token1Symbol} failed",
                     pair.Id, pair.Address, chain, pair.Token0Symbol, pair.Token1Symbol);
             }
         }

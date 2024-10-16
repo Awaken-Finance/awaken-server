@@ -1,24 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
-using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.SwapTokenPath;
-using AwakenServer.Grains.Grain.Price;
 using AwakenServer.SwapTokenPath.Dtos;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
-using Microsoft.Extensions.Logging;
+using AwakenServer.Trade.Index;
 using Nest;
 using Orleans;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
-using AwakenServer.Trade.Index;
-using Serilog;
+using Volo.Abp.ObjectMapping;
 using TradePair = AwakenServer.Trade.Index.TradePair;
-using IObjectMapper = Volo.Abp.ObjectMapping.IObjectMapper;
 
 namespace AwakenServer.SwapTokenPath
 {
@@ -27,16 +23,15 @@ namespace AwakenServer.SwapTokenPath
     {
         private readonly IClusterClient _clusterClient;
         private readonly IObjectMapper _objectMapper;
-        private readonly ILogger<TradePairAppService> _logger;
+        private readonly ILogger _logger;
         private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
         
         public TokenPathAppService(
-            ILogger<TradePairAppService> logger,
             IClusterClient clusterClient,
             IObjectMapper objectMapper,
             INESTRepository<TradePair, Guid> tradePairIndexRepository)
         {
-            _logger = logger;
+            _logger = Log.ForContext<TokenPathAppService>();
             _clusterClient = clusterClient;
             _objectMapper = objectMapper;
             _tradePairIndexRepository = tradePairIndexRepository;
@@ -54,14 +49,14 @@ namespace AwakenServer.SwapTokenPath
         
         public async Task<PagedResultDto<TokenPathDto>> GetListAsync(GetTokenPathsInput input)
         {
-            Log.Information($"get token paths begin, input: {input.ChainId}, {input.StartSymbol}, {input.EndSymbol}, {input.MaxDepth}");
+            _logger.Information($"get token paths begin, input: {input.ChainId}, {input.StartSymbol}, {input.EndSymbol}, {input.MaxDepth}");
             
             var grain = _clusterClient.GetGrain<ITokenPathGrain>(input.ChainId);
             
             var cachedResult = await grain.GetCachedPathAsync(_objectMapper.Map<GetTokenPathsInput, GetTokenPathGrainDto>(input));
             if (cachedResult.Success)
             {
-                Log.Information($"get token paths from cache done, path count: {cachedResult.Data.Path.Count}");
+                _logger.Information($"get token paths from cache done, path count: {cachedResult.Data.Path.Count}");
                 
                 return new PagedResultDto<TokenPathDto>()
                 {
@@ -72,7 +67,7 @@ namespace AwakenServer.SwapTokenPath
             
             var pairs = await GetListAsync(input.ChainId);
             
-            Log.Information($"get token paths do search, get relations from chain trade pairs, count: {pairs.Count}");
+            _logger.Information($"get token paths do search, get relations from chain trade pairs, count: {pairs.Count}");
             
             await grain.SetGraphAsync(new GraphDto()
             {
@@ -84,11 +79,11 @@ namespace AwakenServer.SwapTokenPath
             
             if (!result.Success || result.Data == null || result.Data.Path == null)
             {
-                Log.Error($"get token paths, failed, flag: {result.Success}");
+                _logger.Error($"get token paths, failed, flag: {result.Success}");
                 return new PagedResultDto<TokenPathDto>();
             }
             
-            Log.Information($"get token paths done, path count: {result.Data.Path.Count}");
+            _logger.Information($"get token paths done, path count: {result.Data.Path.Count}");
             return new PagedResultDto<TokenPathDto>()
             {
                 TotalCount = result.Data.Path.Count,

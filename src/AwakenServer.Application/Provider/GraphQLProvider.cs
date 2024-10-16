@@ -14,7 +14,6 @@ using AwakenServer.Trade.Dtos;
 using GraphQL;
 using GraphQL.Client.Http;
 using GraphQL.Client.Serializer.Newtonsoft;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Orleans;
@@ -28,15 +27,15 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     private readonly GraphQLOptions _graphQLOptions;
     private readonly GraphQLHttpClient _graphQLClient;
     private readonly IClusterClient _clusterClient;
-    private readonly ILogger<GraphQLProvider> _logger;
+    private readonly ILogger _logger;
     private readonly ITokenAppService _tokenAppService;
     
     
-    public GraphQLProvider(ILogger<GraphQLProvider> logger, IClusterClient clusterClient,
+    public GraphQLProvider(IClusterClient clusterClient,
         ITokenAppService tokenAppService,
         IOptions<GraphQLOptions> graphQLOptions)
     {
-        _logger = logger;
+        _logger = Log.ForContext<GraphQLProvider>();
         _clusterClient = clusterClient;
         _graphQLOptions = graphQLOptions.Value;
         _graphQLClient = new GraphQLHttpClient(_graphQLOptions.Configuration, new NewtonsoftJsonSerializer());
@@ -95,7 +94,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             };
         }
         
-        Log.Information("graphQlResponse: {totalCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount);
+        _logger.Information("graphQlResponse: {totalCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount);
         
         if (graphQlResponse.Data.TradePairInfoDtoList.TotalCount == 0)
         {
@@ -108,7 +107,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 },
             };
         }
-        Log.Information("total count is {totalCount},data count:{dataCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount,graphQlResponse.Data.TradePairInfoDtoList.Data.Count);
+        _logger.Information("total count is {totalCount},data count:{dataCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount,graphQlResponse.Data.TradePairInfoDtoList.Data.Count);
 
         graphQlResponse.Data.TradePairInfoDtoList.Data.ForEach(pair =>
         {
@@ -133,7 +132,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     {
         /*if (startBlockHeight > endBlockHeight)
         {
-            Log.Information("EndBlockHeight should be higher than StartBlockHeight");
+            _logger.Information("EndBlockHeight should be higher than StartBlockHeight");
             return new List<LiquidityRecordDto>();
         }*/
 
@@ -169,7 +168,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
         });
         
-        Log.Information($"getLiquidityRecords " +
+        _logger.Information($"getLiquidityRecords " +
                                $"startBlockHeight: {startBlockHeight}, " +
                                $"endBlockHeight: {endBlockHeight}, " +
                                $"maxResultCount: {maxResultCount}, " +
@@ -193,7 +192,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     {
         // if (startBlockHeight > endBlockHeight)
         // {
-        //     Log.Information("EndBlockHeight should be higher than StartBlockHeight");
+        //     _logger.Information("EndBlockHeight should be higher than StartBlockHeight");
         //     return new List<SwapRecordDto>();
         // }
 
@@ -381,7 +380,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
                 
         });
-        Log.Information($"liquidityRecord from graphql: {graphQlResponse.Data.LiquidityRecord.TotalCount}");
+        _logger.Information($"liquidityRecord from graphql: {graphQlResponse.Data.LiquidityRecord.TotalCount}");
         return graphQlResponse.Data.LiquidityRecord;
     }
 
@@ -472,7 +471,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     
     public async Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrderDetailsInput input)
     {
-        Log.Information($"Query limitOrderDetails, OrderId: {input.OrderId}");
+        _logger.Information($"Query limitOrderDetails, OrderId: {input.OrderId}");
         var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderDetailResultDto>(new GraphQLRequest
         {
             Query = 
@@ -525,7 +524,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         
         if (graphQlResponse.Data == null || graphQlResponse.Data.LimitOrderDetails == null)
         {
-            Log.Error($"Query limitOrderDetails, result is null");
+            _logger.Error($"Query limitOrderDetails, result is null");
             return new LimitOrderPageResultDto();
         }
         
@@ -573,7 +572,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     {
         errors.ToList().ForEach(error =>
         {
-            Log.Error("GraphQL error: {message}", error.Message);
+            _logger.Error("GraphQL error: {message}", error.Message);
         });
     }
 }

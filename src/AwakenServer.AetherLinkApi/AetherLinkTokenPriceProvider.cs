@@ -16,12 +16,14 @@ public class AetherLinkTokenPriceProvider : ITokenPriceProvider
 {
     private readonly IPriceServerProvider _priceServerProvider;
     private readonly IOptionsSnapshot<AetherLinkOptions> _aetherLinkOptions;
+    private readonly ILogger _logger;
     
     public AetherLinkTokenPriceProvider(IPriceServerProvider priceServerProvider,
         IOptionsSnapshot<AetherLinkOptions> options)
     {
         _priceServerProvider = priceServerProvider;
         _aetherLinkOptions = options;
+        _logger = Log.ForContext<AetherLinkTokenPriceProvider>();
     }
 
     
@@ -35,7 +37,7 @@ public class AetherLinkTokenPriceProvider : ITokenPriceProvider
             AggregateType = AggregateType.Latest
         })).Data;
 
-        Log.Information(
+        _logger.Information(
             $"Get token price from Aetherlink price service, pair: {result.TokenPair}, price: {result.Price}, decimal: {result.Decimal}");
 
         return (decimal) (result.Price / Math.Pow(10, (double) result.Decimal));
@@ -53,7 +55,7 @@ public class AetherLinkTokenPriceProvider : ITokenPriceProvider
             TimeStamp = date
         })).Data;
 
-        Log.Information(
+        _logger.Information(
             $"Get history token price from Aetherlink price service, tokenPair: {tokenPair}, TimeStamp: {date}, result.Price: {result.Price}, result.Decimal: {result.Decimal}");
 
         return (decimal) (result.Price / Math.Pow(10, (double) result.Decimal));

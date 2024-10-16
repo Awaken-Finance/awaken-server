@@ -1,12 +1,7 @@
-using System;
 using AwakenServer.Grains.State.Price;
-using Microsoft.Extensions.Logging;
-using Orleans;
-using Volo.Abp.ObjectMapping;
-using System.Numerics;
-using System.Threading.Tasks;
 using Nethereum.Util;
 using Serilog;
+using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Grains.Grain.Price.TradePair;
 
@@ -14,14 +9,13 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
     ITradePairMarketDataSnapshotGrain
 {
     private readonly IObjectMapper _objectMapper;
-    private readonly ILogger<TradePairMarketDataSnapshotGrain> _logger;
+    private readonly ILogger _logger;
 
 
-    public TradePairMarketDataSnapshotGrain(IObjectMapper objectMapper,
-        ILogger<TradePairMarketDataSnapshotGrain> logger)
+    public TradePairMarketDataSnapshotGrain(IObjectMapper objectMapper)
     {
         _objectMapper = objectMapper;
-        _logger = logger;
+        _logger = Log.ForContext<TradePairMarketDataSnapshotGrain>();
     }
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
@@ -77,7 +71,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         TradePairMarketDataSnapshotGrainDto dto,
         TradePairMarketDataSnapshotGrainDto lastDto)
     {
-        Log.Information($"new snapshot dto, trade pair: {dto.TradePairId}, total supply: {dto.TotalSupply}");
+        _logger.Information($"new snapshot dto, trade pair: {dto.TradePairId}, total supply: {dto.TotalSupply}");
 
         if (dto.TotalSupply == "0" || dto.TotalSupply.IsNullOrEmpty())
         {
@@ -128,7 +122,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         State =
             _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(dto);
 
-        Log.Information(
+        _logger.Information(
             $"new snapshot state, trade pair: {State.TradePairId}, total supply: {State.TotalSupply}");
     }
 
@@ -136,7 +130,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         TradePairMarketDataSnapshotGrainDto updateDto,
         TradePairMarketDataSnapshotGrainDto lastDto)
     {
-        Log.Information(
+        _logger.Information(
             $"update snapshot dto, trade pair: {updateDto.TradePairId}, total supply: {updateDto.TotalSupply}");
 
         if (updateDto.TotalSupply == "0" || updateDto.TotalSupply.IsNullOrEmpty())
@@ -205,7 +199,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         State =
             _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(lastDto);
 
-        Log.Information(
+        _logger.Information(
             $"update snapshot state, trade pair: {State.TradePairId}, total supply: {State.TotalSupply}");
     }
 
@@ -241,7 +235,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             State = _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(updateDto);
         }
 
-        Log.Information("UpdateTotalSupplyAsync: totalSupply: {supply}", State.TotalSupply);
+        _logger.Information("UpdateTotalSupplyAsync: totalSupply: {supply}", State.TotalSupply);
 
         await WriteStateAsync();
 

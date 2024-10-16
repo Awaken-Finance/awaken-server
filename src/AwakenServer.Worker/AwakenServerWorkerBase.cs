@@ -1,7 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using Volo.Abp.BackgroundWorkers;
-using Volo.Abp.Threading;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -9,10 +5,11 @@ using AElf.ExceptionHandler;
 using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Provider;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Serilog;
-
+using Volo.Abp.BackgroundWorkers;
+using Volo.Abp.Threading;
 
 namespace AwakenServer.Worker;
 
@@ -20,7 +17,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
 {
     protected abstract WorkerBusinessType _businessType { get; }
     protected WorkerSetting _workerOptions { get; set; } = new();
-    protected readonly ILogger<AwakenServerWorkerBase> _logger;
+    protected readonly ILogger _logger;
     protected readonly IChainAppService _chainAppService;
     protected readonly IGraphQLProvider _graphQlProvider;
     protected readonly ISyncStateProvider _syncStateProvider;
@@ -31,11 +28,10 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
-        ILogger<AwakenServerWorkerBase> logger,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider) : base(timer, serviceScopeFactory)
     {
-        _logger = logger;
+        _logger = Log.ForContext<AwakenServerWorkerBase>();
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
         _syncStateProvider = syncStateProvider;
@@ -66,7 +62,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         _workerOptions.DataVersion = optionsMonitor.CurrentValue.GetWorkerSettings(_businessType) != null ?
             optionsMonitor.CurrentValue.GetWorkerSettings(_businessType).DataVersion : "v1";
         
-        Log.Information($"AwakenServerWorkerBase: BusinessType: {_businessType.ToString()}," +
+        _logger.Information($"AwakenServerWorkerBase: BusinessType: {_businessType.ToString()}," +
                                $"Start with config: " +
                                $"TimePeriod: {timer.Period}, " +
                                $"ResetBlockHeightFlag: {_workerOptions.ResetBlockHeightFlag}, " +
@@ -102,11 +98,11 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
                 foreach (var chainHasResetBlockHeight in _chainHasResetBlockHeight)
                 {
                     _chainHasResetBlockHeight[chainHasResetBlockHeight.Key] = false;
-                    Log.Information($"On options change, chain: {chainHasResetBlockHeight.Key}, HasResetBlockHeight: {_chainHasResetBlockHeight[chainHasResetBlockHeight.Key]}");
+                    _logger.Information($"On options change, chain: {chainHasResetBlockHeight.Key}, HasResetBlockHeight: {_chainHasResetBlockHeight[chainHasResetBlockHeight.Key]}");
                 }
             }
             
-            Log.Information(
+            _logger.Information(
                 "The workerSetting of Worker {BusinessType} has changed to Period = {Period} ms, OpenSwitch = {OpenSwitch}, ResetBlockHeightFlag = {ResetBlockHeightFlag}, ResetBlockHeight = {ResetBlockHeight}",
                 _businessType, timer.Period, workerSetting.OpenSwitch, workerSetting.ResetBlockHeightFlag, workerSetting.ResetBlockHeight);
         });
@@ -121,7 +117,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
             await _graphQlProvider.SetLastEndHeightAsync(chain.Name, _businessType,
                 _workerOptions.ResetBlockHeight));
         _chainHasResetBlockHeight[chain.Name] = true;
-        Log.Information($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}, chain has reset block height: {_chainHasResetBlockHeight[chain.Name]}");
+        _logger.Information($"Reset block height. chain: {chain.Name}, type: {_businessType.ToString()}, block height: {_workerOptions.ResetBlockHeight}, chain has reset block height: {_chainHasResetBlockHeight[chain.Name]}");
     }
     
     
@@ -148,7 +144,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         {
             var lastEndHeight = await _graphQlProvider.GetLastEndHeightAsync(chain.Name, _businessType);
             
-            Log.Information(
+            _logger.Information(
                 $"Start deal data for businessType: {_businessType} " +
                 $"chainId: {chain.Name}, " +
                 $"lastEndHeight: {lastEndHeight}, " +
@@ -171,7 +167,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
                 }
             }
 
-            Log.Information(
+            _logger.Information(
                 "End deal data for businessType: {businessType} chainId: {chainId} blockHeight: {BlockHeight} lastEndHeight:{lastEndHeight}",
                 _businessType, chain.Name, blockHeight, lastEndHeight);
         }

@@ -2,10 +2,8 @@ using System.Threading.Tasks;
 using AwakenServer.Trade.Dtos;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Volo.Abp.DependencyInjection;
-using Volo.Abp.EventBus.Distributed;
 
 namespace AwakenServer.Hubs
 {
@@ -13,15 +11,14 @@ namespace AwakenServer.Hubs
     {
         private readonly IHubContext<TradeHub> _hubContext;
         private readonly ITradeHubGroupProvider _tradeHubGroupProvider;
-        private readonly ILogger<NewKLineHandler> _logger;
+        private readonly ILogger _logger;
 
 
-        public NewKLineHandler(IHubContext<TradeHub> hubContext, ITradeHubGroupProvider tradeHubGroupProvider,
-            ILogger<NewKLineHandler> logger)
+        public NewKLineHandler(IHubContext<TradeHub> hubContext, ITradeHubGroupProvider tradeHubGroupProvider)
         {
             _hubContext = hubContext;
             _tradeHubGroupProvider = tradeHubGroupProvider;
-            _logger = logger;
+            _logger = Log.ForContext<NewKLineHandler>();
         }
 
 
@@ -30,7 +27,7 @@ namespace AwakenServer.Hubs
             var klineGroupName =
                 _tradeHubGroupProvider.GetKlineGroupName(eventData.Message.Data.ChainId,
                     eventData.Message.Data.TradePairId, eventData.Message.Data.Period);
-            Log.Information(
+            _logger.Information(
                 "NewKLineHandler: Consume KLineDto:klineGroupName:{klineGroupName},Period:{period},Timestamp:{timestamp}",
                 klineGroupName, eventData.Message.Data.Period, eventData.Message.Data.Timestamp);
             await _hubContext.Clients.Group(klineGroupName).SendAsync("ReceiveKline", eventData.Message.Data);

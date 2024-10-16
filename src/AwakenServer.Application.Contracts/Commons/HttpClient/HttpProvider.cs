@@ -7,12 +7,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using AElf.ExceptionHandler;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Awaken.Samples.HttpClient;
 using AwakenServer;
 using AwakenServer.Commons;
-using Microsoft.Extensions.Options;
 using Serilog;
 using Volo.Abp.DependencyInjection;
 
@@ -74,17 +72,16 @@ public class HttpProvider : IHttpProvider
 
     private const int DefaultTimeout = 5000;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<HttpProvider> _logger;
+    private readonly ILogger _logger;
 
-    public HttpProvider(IHttpClientFactory httpClientFactory, 
-        ILogger<HttpProvider> logger)
+    public HttpProvider(IHttpClientFactory httpClientFactory)
     {
         _httpClientFactory = httpClientFactory;
-        _logger = logger;
+        _logger = Log.ForContext<HttpProvider>();
     }
 
     
-    [ExceptionHandler(typeof(Exception), LogLevel = LogLevel.Error, 
+    [ExceptionHandler(typeof(Exception),
         TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithHttpException))]
     public virtual async Task<T> InvokeAsync<T>(string domain, ApiInfo apiInfo,
         Dictionary<string, string> pathParams = null,
@@ -98,7 +95,7 @@ public class HttpProvider : IHttpProvider
         return JsonConvert.DeserializeObject<T>(resp, settings ?? DefaultJsonSettings);
     }
     
-    [ExceptionHandler(typeof(Exception), LogLevel = LogLevel.Error, 
+    [ExceptionHandler(typeof(Exception),
         TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithHttpException))]
     public virtual async Task<T> InvokeAsync<T>(HttpMethod method, string url,
         Dictionary<string, string> pathParams = null,
@@ -189,11 +186,11 @@ public class HttpProvider : IHttpProvider
         var time = stopwatch.ElapsedMilliseconds;
         // log
         if (withLog)
-            Log.Information(
+            _logger.Information(
                 "Request To {FullUrl}, statusCode={StatusCode}, time={Time}, query={Query}, body={Body}, resp={Content}",
                 fullUrl, response.StatusCode, time, builder.Query, body, content);
         else if (debugLog)
-            Log.Debug(
+            _logger.Debug(
                 "Request To {FullUrl}, statusCode={StatusCode}, time={Time}, query={Query}, body={Body}, resp={Content}",
                 fullUrl, response.StatusCode, time, builder.Query,  body, content);
         return response;

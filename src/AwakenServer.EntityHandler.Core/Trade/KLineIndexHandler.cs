@@ -5,7 +5,6 @@ using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
 using MassTransit;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Volo.Abp.EventBus.Distributed;
 
@@ -15,14 +14,13 @@ namespace AwakenServer.EntityHandler.Trade
         IDistributedEventHandler<KLineEto>
     {
         private readonly INESTRepository<KLine, Guid> _kLineIndexRepository;
-        private readonly ILogger<KLineIndexHandler> _logger;
+        private readonly ILogger _logger;
         private readonly IBus _bus;
         public KLineIndexHandler(INESTRepository<KLine, Guid> kLineIndexRepository,
-            IBus bus,
-            ILogger<KLineIndexHandler> logger) 
+            IBus bus) 
         {
             _kLineIndexRepository = kLineIndexRepository;
-            _logger = logger;
+            _logger = Log.ForContext<KLineIndexHandler>();
             _bus = bus;
         }
 
@@ -62,7 +60,7 @@ namespace AwakenServer.EntityHandler.Trade
 
             await _kLineIndexRepository.AddOrUpdateAsync(existIndex);
 
-            Log.Information("KLineIndexHandler: PublishAsync KLineDto:Period:{period},Timestamp:{timestamp}", eto.Period, eto.Timestamp);
+            _logger.Information("KLineIndexHandler: PublishAsync KLineDto:Period:{period},Timestamp:{timestamp}", eto.Period, eto.Timestamp);
             await _bus.Publish(new NewIndexEvent<KLineDto>
             {
                 Data = ObjectMapper.Map<KLine, KLineDto>(existIndex)

@@ -25,13 +25,13 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
     private readonly ITradePairAppService _tradePairAppService;
 
     public SyncEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        ITradePairAppService tradePairAppService, ILogger<AwakenServerWorkerBase> logger,
+        ITradePairAppService tradePairAppService,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
@@ -44,7 +44,7 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
         
         var queryList = await _graphQlProvider.GetSyncRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        Log.Information("sync queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Id);
+        _logger.Information("sync queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Id);
         
         foreach (var queryDto in queryList)
         {

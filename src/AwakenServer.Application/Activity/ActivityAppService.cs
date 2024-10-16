@@ -21,7 +21,6 @@ using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
 using Orleans;
@@ -30,6 +29,7 @@ using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
 using Volo.Abp.EventBus.Distributed;
+using ILogger = Serilog.ILogger;
 
 
 namespace AwakenServer.Activity;
@@ -52,7 +52,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     private IClusterClient _clusterClient;
     private IDistributedEventBus _distributedEventBus;
-    private readonly ILogger<ActivityAppService> _logger;
+    private readonly ILogger _logger;
     private readonly ActivityOptions _activityOptions;
     private readonly PortfolioOptions _portfolioOptions;
 
@@ -67,7 +67,6 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     private const double LimitLabsFeeRate = 0.0005;
 
     public ActivityAppService(
-        ILogger<ActivityAppService> logger,
         IOptionsSnapshot<ActivityOptions> activityOptions,
         IClusterClient clusterClient,
         IPriceAppService priceAppService,
@@ -82,7 +81,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         IGraphQLProvider graphQlProvider,
         IDistributedCache<string> syncedTransactionIdCache)
     {
-        _logger = logger;
+        _logger = Log.ForContext<ActivityAppService>();
         _activityOptions = activityOptions.Value;
         _clusterClient = clusterClient;
         _tokenAppService = tokenAppService;
@@ -350,12 +349,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var labsFeeInUsd = await GetTokenValueInUsdAsync(dto.LabsFeeSymbol, dto.LabsFee, dto.Timestamp);
         var swapValueFromLabsFee = labsFeeInUsd / LabsFeeRate;
         
-        Log.Information($"Get trade swap point, txn: {dto.TransactionHash}, labsFeeSymbol: {dto.LabsFeeSymbol}, swapValueFromLabsFee: {swapValueFromLabsFee}");
+        _logger.Information($"Get trade swap point, txn: {dto.TransactionHash}, labsFeeSymbol: {dto.LabsFeeSymbol}, swapValueFromLabsFee: {swapValueFromLabsFee}");
         
         var pricingTokensSet = new HashSet<string>(_activityOptions.PricingTokens);
         if (pricingTokensSet.Contains(dto.LabsFeeSymbol))
         {
-            Log.Information($"Get trade swap point, txn: {dto.TransactionHash}, from labs fee token, symbol: {dto.LabsFeeSymbol}, final point: {swapValueFromLabsFee}");
+            _logger.Information($"Get trade swap point, txn: {dto.TransactionHash}, from labs fee token, symbol: {dto.LabsFeeSymbol}, final point: {swapValueFromLabsFee}");
             return swapValueFromLabsFee;
         }
 
@@ -382,10 +381,10 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         
         foreach (var swapValueFromPricingToken in swapValueFromPricingTokenMap)
         {
-            Log.Information($"Get trade swap point, txn: {dto.TransactionHash}, pricing token: {swapValueFromPricingToken.Key}, swapValue: {swapValueFromPricingToken.Value}");
+            _logger.Information($"Get trade swap point, txn: {dto.TransactionHash}, pricing token: {swapValueFromPricingToken.Key}, swapValue: {swapValueFromPricingToken.Value}");
         }
         
-        Log.Information($"Get trade swap point, txn: {dto.TransactionHash}, from pricing token, final point: {finalPoint}");
+        _logger.Information($"Get trade swap point, txn: {dto.TransactionHash}, from pricing token, final point: {finalPoint}");
         return finalPoint;
     }
     
@@ -402,13 +401,13 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var pricingTokensSet = new HashSet<string>(_activityOptions.PricingTokens);
         if (pricingTokensSet.Contains(dto.SymbolOut))
         {
-            Log.Information($"Get trade limit fill record point, txn: {dto.TransactionHash}, symbol: {dto.SymbolOut}, swapValueFromLabsFee: {swapValueFromLabsFee}");
+            _logger.Information($"Get trade limit fill record point, txn: {dto.TransactionHash}, symbol: {dto.SymbolOut}, swapValueFromLabsFee: {swapValueFromLabsFee}");
             return swapValueFromLabsFee;
         }
 
         var swapValueFromPricingToken = await GetTokenValueInUsdAsync(dto.SymbolIn, dto.AmountInFilled, dto.TransactionTime);
         var finalPoint = Math.Min(swapValueFromLabsFee, swapValueFromPricingToken);
-        Log.Information($"Get trade limit fill record point, txn: {dto.TransactionHash}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPricingToken: {swapValueFromPricingToken}, final point: {finalPoint}");
+        _logger.Information($"Get trade limit fill record point, txn: {dto.TransactionHash}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPricingToken: {swapValueFromPricingToken}, final point: {finalPoint}");
         return finalPoint;
     }
 
@@ -467,7 +466,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     private async Task UpdateUserPointAndRankingAsync(string chainId, long timestamp, DateTime snapshotTime, Activity activity, string userAddress, double point, string type)
     {
-        Log.Information($"Update user point and ranking by: {type}, updatePointType: snapshotTime: {snapshotTime}, activityId: {activity.ActivityId}, userAddress: {userAddress}, point: {point}");
+        _logger.Information($"Update user point and ranking by: {type}, updatePointType: snapshotTime: {snapshotTime}, activityId: {activity.ActivityId}, userAddress: {userAddress}, point: {point}");
         // update user point
         var userActivityGrainId =
             GrainIdHelper.GenerateGrainId(chainId, activity.Type, activity.ActivityId, userAddress);
@@ -629,7 +628,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             var pairList = await _tradePairIndexRepository.GetListAsync(Filter);
             foreach (var pair in pairList.Item2)
             {
-                Log.Information($"Activity: {activity.ActivityId}, pair: {activityTradePair}, find es pair: {pair.Address} - {pair.Id}");
+                _logger.Information($"Activity: {activity.ActivityId}, pair: {activityTradePair}, find es pair: {pair.Address} - {pair.Id}");
                 result.Add(new ActivityTradePair()
                 {
                     PairAddress = pair.Address,
@@ -651,7 +650,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 continue;
             }
             
-            Log.Information($"Create LP snapshot request, " +
+            _logger.Information($"Create LP snapshot request, " +
                                    $"from: {type}, " +
                                    $"activityId: {activity.ActivityId}, " +
                                    $"executeTime: {executeTime}, " +
@@ -667,7 +666,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             var snapshotResult = await activityRankingSnapshotGrain.GetAsync();
             if (snapshotResult.Success && snapshotResult.Data.RankingList != null && snapshotResult.Data.RankingList.Count > 0)
             {
-                Log.Information($"Create LP snapshot, {activityRankingSnapshotGrainId} already exist");
+                _logger.Information($"Create LP snapshot, {activityRankingSnapshotGrainId} already exist");
                 continue;
             }
             
@@ -679,7 +678,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                     _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
                 }
                 var activityPairs = _activityTradePairAddresses[activity.ActivityId];
-                Log.Information($"Create LP snapshot begin, " +
+                _logger.Information($"Create LP snapshot begin, " +
                                        $"from: {type}, " +
                                        $"activityId: {activity.ActivityId}, " +
                                        $"executeTime: {executeTime}, " +

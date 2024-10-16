@@ -22,7 +22,6 @@ public class DataCleanupWorker : AwakenServerWorkerBase
     private readonly DataCleanupWorkerSettings _options;
 
     public DataCleanupWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        ILogger<AwakenServerWorkerBase> logger,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IOptionsMonitor<DataCleanupWorkerSettings> cleanupOptionsMonitor,
         IGraphQLProvider graphQlProvider,
@@ -30,7 +29,7 @@ public class DataCleanupWorker : AwakenServerWorkerBase
         IOptions<ChainsInitOptions> chainsOption,
         IMyPortfolioAppService portfolioAppService,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _portfolioAppService = portfolioAppService;
         _options = cleanupOptionsMonitor.CurrentValue;
@@ -39,7 +38,7 @@ public class DataCleanupWorker : AwakenServerWorkerBase
             _options.ExecuteDeletion = newOptions.ExecuteDeletion;
             _options.DataVersion = newOptions.DataVersion;
             _options.Indexes = newOptions.Indexes;
-            Log.Information($"Data cleanup, options change: " +
+            _logger.Information($"Data cleanup, options change: " +
                                    $"ExecuteDeletion={_options.ExecuteDeletion}, " +
                                    $"DataVersion={_options.DataVersion}, " +
                                    $"Indexes={_options.Indexes}");
@@ -51,7 +50,7 @@ public class DataCleanupWorker : AwakenServerWorkerBase
         var userLiquidityIndexName = typeof(CurrentUserLiquidityIndex).Name.ToLower();
         var userLiquiditySnapshotIndexName = typeof(UserLiquiditySnapshotIndex).Name.ToLower();
         
-        Log.Information($"Data cleanup, begin with options: {JsonConvert.SerializeObject(_options)}");
+        _logger.Information($"Data cleanup, begin with options: {JsonConvert.SerializeObject(_options)}");
         
         foreach (var indexName in _options.Indexes)
         {
@@ -67,11 +66,11 @@ public class DataCleanupWorker : AwakenServerWorkerBase
             }
             if (result)
             {
-                Log.Information($"Data cleanup, index: {indexName}, version: {_options.DataVersion} done");
+                _logger.Information($"Data cleanup, index: {indexName}, version: {_options.DataVersion} done");
             }
             else
             {
-                Log.Error($"Data cleanup, index: {indexName}, version: {_options.DataVersion} failed");
+                _logger.Error($"Data cleanup, index: {indexName}, version: {_options.DataVersion} failed");
             }
         }
 

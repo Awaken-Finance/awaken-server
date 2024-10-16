@@ -9,7 +9,6 @@ using AwakenServer.Models;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Volo.Abp.AspNetCore.SignalR;
 
@@ -23,14 +22,13 @@ namespace AwakenServer.Hubs
         private readonly IKLineAppService _kLineAppService;
         private readonly ITradePairAppService _tradePairAppService;
         private readonly IActivityAppService _activityAppService;
-        private readonly ILogger<TradeHub> _logger;
+        private readonly ILogger _logger;
 
         public TradeHub(ITradeRecordAppService tradeRecordAppService,
             ITradeHubConnectionProvider tradeHubConnectionProvider,
             IKLineAppService kLineAppService, ITradeHubGroupProvider tradeHubGroupProvider,
             ITradePairAppService tradePairAppService,
-            IActivityAppService activityAppService,
-            ILogger<TradeHub> logger)
+            IActivityAppService activityAppService)
         {
             _tradeRecordAppService = tradeRecordAppService;
             _tradeHubConnectionProvider = tradeHubConnectionProvider;
@@ -38,7 +36,7 @@ namespace AwakenServer.Hubs
             _tradeHubGroupProvider = tradeHubGroupProvider;
             _tradePairAppService = tradePairAppService;
             _activityAppService = activityAppService;
-            _logger = logger;
+            _logger = Log.ForContext<TradeHub>();
         }
 
         public async Task RequestTradeRecord(string chainId, string tradePairId, long timestamp, int maxResultCount)
@@ -57,7 +55,7 @@ namespace AwakenServer.Hubs
                 SkipCount = 0,
                 MaxResultCount = maxResultCount
             });
-            Log.Information("RequestTradeRecord TimestampMin: {timestamp}",
+            _logger.Information("RequestTradeRecord TimestampMin: {timestamp}",
                 timestamp == 0 ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8)) : timestamp);
             await Clients.Caller.SendAsync("ReceiveTradeRecords", new TradeRecordModel<List<TradeRecordIndexDto>>
             {

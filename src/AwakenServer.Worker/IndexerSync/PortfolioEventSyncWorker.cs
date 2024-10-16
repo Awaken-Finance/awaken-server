@@ -29,14 +29,13 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
     private readonly IMyPortfolioAppService _portfolioAppService;
 
     public PortfolioEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        ILogger<AwakenServerWorkerBase> logger,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         IMyPortfolioAppService portfolioAppService,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
@@ -53,7 +52,7 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
         }
         var liquidityRecordList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
-        Log.Information("portfolioWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
+        _logger.Information("portfolioWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
             liquidityRecordList.Count, swapRecordList.Count);
         long blockHeight = -1;
         var logCount = 0;
@@ -80,7 +79,7 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
 
             if (logCount++ == 10)
             {
-                Log.Information("Portfolio blockHeight : {height}, data version : {version}", blockHeight,
+                _logger.Information("Portfolio blockHeight : {height}, data version : {version}", blockHeight,
                     _workerOptions.DataVersion);
                 logCount = 0;
             }

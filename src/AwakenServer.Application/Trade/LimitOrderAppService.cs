@@ -2,26 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AElf.Client.MultiToken;
-using Volo.Abp.ObjectMapping;
-using AwakenServer.Chains;
-using AwakenServer.Common;
-using AwakenServer.Grains;
-using AwakenServer.Grains.Grain.Price.TradePair;
-using AwakenServer.Grains.Grain.Price.TradeRecord;
-using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using Orleans;
 using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
-using Volo.Abp.EventBus.Local;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
+using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Trade
 {
@@ -30,7 +20,7 @@ namespace AwakenServer.Trade
     {
         private readonly IGraphQLProvider _graphQlProvider;
         private readonly IClusterClient _clusterClient;
-        private readonly ILogger<LimitOrderAppService> _logger;
+        private readonly ILogger _logger;
         private readonly IObjectMapper _objectMapper;
         private readonly ITokenAppService _tokenAppService;
         private readonly ITokenPriceProvider _tokenPriceProvider;
@@ -39,13 +29,12 @@ namespace AwakenServer.Trade
             IGraphQLProvider graphQlProvider,
             IClusterClient clusterClient,
             ITokenAppService tokenAppService,
-            ILogger<LimitOrderAppService> logger,
             IObjectMapper objectMapper,
             ITokenPriceProvider tokenPriceProvider)
         {
             _graphQlProvider = graphQlProvider;
             _clusterClient = clusterClient;
-            _logger = logger;
+            _logger = Log.ForContext<LimitOrderAppService>();
             _objectMapper = objectMapper;
             _tokenAppService = tokenAppService;
             _tokenPriceProvider = tokenPriceProvider;
@@ -146,7 +135,7 @@ namespace AwakenServer.Trade
                 limitOrderIndexDto.TotalFee = totalFee.ToString();
                 limitOrderIndexDto.NetworkFee = networkFee.ToString();
                 
-                Log.Information($"Limit order list, " +
+                _logger.Information($"Limit order list, " +
                                        $"input: {JsonConvert.SerializeObject(input.MakerAddress)}, " +
                                        $"index: {JsonConvert.SerializeObject(limitOrder)}, " +
                                        $"token0 decimal: {tokenMap[limitOrderIndexDto.SymbolIn].Token.Decimals}, " +
@@ -173,7 +162,7 @@ namespace AwakenServer.Trade
                 OrderId = input.OrderId
             });
 
-            Log.Information($"Query limit order detail: {input.OrderId}, result count: {queryResult.TotalCount}");
+            _logger.Information($"Query limit order detail: {input.OrderId}, result count: {queryResult.TotalCount}");
             
             if (queryResult.Data == null || queryResult.Data.Count <= 0)
             {

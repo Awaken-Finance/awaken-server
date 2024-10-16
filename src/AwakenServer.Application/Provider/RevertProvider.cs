@@ -2,43 +2,32 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AwakenServer.Asset;
 using AwakenServer.Common;
-using AwakenServer.ContractEventHandler.Application;
 using AwakenServer.Grains;
-using AwakenServer.Grains.Grain.ApplicationHandler;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
-using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Worker;
-using GraphQL;
-using GraphQL.Client.Http;
-using GraphQL.Client.Serializer.Newtonsoft;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Serilog;
-
-using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.Provider;
 
 public class RevertProvider : IRevertProvider
 {
     private readonly IClusterClient _clusterClient;
-    private readonly ILogger<RevertProvider> _logger;
+    private readonly ILogger _logger;
     private readonly IGraphQLProvider _graphQlProvider;
     private readonly ISyncStateProvider _syncStateProvider;
     private readonly TradeRecordRevertWorkerSettings _revertOptions;
 
     
-    public RevertProvider(ILogger<RevertProvider> logger, 
-        IClusterClient clusterClient,
+    public RevertProvider(IClusterClient clusterClient,
         IGraphQLProvider graphQLProvider,
         IOptionsSnapshot<TradeRecordRevertWorkerSettings> tradeRecordOptions,
         ISyncStateProvider syncStateProvider)
     {
-        _logger = logger;
+        _logger = Log.ForContext<RevertProvider>();
         _clusterClient = clusterClient;
         _graphQlProvider = graphQLProvider;
         _revertOptions = tradeRecordOptions.Value;
@@ -69,7 +58,7 @@ public class RevertProvider : IRevertProvider
         var unconfirmedTransactions = await GetUnConfirmedTransactionsAsync(eventType, chainId,
             startBlockHeight, confirmedHeight);
                 
-        Log.Information(
+        _logger.Information(
             "got unconfirmed transactions, block height range: {0}-{1}, count: {2}, {3}",
             startBlockHeight, confirmedHeight, unconfirmedTransactions.Count(), unconfirmedTransactions.Select(s => s.TransactionHash).ToList());
         
@@ -88,7 +77,7 @@ public class RevertProvider : IRevertProvider
             }
         }
         
-        Log.Information(
+        _logger.Information(
             "got confirmed transactions, block height range: {0}-{1}, count: {2}, transaction hash list: {3}",
             startBlockHeight, confirmedHeight, confirmedTransactionSet.Count(),
             confirmedTransactionSet.ToList());
@@ -96,7 +85,7 @@ public class RevertProvider : IRevertProvider
         // There may be situations where the confirmed transaction list is empty.
         // if (confirmedTransactionSet.IsNullOrEmpty())
         // {
-        //     Log.Error("confirmed transactions is empty, block height range {0}-{1}", startBlockHeight,
+        //     _logger.Error("confirmed transactions is empty, block height range {0}-{1}", startBlockHeight,
         //         confirmedHeight);
         //     return new List<string>();
         // }
@@ -104,7 +93,7 @@ public class RevertProvider : IRevertProvider
         var needDeletedTransactions = unconfirmedTransactions
             .Where(unconfirmed => !confirmedTransactionSet.Contains(unconfirmed.TransactionHash)).ToList();
 
-        Log.Information(
+        _logger.Information(
             "need delete transactions, block height range:{0}-{1}, count:{2}, transaction hash list:{3}",
             startBlockHeight, confirmedHeight, needDeletedTransactions.Count(),
             needDeletedTransactions.Select(s => s.TransactionHash).ToList());
@@ -123,7 +112,7 @@ public class RevertProvider : IRevertProvider
         }
         else
         {
-            Log.Error($"get unconfirmed transactions failed");
+            _logger.Error($"get unconfirmed transactions failed");
         }
 
         return new List<UnconfirmedTransactionsGrainDto>();

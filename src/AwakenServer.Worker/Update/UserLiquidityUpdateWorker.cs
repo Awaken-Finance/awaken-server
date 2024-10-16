@@ -30,11 +30,10 @@ namespace AwakenServer.Worker
             IMyPortfolioAppService myPortfolioAppService, IChainAppService chainAppService,
             IGraphQLProvider graphQlProvider,
             IOptionsMonitor<WorkerOptions> optionsMonitor,
-            ILogger<AwakenServerWorkerBase> logger,
             IOptions<ChainsInitOptions> chainsOption,
             IOptionsSnapshot<PortfolioOptions> portfolioOptions,
             ISyncStateProvider syncStateProvider)
-            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
         {
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;
@@ -48,7 +47,7 @@ namespace AwakenServer.Worker
             foreach (var address in addresses)
             {
                 var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod), _workerOptions.DataVersion);
-                Log.Information($"update user all liquidity address: {address}, affected liquidity count: {count}");
+                _logger.Information($"update user all liquidity address: {address}, affected liquidity count: {count}");
             }
             return 0;
         }

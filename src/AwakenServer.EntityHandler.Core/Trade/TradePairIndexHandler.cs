@@ -7,7 +7,6 @@ using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using MassTransit;
-using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Orleans;
 using Serilog;
@@ -25,17 +24,16 @@ namespace AwakenServer.EntityHandler.Trade
         private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
         private readonly IBus _bus;
         private readonly IClusterClient _clusterClient;
-        private readonly ILogger<TradePairIndexHandler> _logger;
+        private readonly ILogger _logger;
         
         public TradePairIndexHandler(INESTRepository<TradePair, Guid> tradePairIndexRepository,
             IBus bus,
-            IClusterClient clusterClient,
-            ILogger<TradePairIndexHandler> logger)
+            IClusterClient clusterClient)
         {
             _tradePairIndexRepository = tradePairIndexRepository;
             _bus = bus;
             _clusterClient = clusterClient;
-            _logger = logger;
+            _logger = Log.ForContext<TradePairIndexHandler>();
         }
 
         public async Task HandleEventAsync(EntityCreatedEto<TradePairEto> eventData)
@@ -51,7 +49,7 @@ namespace AwakenServer.EntityHandler.Trade
                 Data = ObjectMapper.Map<TradePair, TradePairIndexDto>(index)
             });
             
-            Log.Information($"write trade pair to es, {JsonConvert.SerializeObject(index)}");
+            _logger.Information($"write trade pair to es, {JsonConvert.SerializeObject(index)}");
         }
     }
 }

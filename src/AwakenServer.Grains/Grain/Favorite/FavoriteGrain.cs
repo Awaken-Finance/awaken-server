@@ -1,27 +1,19 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AwakenServer.Grains.State.Favorite;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson.IO;
-using Orleans;
+using Newtonsoft.Json;
 using Serilog;
 using Volo.Abp.ObjectMapping;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
-
 
 namespace AwakenServer.Grains.Grain.Favorite;
 
 public class FavoriteGrain : Grain<FavoriteState>, IFavoriteGrain
 {
     private readonly IObjectMapper _objectMapper;
-    private readonly ILogger<FavoriteGrain> _logger;
+    private readonly ILogger _logger;
 
-    public FavoriteGrain(IObjectMapper objectMapper,
-        ILogger<FavoriteGrain> logger)
+    public FavoriteGrain(IObjectMapper objectMapper)
     {
         _objectMapper = objectMapper;
-        _logger = logger;
+        _logger = Log.ForContext<FavoriteGrain>();
     }
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
@@ -38,20 +30,20 @@ public class FavoriteGrain : Grain<FavoriteState>, IFavoriteGrain
 
     public async Task<GrainResultDto<FavoriteGrainDto>> CreateAsync(FavoriteGrainDto favoriteDto)
     {
-        Log.Information($"FavoriteGrain add, user address {favoriteDto.Address}, trade pair id {favoriteDto.TradePairId}");
+        _logger.Information($"FavoriteGrain add, user address {favoriteDto.Address}, trade pair id {favoriteDto.TradePairId}");
         var result = new GrainResultDto<FavoriteGrainDto>();
         
         favoriteDto.Id = GrainIdHelper.GenerateGrainId(favoriteDto.TradePairId, favoriteDto.Address);
         if (State.FavoriteInfos.Exists(info => info.Id == favoriteDto.Id))
         {
-            Log.Information($"exist fav info, {JsonConvert.SerializeObject(State.FavoriteInfos)}");
+            _logger.Information($"exist fav info, {JsonConvert.SerializeObject(State.FavoriteInfos)}");
             result.Message = FavoriteMessage.ExistedMessage;
             return result;
         }
         
         if(State.FavoriteInfos.Count >= FavoriteMessage.MaxLimit)
         {
-            Log.Information($"fav list size out of range, now: {State.FavoriteInfos.Count}, limit: {FavoriteMessage.MaxLimit}");
+            _logger.Information($"fav list size out of range, now: {State.FavoriteInfos.Count}, limit: {FavoriteMessage.MaxLimit}");
             result.Message = FavoriteMessage.ExceededMessage;
             return result;
         }
@@ -63,7 +55,7 @@ public class FavoriteGrain : Grain<FavoriteState>, IFavoriteGrain
         result.Success = true;
         result.Data = favoriteDto;
         
-        Log.Information($"FavoriteGrain add, user address {favoriteDto.Address}, trade pair id {favoriteDto.TradePairId} done");
+        _logger.Information($"FavoriteGrain add, user address {favoriteDto.Address}, trade pair id {favoriteDto.TradePairId} done");
         
         return result;
     }
