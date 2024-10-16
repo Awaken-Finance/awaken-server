@@ -15,7 +15,6 @@ using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
 using Newtonsoft.Json;
@@ -58,7 +57,6 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         ITokenPriceProvider tokenPriceProvider,
         IDistributedCache<string> syncedTransactionIdCache,
         IDistributedEventBus distributedEventBus,
-        ILogger<MyPortfolioAppService> logger,
         IOptionsSnapshot<PortfolioOptions> portfolioOptions)
     {
         _clusterClient = clusterClient;
@@ -90,7 +88,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var currentUserLiquidityGrainResult = await currentUserLiquidityGrain.GetAsync();
             if (!currentUserLiquidityGrainResult.Success)
             {
-                Log.Error($"update user all liquidity address: {address}, can't user liquidity grain: {userLiquidityIndex.TradePairId}");
+                _logger.Error($"update user all liquidity address: {address}, can't user liquidity grain: {userLiquidityIndex.TradePairId}");
                 continue;
             }
 
@@ -105,7 +103,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var pairResultDto = await tradePairGrain.GetAsync();
             if (!pairResultDto.Success)
             {
-                Log.Error($"update user all liquidity address: {address}, can't find pair: {userLiquidityIndex.TradePairId}");
+                _logger.Error($"update user all liquidity address: {address}, can't find pair: {userLiquidityIndex.TradePairId}");
                 continue;
             }
 
@@ -116,7 +114,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var currentTradePairResultDto = await currentTradePairGrain.GetAsync();
             if (!currentTradePairResultDto.Success)
             {
-                Log.Error($"update user all liquidity address: {address}, can't find current pair: {userLiquidityIndex.TradePairId}");
+                _logger.Error($"update user all liquidity address: {address}, can't find current pair: {userLiquidityIndex.TradePairId}");
                 continue;
             }
 
@@ -129,7 +127,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * pair.TVL;
             await _distributedEventBus.PublishAsync(
                 ObjectMapper.Map<CurrentUserLiquidityGrainDto, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
-            Log.Information(
+            _logger.Information(
                 $"update user all liquidity address: {address}, pair id:{pair.Id}, pair address: {pair.Address}, index: {JsonConvert.SerializeObject(currentUserLiquidityGrainResult.Data)}");
             ++affectedCount;
         }
@@ -149,7 +147,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var tradePair = await GetTradePairAsync(liquidityRecordDto.ChainId, liquidityRecordDto.Pair, dataVersion);
         if (tradePair == null)
         {
-            Log.Information("can not find trade pair: {chainId}, {pairAddress}", liquidityRecordDto.ChainId,
+            _logger.Information("can not find trade pair: {chainId}, {pairAddress}", liquidityRecordDto.ChainId,
                 liquidityRecordDto.Pair);
             return false;
         }
@@ -157,7 +155,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var tradePairGrainResultDto = await tradePairGrain.GetAsync();
         if (!tradePairGrainResultDto.Success)
         {
-            Log.Information("can not find trade pair grain: {chainId}, {pairId}", liquidityRecordDto.ChainId,
+            _logger.Information("can not find trade pair grain: {chainId}, {pairId}", liquidityRecordDto.ChainId,
                 tradePair.Id);
             return false;
         }
@@ -179,7 +177,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         currentUserLiquidityGrainResult.Data.AssetInUSD = lpTokenPercentage * tradePairGrainResultDto.Data.TVL;
         await _distributedEventBus.PublishAsync(
             ObjectMapper.Map<CurrentUserLiquidityGrainDto, CurrentUserLiquidityEto>(currentUserLiquidityGrainResult.Data));
-        Log.Information(
+        _logger.Information(
             $"update user liquidity address: {liquidityRecordDto.Address}, pair id:{tradePair.Id}, pair address: {tradePair.Address}, {currentUserLiquidityGrainResult.Data.LpTokenAmount}, {currentTradePairGrainResultDto.Data.TotalSupply}, {lpTokenPercentage}, {tradePair.TVL}, index: {JsonConvert.SerializeObject(currentUserLiquidityGrainResult.Data)}");
         if (alignUserAllAsset)
         {
@@ -233,7 +231,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var tradePair = await GetTradePairAsync(swapRecordDto.ChainId, swapRecordDto.PairAddress, dataVersion);
         if (tradePair == null)
         {
-            Log.Information("can not find trade pair: {chainId}, {pairAddress}", swapRecordDto.ChainId,
+            _logger.Information("can not find trade pair: {chainId}, {pairAddress}", swapRecordDto.ChainId,
                 swapRecordDto.PairAddress);
             return false;
         }
@@ -241,7 +239,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         var tradePairGrainResultDto = await tradePairGrain.GetAsync();
         if (!tradePairGrainResultDto.Success)
         {
-            Log.Information("can not find trade pair grain: {chainId}, {pairId}", swapRecordDto.ChainId,
+            _logger.Information("can not find trade pair grain: {chainId}, {pairId}", swapRecordDto.ChainId,
                 tradePair.Id);
             return false;
         }
@@ -679,7 +677,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                     periodInDays,
                     dataVersion);
 
-                Log.Information($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
+                _logger.Information($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
                                        $"get snapshot from es begin, " +
                                        $"pair: {userLiquidityIndex.TradePairId}, " +
                                        $"snapshot count: {userLiquiditySnapshots.Count}");
@@ -725,7 +723,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
 
                 var avgLpTokenInUsd = sumLpTokenInUsd / actualSnapshotCount;
 
-                Log.Information($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
+                _logger.Information($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
                                        $"type: {type}, " +
                                        $"sumFee: {sumFeeInUsd}," +
                                        $"avgLpTokenInUsd: {avgLpTokenInUsd}, " +
@@ -750,7 +748,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                     return 0.0;
                 }
 
-                Log.Information($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
+                _logger.Information($"calculate EstimatedAPR input user address: {userLiquidityIndex.Address}, " +
                                        $"type: {type}, " +
                                        $"unReveivedFee: {fee}, " +
                                        $"cumulativeAddition: {cumulativeAddition}," +
@@ -795,7 +793,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId), dataVersion));
             var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
             
-            Log.Information($"process user position input address: {input.Address}, user liquidity index: {JsonConvert.SerializeObject(userLiquidityIndex)}");
+            _logger.Information($"process user position input address: {input.Address}, user liquidity index: {JsonConvert.SerializeObject(userLiquidityIndex)}");
 
             var lpTokenPercentage = currentTradePair.TotalSupply == 0
                 ? 0.0
@@ -847,7 +845,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                     averageHoldingPeriod) * 100
                 : 0;
             
-            Log.Information($"process user position input address: {input.Address}, " +
+            _logger.Information($"process user position input address: {input.Address}, " +
                                    $"pair.Address: {pair.Address}, " +
                                    $"token0Price: {token0Price}, " +
                                    $"token1Price: {token1Price}, " +
@@ -951,7 +949,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         stopwatch.Stop();
         var elapsedMilliseconds = stopwatch.ElapsedMilliseconds;
         
-        Log.Information($"GetUserPositionsAsync executed in {elapsedMilliseconds} ms, address: {input.Address}, trade pair count: {list.Item2.Count}");
+        _logger.Information($"GetUserPositionsAsync executed in {elapsedMilliseconds} ms, address: {input.Address}, trade pair count: {list.Item2.Count}");
         
         return new PagedResultDto<TradePairPositionDto>()
         {
@@ -1019,12 +1017,12 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 var first10Items = pagedData.Item2.Take(5).ToList();
                 foreach (var item in first10Items)
                 {
-                    Log.Information($"Data cleanup, index: {typeof(CurrentUserLiquidityIndex).Name.ToLower()}, version: {dataVersion}, will remove data: {JsonConvert.SerializeObject(item)}");
+                    _logger.Information($"Data cleanup, index: {typeof(CurrentUserLiquidityIndex).Name.ToLower()}, version: {dataVersion}, will remove data: {JsonConvert.SerializeObject(item)}");
                 }
                 if (executeDeletion)
                 {
                     await _currentUserLiquidityIndexRepository.BulkDeleteAsync(pagedData.Item2);
-                    Log.Information($"Data cleanup, execute deletion index: {typeof(CurrentUserLiquidityIndex).Name.ToLower()}, version: {dataVersion}, page count: {pagedData.Item2.Count}");
+                    _logger.Information($"Data cleanup, execute deletion index: {typeof(CurrentUserLiquidityIndex).Name.ToLower()}, version: {dataVersion}, page count: {pagedData.Item2.Count}");
                 }
                 currentPage++;
                 affectedCount += pagedData.Item2.Count;
@@ -1034,7 +1032,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 hasMoreData = false;
             }
         }
-        Log.Information($"Data cleanup, index: {typeof(CurrentUserLiquidityIndex).Name.ToLower()}, version: {dataVersion}, filter data count: {affectedCount}");
+        _logger.Information($"Data cleanup, index: {typeof(CurrentUserLiquidityIndex).Name.ToLower()}, version: {dataVersion}, filter data count: {affectedCount}");
         return true;
     }
 
@@ -1064,12 +1062,12 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 var first10Items = pagedData.Item2.Take(5).ToList();
                 foreach (var item in first10Items)
                 {
-                    Log.Information($"Data cleanup, index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, will remove data: {JsonConvert.SerializeObject(item)}");
+                    _logger.Information($"Data cleanup, index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, will remove data: {JsonConvert.SerializeObject(item)}");
                 }
                 if (executeDeletion)
                 {
                     await _userLiduiditySnapshotIndexRepository.BulkDeleteAsync(pagedData.Item2);
-                    Log.Information($"Data cleanup, execute deletion index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, page count: {pagedData.Item2.Count}");
+                    _logger.Information($"Data cleanup, execute deletion index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, page count: {pagedData.Item2.Count}");
                 }
                 currentPage++;
                 affectedCount += pagedData.Item2.Count;
@@ -1079,7 +1077,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 hasMoreData = false;
             }
         }
-        Log.Information($"Data cleanup, index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, filter data count: {affectedCount}");
+        _logger.Information($"Data cleanup, index: {typeof(UserLiquiditySnapshotIndex).Name.ToLower()}, version: {dataVersion}, filter data count: {affectedCount}");
         return true;
     }
 
