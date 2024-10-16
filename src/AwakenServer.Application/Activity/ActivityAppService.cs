@@ -350,12 +350,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var labsFeeInUsd = await GetTokenValueInUsdAsync(dto.LabsFeeSymbol, dto.LabsFee, dto.Timestamp);
         var swapValueFromLabsFee = labsFeeInUsd / LabsFeeRate;
         
-        _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, labsFeeSymbol: {dto.LabsFeeSymbol}, swapValueFromLabsFee: {swapValueFromLabsFee}");
+        Log.Information($"Get trade swap point, txn: {dto.TransactionHash}, labsFeeSymbol: {dto.LabsFeeSymbol}, swapValueFromLabsFee: {swapValueFromLabsFee}");
         
         var pricingTokensSet = new HashSet<string>(_activityOptions.PricingTokens);
         if (pricingTokensSet.Contains(dto.LabsFeeSymbol))
         {
-            _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, from labs fee token, symbol: {dto.LabsFeeSymbol}, final point: {swapValueFromLabsFee}");
+            Log.Information($"Get trade swap point, txn: {dto.TransactionHash}, from labs fee token, symbol: {dto.LabsFeeSymbol}, final point: {swapValueFromLabsFee}");
             return swapValueFromLabsFee;
         }
 
@@ -382,10 +382,10 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         
         foreach (var swapValueFromPricingToken in swapValueFromPricingTokenMap)
         {
-            _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, pricing token: {swapValueFromPricingToken.Key}, swapValue: {swapValueFromPricingToken.Value}");
+            Log.Information($"Get trade swap point, txn: {dto.TransactionHash}, pricing token: {swapValueFromPricingToken.Key}, swapValue: {swapValueFromPricingToken.Value}");
         }
         
-        _logger.LogInformation($"Get trade swap point, txn: {dto.TransactionHash}, from pricing token, final point: {finalPoint}");
+        Log.Information($"Get trade swap point, txn: {dto.TransactionHash}, from pricing token, final point: {finalPoint}");
         return finalPoint;
     }
     
@@ -402,13 +402,13 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         var pricingTokensSet = new HashSet<string>(_activityOptions.PricingTokens);
         if (pricingTokensSet.Contains(dto.SymbolOut))
         {
-            _logger.LogInformation($"Get trade limit fill record point, txn: {dto.TransactionHash}, symbol: {dto.SymbolOut}, swapValueFromLabsFee: {swapValueFromLabsFee}");
+            Log.Information($"Get trade limit fill record point, txn: {dto.TransactionHash}, symbol: {dto.SymbolOut}, swapValueFromLabsFee: {swapValueFromLabsFee}");
             return swapValueFromLabsFee;
         }
 
         var swapValueFromPricingToken = await GetTokenValueInUsdAsync(dto.SymbolIn, dto.AmountInFilled, dto.TransactionTime);
         var finalPoint = Math.Min(swapValueFromLabsFee, swapValueFromPricingToken);
-        _logger.LogInformation($"Get trade limit fill record point, txn: {dto.TransactionHash}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPricingToken: {swapValueFromPricingToken}, final point: {finalPoint}");
+        Log.Information($"Get trade limit fill record point, txn: {dto.TransactionHash}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPricingToken: {swapValueFromPricingToken}, final point: {finalPoint}");
         return finalPoint;
     }
 
@@ -467,7 +467,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     private async Task UpdateUserPointAndRankingAsync(string chainId, long timestamp, DateTime snapshotTime, Activity activity, string userAddress, double point, string type)
     {
-        _logger.LogInformation($"Update user point and ranking by: {type}, updatePointType: snapshotTime: {snapshotTime}, activityId: {activity.ActivityId}, userAddress: {userAddress}, point: {point}");
+        Log.Information($"Update user point and ranking by: {type}, updatePointType: snapshotTime: {snapshotTime}, activityId: {activity.ActivityId}, userAddress: {userAddress}, point: {point}");
         // update user point
         var userActivityGrainId =
             GrainIdHelper.GenerateGrainId(chainId, activity.Type, activity.ActivityId, userAddress);
@@ -651,7 +651,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 continue;
             }
             
-            _logger.LogInformation($"Create LP snapshot request, " +
+            Log.Information($"Create LP snapshot request, " +
                                    $"from: {type}, " +
                                    $"activityId: {activity.ActivityId}, " +
                                    $"executeTime: {executeTime}, " +
@@ -667,7 +667,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             var snapshotResult = await activityRankingSnapshotGrain.GetAsync();
             if (snapshotResult.Success && snapshotResult.Data.RankingList != null && snapshotResult.Data.RankingList.Count > 0)
             {
-                _logger.LogInformation($"Create LP snapshot, {activityRankingSnapshotGrainId} already exist");
+                Log.Information($"Create LP snapshot, {activityRankingSnapshotGrainId} already exist");
                 continue;
             }
             
@@ -679,7 +679,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                     _activityTradePairAddresses.Add(activity.ActivityId, activityPools);
                 }
                 var activityPairs = _activityTradePairAddresses[activity.ActivityId];
-                _logger.LogInformation($"Create LP snapshot begin, " +
+                Log.Information($"Create LP snapshot begin, " +
                                        $"from: {type}, " +
                                        $"activityId: {activity.ActivityId}, " +
                                        $"executeTime: {executeTime}, " +

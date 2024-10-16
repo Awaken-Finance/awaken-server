@@ -27,6 +27,7 @@ using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
 using Volo.Abp.EventBus.Distributed;
 using Volo.Abp.ObjectMapping;
+using ILogger = Serilog.ILogger;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using TradePairMarketDataSnapshot = AwakenServer.Trade.Index.TradePairMarketDataSnapshot;
 
@@ -45,7 +46,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
     private readonly IObjectMapper _objectMapper;
     private readonly IDistributedEventBus _distributedEventBus;
     private readonly IDistributedCache<string> _syncedTransactionIdCache;
-    private readonly ILogger<MyPortfolioAppService> _logger;
+    private readonly ILogger _logger;
     private readonly IOptionsSnapshot<PortfolioOptions> _portfolioOptions;
 
     public MyPortfolioAppService(IClusterClient clusterClient, 
@@ -67,10 +68,9 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         _userLiduiditySnapshotIndexRepository = userLiduiditySnapshotIndexRepository;
         _tradePairSnapshotIndexRepository = tradePairSnapshotIndexRepository;
         _tokenPriceProvider = tokenPriceProvider;
-        _logger = logger;
         _syncedTransactionIdCache = syncedTransactionIdCache;
         _distributedEventBus = distributedEventBus;
-        _logger = logger;
+        _logger = Log.ForContext<MyPortfolioAppService>();
         _portfolioOptions = portfolioOptions;
     }
     
@@ -450,7 +450,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var pair = (await tradePairGrain.GetAsync()).Data;
             var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidityIndex.TradePairId), dataVersion));
             var currentTradePair = (await currentTradePairGrain.GetAsync()).Data;
-            
+            _logger.Information($"CurrentTradePair:{JsonConvert.SerializeObject(currentTradePair)}");
             var lpTokenPercentage = currentTradePair.TotalSupply == 0
                 ? 0.0
                 : userLiquidityIndex.LpTokenAmount / (double)currentTradePair.TotalSupply;

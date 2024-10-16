@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using AElf.CSharp.Core;
 using AwakenServer.Activity;
 using AwakenServer.Chains;
 using AwakenServer.Common;
@@ -66,7 +65,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         {
             _firstExecution = false; 
             SetNextExecutionTime(now);
-            _logger.LogInformation($"Init LP snapshot worker, Next executing time set to: {_nextLpSnapshotExecutionTime}");
+            Log.Information($"Init LP snapshot worker, Next executing time set to: {_nextLpSnapshotExecutionTime}");
         }
         else
         {
@@ -77,17 +76,17 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
                 {
                     var isActivityBeginTime = timestamp >= activity.BeginTime &&
                                       timestamp < activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor;
-                    // _logger.LogInformation($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor}, isActivityBeginTime: {isActivityBeginTime}");
+                    // Log.Information($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor}, isActivityBeginTime: {isActivityBeginTime}");
                     if (isActivityBeginTime)
                     {
                         var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker activity begin");
                         if (success)
                         {
-                            _logger.LogInformation($"Executing LP snapshot at activity begin done at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
+                            Log.Information($"Executing LP snapshot at activity begin done at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
                         }
                         else
                         {
-                            _logger.LogError($"Executing LP snapshot at activity begin failed at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
+                            Log.Error($"Executing LP snapshot at activity begin failed at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
                         }
                     }
                 }
@@ -99,11 +98,11 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
                 var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker");
                 if (success)
                 {
-                    _logger.LogInformation($"Executing LP snapshot done at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
+                    Log.Information($"Executing LP snapshot done at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
                 }
                 else
                 {
-                    _logger.LogError($"Executing LP snapshot at activity failed at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
+                    Log.Error($"Executing LP snapshot at activity failed at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
                 }
 
             }
