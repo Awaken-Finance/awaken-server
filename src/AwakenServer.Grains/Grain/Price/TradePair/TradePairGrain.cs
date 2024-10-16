@@ -1,3 +1,5 @@
+using System.Data.SqlTypes;
+using System.Reflection;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Grains.Grain.Trade;
@@ -7,6 +9,7 @@ using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
 using Nethereum.Util;
 using Orleans;
+using Orleans.Core;
 using Serilog;
 using Volo.Abp.ObjectMapping;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
@@ -72,13 +75,15 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 
     public async Task<GrainResultDto<TradePairGrainDto>> GetAsync()
     {
-        // todo remove
-        await ReadStateAsync();
-        await LoadLatestSnapshots();
+        //todo remove
+        var type = typeof(Grain<TradePairState>);
+        var fieldInfo1 = type.GetField("storage", BindingFlags.NonPublic | BindingFlags.Instance);
+        var storage = (IStorage<TradePairState>)fieldInfo1.GetValue(this);
+        //todo remove
         
         if (State.Id == Guid.Empty || State.IsDeleted)
         {
-            Log.Error($"TradePairGrain, GetAsync error, State.Id: {State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, address: {State.Address}, feeRate: {State.FeeRate}");
+            Log.Error($"TradePairGrain, GetAsync error, etag: {storage.Etag}, recordExist:{storage.RecordExists}, State.Id: {storage.State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
             return new GrainResultDto<TradePairGrainDto>
             {
                 Success = false

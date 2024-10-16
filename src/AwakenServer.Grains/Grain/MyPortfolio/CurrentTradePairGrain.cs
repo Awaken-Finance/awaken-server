@@ -1,5 +1,9 @@
+using System.Reflection;
 using AwakenServer.Grains.State.MyPortfolio;
+using AwakenServer.Grains.State.Trade;
 using Orleans;
+using Orleans.Core;
+using Serilog;
 using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Grains.Grain.MyPortfolio;
@@ -48,6 +52,12 @@ public class CurrentTradePairGrain : Grain<CurrentTradePairState>, ICurrentTrade
     public async Task<GrainResultDto<CurrentTradePairGrainDto>> GetAsync()
     {
         await ReadStateAsync();
+        //todo remove
+        var type = typeof(Grain<CurrentTradePairState>);
+        var fieldInfo1 = type.GetField("storage", BindingFlags.NonPublic | BindingFlags.Instance);
+        var storage = (IStorage<CurrentTradePairState>)fieldInfo1.GetValue(this);
+        Log.Information($"CurrentTradePairGrain, GetAsync, Etag: {storage.Etag}, RecordExists: {storage.RecordExists}, GrainId: {this.GetGrainId()}");
+        //todo remove
         var result = new GrainResultDto<CurrentTradePairGrainDto>();
         if (State.TradePairId == Guid.Empty)
         {
