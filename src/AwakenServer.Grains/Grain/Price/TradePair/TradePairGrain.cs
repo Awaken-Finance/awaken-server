@@ -72,6 +72,10 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 
     public async Task<GrainResultDto<TradePairGrainDto>> GetAsync()
     {
+        // todo remove
+        await ReadStateAsync();
+        await LoadLatestSnapshots();
+        
         if (State.Id == Guid.Empty || State.IsDeleted)
         {
             Log.Error($"TradePairGrain, GetAsync error, State.Id: {State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, address: {State.Address}, feeRate: {State.FeeRate}");
