@@ -1,5 +1,7 @@
 using System;
 using System.Net;
+using Awaken.Silo.MongoDB;
+using AwakenServer.Grains;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -77,6 +79,12 @@ public static class OrleansHostExtensions
                     jsonSettings.ObjectCreationHandling = ObjectCreationHandling.Replace;
                 };
             })
+            .Configure<GrainCollectionNameOptions>(options =>
+            {
+                var collectionName = configSection
+                    .GetSection(nameof(GrainCollectionNameOptions.GrainSpecificCollectionName)).GetChildren();
+                options.GrainSpecificCollectionName = collectionName.ToDictionary(o => o.Key, o => o.Value);
+            })
             .UseMongoDBReminders(options =>
             {
                 options.DatabaseName = configSection.GetValue<string>("DataBase");
@@ -87,7 +95,26 @@ public static class OrleansHostExtensions
                 options.ClusterId = Environment.GetEnvironmentVariable("ORLEANS_CLUSTER_ID");
                 options.ServiceId = Environment.GetEnvironmentVariable("ORLEANS_SERVICE_ID");
             })
-            .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); });
+            .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); })
+            .AddAwakenMongoDBGrainStorage("Default", (MongoDBGrainStorageOptions op) =>
+            {
+                op.CollectionPrefix = OrleansConstants.GrainCollectionPrefix;
+                op.DatabaseName = configSection.GetValue<string>("DataBase");
+
+                var grainIdPrefix = configSection
+                    .GetSection("GrainSpecificIdPrefix").GetChildren().ToDictionary(o => o.Key.ToLower(), o => o.Value);
+                op.KeyGenerator = id =>
+                {
+                    var grainType = id.Type.ToString();
+                    if (grainIdPrefix.TryGetValue(grainType, out var prefix))
+                    {
+                        return $"{prefix}+{id.Key}";
+                    }
+
+                    return id.ToString();
+                };
+                op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);
+            });
         
     }
 
