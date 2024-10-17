@@ -14,12 +14,9 @@ public class AwakenMongoGrainStorage : MongoGrainStorage
 {
     private readonly GrainCollectionNameOptions _grainCollectionNameOptions;
     
-    public AwakenMongoGrainStorage(IMongoClientFactory mongoClientFactory,
-        ILogger<MongoGrainStorage> logger,
-        IGrainStateSerializer serializer,
-        MongoDBGrainStorageOptions options, 
-        IOptionsSnapshot<GrainCollectionNameOptions> grainCollectionNameOptions)
-        : base(mongoClientFactory, logger, serializer, options)
+    public AwakenMongoGrainStorage(IMongoClientFactory mongoClientFactory, ILogger<MongoGrainStorage> logger,
+        MongoDBGrainStorageOptions options, IOptionsSnapshot<GrainCollectionNameOptions> grainCollectionNameOptions)
+        : base(mongoClientFactory, logger, options)
     {
         _grainCollectionNameOptions = grainCollectionNameOptions.Value;
     }

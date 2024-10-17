@@ -179,7 +179,7 @@ public class RouteGrain : Grain<RouteState>, IRouteGrain
     {
         //todo remove
         var type = typeof(Grain<RouteState>);
-        var fieldInfo1 = type.GetField("storage", BindingFlags.NonPublic | BindingFlags.Instance);
+        var fieldInfo1 = type.GetField("_storage", BindingFlags.NonPublic | BindingFlags.Instance);
         var storage = (IStorage<RouteState>)fieldInfo1.GetValue(this);
         Log.Information($"RouteGrain, GetRoutesAsync, Etag: {storage.Etag}, RecordExists: {storage.RecordExists}, GrainId: {this.GetGrainId()}");
         //todo remove

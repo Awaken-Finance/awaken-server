@@ -8,7 +8,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
-        <PackageReference Include="Microsoft.Orleans.TestingHost" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Orleans.TestingHost" Version="8.1.0" />
         <PackageReference Include="Nethereum.Hex" Version="4.14.0" />
         <PackageReference Include="Shouldly" Version="4.0.3" />
         <PackageReference Include="Volo.Abp.Core" Version="8.2.0" />
@@ -19,16 +19,15 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Moq" Version="4.18.4" />
-        <PackageReference Include="Microsoft.Orleans.Sdk" Version="7.0.0" />
-        <PackageReference Include="Microsoft.Orleans.TestingHost" Version="7.0.0" />
-        <PackageReference Include="Orleans.Providers.MongoDB" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Orleans.Sdk" Version="8.1.0" />
+        <PackageReference Include="Microsoft.Orleans.TestingHost" Version="8.1.0" />
+        <PackageReference Include="Orleans.Providers.MongoDB" Version="8.0.3" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\AwakenServer.CoinGeckoApi\AwakenServer.CoinGeckoApi.csproj" />
         <ProjectReference Include="..\..\src\AwakenServer.Grains\AwakenServer.Grains.csproj" />
         <ProjectReference Include="..\AwakenServer.Domain.Tests\AwakenServer.Domain.Tests.csproj" />
-        <!--        <ProjectReference Include="..\AwakenServer.Orleans.TestBase\AwakenServer.Orleans.TestBase.csproj" />-->
         <ProjectReference Include="..\AwakenServer.TestBase\AwakenServer.TestBase.csproj" />
     </ItemGroup>
 

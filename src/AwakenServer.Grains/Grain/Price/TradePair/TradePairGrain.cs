@@ -77,7 +77,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
     {
         //todo remove
         var type = typeof(Grain<TradePairState>);
-        var fieldInfo1 = type.GetField("storage", BindingFlags.NonPublic | BindingFlags.Instance);
+        var fieldInfo1 = type.GetField("_storage", BindingFlags.NonPublic | BindingFlags.Instance);
         var storage = (IStorage<TradePairState>)fieldInfo1.GetValue(this);
         //todo remove
         
