@@ -8,6 +8,7 @@ using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Price;
+using AwakenServer.Silo;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -188,7 +189,11 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                 
                 })
                 .AddMemoryGrainStorage("PubSubStore")
-                .AddMemoryGrainStorageAsDefault();
+                .AddMemoryGrainStorageAsDefault()
+                .Services.AddSerializer(serializerBuilder =>
+                {
+                    serializerBuilder.AddCustomSerializer();
+                });
         }
     }
 

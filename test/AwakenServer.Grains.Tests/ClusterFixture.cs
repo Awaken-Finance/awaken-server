@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains.Grain.Tokens.TokenPrice;
+using AwakenServer.Silo;
 using CoinGecko.Entities.Response.Coins;
 using CoinGecko.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
@@ -173,7 +174,11 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                      services.AddTransient<IMapperAccessor>(provider => provider.GetRequiredService<MapperAccessor>());
                  })
                  .AddMemoryGrainStorage("PubSubStore")
-                 .AddMemoryGrainStorageAsDefault();
+                 .AddMemoryGrainStorageAsDefault()
+                 .Services.AddSerializer(serializerBuilder =>
+                 {
+                     serializerBuilder.AddCustomSerializer();
+                 });
          }
      }
 

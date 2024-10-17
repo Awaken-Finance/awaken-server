@@ -111,6 +111,10 @@ public static class OrleansHostExtensions
                     return id.ToString();
                 };
                 op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);
+            })
+            .Services.AddSerializer(serializerBuilder =>
+            {
+                serializerBuilder.AddCustomSerializer();
             });
         
     }
