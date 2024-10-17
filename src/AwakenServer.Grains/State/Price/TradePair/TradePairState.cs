@@ -17,9 +17,9 @@ public class TradePairState
     [Id(3)]
     public virtual string ChainId { get; set; }
     [Id(4)]
-    public TokenDto Token0 { get; set; }
+    public Token Token0 { get; set; }
     [Id(5)]
-    public TokenDto Token1 { get; set; }
+    public Token Token1 { get; set; }
     [Id(6)]
     public string Address { get; set; }
     [Id(7)]
