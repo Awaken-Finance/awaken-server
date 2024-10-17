@@ -98,14 +98,19 @@ public static class OrleansHostExtensions
 
                 var grainIdPrefix = configSection
                     .GetSection("GrainSpecificIdPrefix").GetChildren().ToDictionary(o => o.Key.ToLower(), o => o.Value);
+                foreach (var kv in grainIdPrefix)
+                {
+                    Log.Information($"GrainSpecificIdPrefix, key: {kv.Key}, Value: {kv.Value}");
+                }
                 op.KeyGenerator = id =>
                 {
                     var grainType = id.Type.ToString();
                     if (grainIdPrefix.TryGetValue(grainType, out var prefix))
                     {
+                        Log.Information($"KeyGenerator, grainType: {grainType}, prefix: {prefix}"); //todo remove
                         return $"{prefix}+{id.Key}";
                     }
-
+                    Log.Information($"KeyGenerator, grainType: {grainType}, id: {id}"); //todo remove
                     return id.ToString();
                 };
                 op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);
