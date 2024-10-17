@@ -101,14 +101,14 @@ public class RouteGrain : Grain<RouteState>, IRouteGrain
         {
             string tradePairAddress = route.tradePairAddresses[i];
             var tradePair = graph.RelationTradePairAddressToData[tradePairAddress];
-            swapRoute.TradePairs.Add(tradePair);
+            swapRoute.TradePairs.Add(_objectMapper.Map<TradePairWithTokenDto, TradePairWithToken>(tradePair));
             swapRoute.FullPathStr += tradePairAddress + (i < route.tradePairAddresses.Count - 1 ? "-" : string.Empty);
             swapRoute.FeeRates.Add(tradePair.FeeRate);
         }
 
         foreach (var token in route.tokens)
         {
-            swapRoute.Tokens.Add(graph.TokenDictionary[token]);
+            swapRoute.Tokens.Add(_objectMapper.Map<TokenDto, Token>(graph.TokenDictionary[token]));
         }
         
         return swapRoute;

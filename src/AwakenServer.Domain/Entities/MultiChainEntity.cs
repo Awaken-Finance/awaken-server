@@ -1,12 +1,14 @@
 using System;
 using Nest;
+using Orleans;
 
 namespace AwakenServer.Entities
 {
+    [GenerateSerializer]
     public class MultiChainEntity<TKey> : AwakenEntity<TKey>, IMultiChain
     {
         [Keyword]
-        public virtual string ChainId { get; set; }
+        [Id(0)] public virtual string ChainId { get; set; }
 
 
         protected MultiChainEntity()

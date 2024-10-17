@@ -10,6 +10,7 @@ using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Route;
 using AwakenServer.Route.Dtos;
+using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
 using Nest;
@@ -19,6 +20,7 @@ using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.ObjectMapping;
 using PercentRouteDto = AwakenServer.Route.Dtos.PercentRouteDto;
+using Token = Nest.Token;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 
 namespace AwakenServer.Route
@@ -577,9 +579,10 @@ namespace AwakenServer.Route
                         Percent = partRoute.Percent,
                         AmountIn = (input.RouteType == RouteType.ExactIn ? partRoute.Exact : partRoute.Quote).ToString(),
                         AmountOut = (input.RouteType == RouteType.ExactOut ? partRoute.Exact : partRoute.Quote).ToString(),
-                        TradePairs = routeMap[partRoute.RouteId].TradePairs,
+                        TradePairs =
+                            _objectMapper.Map<List<TradePairWithToken>, List<TradePairWithTokenDto>>(routeMap[partRoute.RouteId].TradePairs),
                         TradePairExtensions = TradePairExtensios,
-                        Tokens = routeMap[partRoute.RouteId].Tokens,
+                        Tokens = _objectMapper.Map<List<AwakenServer.Tokens.Token>, List<TokenDto>>(routeMap[partRoute.RouteId].Tokens),
                         FeeRates = routeMap[partRoute.RouteId].FeeRates,
                         Amounts = amountsStr
                     });
