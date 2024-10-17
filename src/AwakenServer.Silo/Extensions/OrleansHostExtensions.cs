@@ -67,18 +67,6 @@ public static class OrleansHostExtensions
                 options.DatabaseName = configSection.GetValue<string>("DataBase");
                 options.Strategy = MongoDBMembershipStrategy.SingleDocument;
             })
-            .AddMongoDBGrainStorage("Default", (MongoDBGrainStorageOptions op) =>
-            {
-                op.CollectionPrefix = "GrainStorage";
-                op.DatabaseName = configSection.GetValue<string>("DataBase");
-                op.ConfigureJsonSerializerSettings = jsonSettings =>
-                {
-                    // jsonSettings.ContractResolver = new PrivateSetterContractResolver();
-                    jsonSettings.NullValueHandling = NullValueHandling.Include;
-                    jsonSettings.DefaultValueHandling = DefaultValueHandling.Populate;
-                    jsonSettings.ObjectCreationHandling = ObjectCreationHandling.Replace;
-                };
-            })
             .Configure<GrainCollectionNameOptions>(options =>
             {
                 var collectionName = configSection
@@ -100,6 +88,13 @@ public static class OrleansHostExtensions
             {
                 op.CollectionPrefix = OrleansConstants.GrainCollectionPrefix;
                 op.DatabaseName = configSection.GetValue<string>("DataBase");
+                op.ConfigureJsonSerializerSettings = jsonSettings =>
+                {
+                    // jsonSettings.ContractResolver = new PrivateSetterContractResolver();
+                    jsonSettings.NullValueHandling = NullValueHandling.Include;
+                    jsonSettings.DefaultValueHandling = DefaultValueHandling.Populate;
+                    jsonSettings.ObjectCreationHandling = ObjectCreationHandling.Replace;
+                };
 
                 var grainIdPrefix = configSection
                     .GetSection("GrainSpecificIdPrefix").GetChildren().ToDictionary(o => o.Key.ToLower(), o => o.Value);
