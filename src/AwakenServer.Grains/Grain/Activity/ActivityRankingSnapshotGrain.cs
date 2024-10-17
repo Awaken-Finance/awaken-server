@@ -27,7 +27,6 @@ public class ActivityRankingSnapshotGrain : Grain<ActivityRankingSnapshotState>,
         
         State.RankingList = _objectMapper.Map<List<AwakenServer.Activity.RankingInfo>, List<RankingInfo>>(dto.RankingList);
         State.NumOfJoin = dto.NumOfJoin;
-        
         await WriteStateAsync();
         return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
         {

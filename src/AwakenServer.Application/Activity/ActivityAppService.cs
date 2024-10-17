@@ -299,7 +299,6 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             {
                 continue;
             }
-
             var lastHourRankingInfoRanking =
                 lastHourRankingListSnapshotIndex.RankingList.FindIndex(t => t.Address == rankingInfo.Address) + 1;
             if (lastHourRankingInfoRanking == 0)
