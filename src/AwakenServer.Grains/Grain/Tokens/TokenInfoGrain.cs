@@ -56,9 +56,9 @@ public class TokenInfoGrain : Grain<TokenInfoState>, ITokenInfoGrain
         };
     }
 
-    public async Task<GrainResultDto<TokenGrainDto>> GetByIdAsync(Guid Id)
+    public async Task<GrainResultDto<TokenGrainDto>> GetAsync()
     {
-        if (Id == Guid.Empty)
+        if (State.IsEmpty())
         {
             return new GrainResultDto<TokenGrainDto>
             {

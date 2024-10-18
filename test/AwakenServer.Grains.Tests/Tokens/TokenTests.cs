@@ -35,12 +35,12 @@ public class TokenTests:AwakenServerGrainTestBase
         createResult.Symbol.ShouldBe("ELF");
         createResult.ChainId.ShouldBe(tokenELF.ChainId);
 
-        var tokenResultDto = await grain.GetByIdAsync(createResult.Id);
+        var tokenResultDto = await grain.GetAsync();
         var tokenResult = tokenResultDto.Data;
         tokenResult.Symbol.ShouldBe("ELF");
         tokenResult.Id.ShouldBe(createResult.Id);
         
-        tokenResultDto = await grain.GetByIdAsync(Guid.Empty);
+        tokenResultDto = await grain.GetAsync();
         tokenResultDto.Success.ShouldBeFalse();
         
         var grain1 = Cluster.Client.GetGrain<ITokenInfoGrain>("xxx");

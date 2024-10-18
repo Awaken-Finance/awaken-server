@@ -56,7 +56,7 @@ namespace AwakenServer.Tokens
         public async Task<TokenDto> GetAsync(GetTokenInput input)
         {
             var tokenStateGrain =  _clusterClient.GetGrain<ITokenInfoGrain>(GrainIdHelper.GenerateGrainId(input.ChainId, input.Symbol));
-            var token = await tokenStateGrain.GetByIdAsync(input.Id);
+            var token = await tokenStateGrain.GetAsync();
             if (token != null)
             {
                 if (token.Success && !token.Data.IsEmpty())
@@ -105,7 +105,7 @@ namespace AwakenServer.Tokens
                 Symbol = tokenInfo.Symbol,
                 Address = tokenInfo.Address,
                 Decimals = tokenInfo.Decimals,
-                ChainId = tokenInfo.ChainId,
+                ChainId = input.ChainId,
                 ImageUri = tokenInfo.ImageUri,
             });
         }
