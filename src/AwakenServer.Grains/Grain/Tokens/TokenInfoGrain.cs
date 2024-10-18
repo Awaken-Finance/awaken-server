@@ -7,14 +7,13 @@ using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Grains.Grain.Tokens;
 
-public class TokenStateGrain : Grain<TokenState>, ITokenStateGrain
+public class TokenInfoGrain : Grain<TokenInfoState>, ITokenInfoGrain
 {
     private readonly IObjectMapper _objectMapper;
 
-    public TokenStateGrain(IObjectMapper objectMapper)
+    public TokenInfoGrain(IObjectMapper objectMapper)
     {
         _objectMapper = objectMapper;
-        
     }
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
@@ -36,7 +35,7 @@ public class TokenStateGrain : Grain<TokenState>, ITokenStateGrain
             return new GrainResultDto<TokenGrainDto>
             {
                 Success = true,
-                Data = _objectMapper.Map<TokenState, TokenGrainDto>(State)
+                Data = _objectMapper.Map<TokenInfoState, TokenGrainDto>(State)
             };
         }
 
@@ -48,12 +47,12 @@ public class TokenStateGrain : Grain<TokenState>, ITokenStateGrain
                 Data = new TokenGrainDto(),
             };
         }
-        State = _objectMapper.Map<TokenCreateDto, TokenState>(input);
+        State = _objectMapper.Map<TokenCreateDto, TokenInfoState>(input);
         await WriteStateAsync();
         return new GrainResultDto<TokenGrainDto>
         {
             Success = true,
-            Data = _objectMapper.Map<TokenState, TokenGrainDto>(State),
+            Data = _objectMapper.Map<TokenInfoState, TokenGrainDto>(State),
         };
     }
 
@@ -70,7 +69,7 @@ public class TokenStateGrain : Grain<TokenState>, ITokenStateGrain
 
         var result = new GrainResultDto<TokenGrainDto>();
         result.Success = true;
-        result.Data = _objectMapper.Map<TokenState, TokenGrainDto>(State);
+        result.Data = _objectMapper.Map<TokenInfoState, TokenGrainDto>(State);
         return await Task.FromResult(result);
     }
 }

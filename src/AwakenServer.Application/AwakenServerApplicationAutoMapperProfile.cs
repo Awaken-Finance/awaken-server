@@ -55,12 +55,13 @@ namespace AwakenServer
             CreateMap<TokenGrainDto, Tokens.TokenDto>();
             CreateMap<TokenGrainDto, Token>();
             CreateMap<TokenGrainDto, NewTokenEvent>();
-            CreateMap<TokenCreateDto, TokenState>();
-            CreateMap<NewTokenEvent, Token>();
+            CreateMap<TokenCreateDto, TokenInfoState>();
+            CreateMap<NewTokenEvent, TokenEntity>();
             CreateMap<Tokens.TokenDto, Token>();
             CreateMap<TokenCreateDto, Token>();
             CreateMap<Token, TokenCreateDto>();
             CreateMap<Token, Tokens.TokenDto>();
+            CreateMap<TokenEntity, TokenDto>().ReverseMap();
 
             CreateMap<TokenCreateDto, Token>().Ignore(x => x.Id);
 

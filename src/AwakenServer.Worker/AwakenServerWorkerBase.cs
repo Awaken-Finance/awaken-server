@@ -143,6 +143,11 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
         foreach (var chain in chains.Items)
         {
             var lastEndHeight = await _graphQlProvider.GetLastEndHeightAsync(chain.Name, _businessType);
+
+            if (lastEndHeight <= 0)
+            {
+                continue;
+            }
             
             _logger.Information(
                 $"Start deal data for businessType: {_businessType} " +

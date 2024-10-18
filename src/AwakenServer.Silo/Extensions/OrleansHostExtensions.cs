@@ -61,7 +61,8 @@ public static class OrleansHostExtensions
         Log.Warning("==  ServiceId: {0}", Environment.GetEnvironmentVariable("ORLEANS_SERVICE_ID"));
         Log.Warning("==Configuration");
         siloBuilder /*.UseKubernetesHosting()*/
-            .ConfigureEndpoints(advertisedIP: IPAddress.Parse(Environment.GetEnvironmentVariable("POD_IP") ?? string.Empty),
+            .ConfigureEndpoints(
+                advertisedIP: IPAddress.Parse(Environment.GetEnvironmentVariable("POD_IP") ?? string.Empty),
                 siloPort: configSection.GetValue<int>("SiloPort"),
                 gatewayPort: configSection.GetValue<int>("GatewayPort"), listenOnAnyHostAddress: true)
             .UseMongoDBClient(configSection.GetValue<string>("MongoDBClient"))
@@ -87,7 +88,8 @@ public static class OrleansHostExtensions
                 options.ServiceId = Environment.GetEnvironmentVariable("ORLEANS_SERVICE_ID");
             })
             .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); })
-            .ConfigureServices(services => services.AddSingleton<IGrainStateSerializer,AwakenJsonGrainStateSerializer>())
+            .ConfigureServices(services =>
+                services.AddSingleton<IGrainStateSerializer, AwakenJsonGrainStateSerializer>())
             .AddAwakenMongoDBGrainStorage("Default", (MongoDBGrainStorageOptions op) =>
             {
                 op.CollectionPrefix = OrleansConstants.GrainCollectionPrefix;
@@ -99,6 +101,7 @@ public static class OrleansHostExtensions
                 {
                     Log.Information($"GrainSpecificIdPrefix, key: {kv.Key}, Value: {kv.Value}");
                 }
+
                 op.KeyGenerator = id =>
                 {
                     var grainType = id.Type.ToString();
@@ -107,16 +110,17 @@ public static class OrleansHostExtensions
                         Log.Information($"KeyGenerator, grainType: {grainType}, prefix: {prefix}"); //todo remove
                         return $"{prefix}+{id.Key}";
                     }
+
                     Log.Information($"KeyGenerator, grainType: {grainType}, id: {id}"); //todo remove
                     return id.ToString();
                 };
                 op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);
-            })
-            .Services.AddSerializer(serializerBuilder =>
-            {
-                serializerBuilder.AddCustomSerializer();
             });
-        
+        // .Services.AddSerializer(serializerBuilder =>
+        // {
+        //     serializerBuilder.AddCustomSerializer();
+        // });
+
     }
 
     private static void UseDockerHostClustering(ISiloBuilder siloBuilder, IConfigurationSection configSection)

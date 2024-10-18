@@ -78,7 +78,7 @@ public class AwakenServerGrainTestModule : AbpModule
         };
         
         environmentProvider.TokenEthId = Guid.NewGuid();
-        AsyncHelper.RunSync(async () => await clusterClient.GetGrain<ITokenStateGrain>(environmentProvider.TokenEthId).CreateAsync(new TokenCreateDto()
+        AsyncHelper.RunSync(async () => await clusterClient.GetGrain<ITokenInfoGrain>(environmentProvider.TokenEthSymbol).CreateAsync(new TokenCreateDto()
         {
             Id = environmentProvider.TokenEthId,
             ChainId = environmentProvider.EthChainId,
@@ -89,7 +89,7 @@ public class AwakenServerGrainTestModule : AbpModule
         environmentProvider.TokenEthSymbol = token0.Symbol;
 
         environmentProvider.TokenUsdtId = Guid.NewGuid();
-        AsyncHelper.RunSync(async () => await clusterClient.GetGrain<ITokenStateGrain>(environmentProvider.TokenUsdtId).CreateAsync(new TokenCreateDto()
+        AsyncHelper.RunSync(async () => await clusterClient.GetGrain<ITokenInfoGrain>(environmentProvider.TokenUsdtSymbol).CreateAsync(new TokenCreateDto()
         {
             Id = environmentProvider.TokenUsdtId,
             ChainId = environmentProvider.EthChainId,

@@ -28,7 +28,7 @@ public class TokenTests:AwakenServerGrainTestBase
             Address = "xxxxxxx",
             Symbol = "BTC",
         };
-        var grain = Cluster.Client.GetGrain<ITokenStateGrain>(tokenELF.Id);
+        var grain = Cluster.Client.GetGrain<ITokenInfoGrain>(tokenELF.Symbol);
         var createResultDto = await grain.CreateAsync(tokenELF);
         var createResult = createResultDto.Data;
         
@@ -43,7 +43,7 @@ public class TokenTests:AwakenServerGrainTestBase
         tokenResultDto = await grain.GetByIdAsync(Guid.Empty);
         tokenResultDto.Success.ShouldBeFalse();
         
-        var grain1 = Cluster.Client.GetGrain<ITokenStateGrain>(Guid.Empty);
+        var grain1 = Cluster.Client.GetGrain<ITokenInfoGrain>("xxx");
         var emptyResultDto = await grain1.CreateAsync(new TokenCreateDto());
         emptyResultDto.Success.ShouldBeFalse();
     }

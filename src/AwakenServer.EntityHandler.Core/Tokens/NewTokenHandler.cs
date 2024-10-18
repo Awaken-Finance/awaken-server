@@ -16,11 +16,11 @@ namespace AwakenServer.ContractEventHandler.Tokens;
 
 public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransientDependency
 {
-    private readonly INESTRepository<Token, Guid> _tokenIndexRepository;
+    private readonly INESTRepository<TokenEntity, Guid> _tokenIndexRepository;
     private readonly IObjectMapper _objectMapper;
     private readonly ILogger<NewTokenHandler> _logger;
     
-    public NewTokenHandler(INESTRepository<Token, Guid> tokenIndexRepository,
+    public NewTokenHandler(INESTRepository<TokenEntity, Guid> tokenIndexRepository,
         IObjectMapper objectMapper,
         ILogger<NewTokenHandler> logger)
     {
@@ -32,7 +32,7 @@ public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransient
     [ExceptionHandler(typeof(Exception), LogOnly = true)]
     public virtual async Task HandleEventAsync(NewTokenEvent eventData)
     {
-        await _tokenIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewTokenEvent, Token>(eventData));
+        await _tokenIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewTokenEvent, TokenEntity>(eventData));
             Log.Debug("Token info add success:{Id}-{Symbol}-{ChainId}, ImageUri:{ImageUri}", eventData.Id, eventData.Symbol,
                 eventData.ChainId, eventData.ImageUri);
     }

@@ -33,8 +33,8 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
     {
         CreateMap<ChainState, ChainGrainDto>().ReverseMap();
         CreateMap<KLineState, KLineGrainDto>().ReverseMap();
-        CreateMap<TokenState, TokenGrainDto>().ReverseMap();
-        CreateMap<TokenCreateDto, TokenState>().ReverseMap();
+        CreateMap<TokenInfoState, TokenGrainDto>().ReverseMap();
+        CreateMap<TokenCreateDto, TokenInfoState>().ReverseMap();
         CreateMap<FavoriteGrainDto, FavoriteInfo>().ReverseMap();
         CreateMap<FavoriteInfo, FavoriteGrainDto>().ReverseMap();
         CreateMap<TradePairMarketDataSnapshotState, TradePairMarketDataSnapshotGrainDto>().ReverseMap();
@@ -61,6 +61,7 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
         CreateMap<UserLiquiditySnapshotState, UserLiquiditySnapshotGrainDto>().ReverseMap();
         CreateMap<UserActivityState, UserActivityGrainDto>().ReverseMap();
         CreateMap<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>().ReverseMap();
+        CreateMap<CurrentActivityRankingState, ActivityRankingSnapshotGrainDto>().ReverseMap();
         CreateMap<JoinRecordState, JoinRecordGrainDto>().ReverseMap();
         CreateMap<RankingInfo, AwakenServer.Activity.RankingInfo>().ReverseMap();
         CreateMap<TradePairWithToken, TradePairWithTokenDto>();

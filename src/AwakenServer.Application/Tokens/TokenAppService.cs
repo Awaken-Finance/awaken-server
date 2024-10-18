@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
+using AwakenServer.Chains;
+using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Tokens;
 using Nest;
 using Orleans;
@@ -18,21 +20,27 @@ namespace AwakenServer.Tokens
     [RemoteService(IsEnabled = false)]
     public class TokenAppService : ApplicationService, ITokenAppService
     {
-        private readonly INESTRepository<Token, Guid> _tokenIndexRepository;
+        private readonly INESTRepository<TokenEntity, Guid> _tokenIndexRepository;
         private readonly IClusterClient _clusterClient;
         private readonly IObjectMapper _objectMapper;
         private static readonly ConcurrentDictionary<string, TokenDto> SymbolCache = new();
         private readonly IDistributedEventBus _distributedEventBus;
         private readonly ILogger _logger;
+        private readonly IAElfClientProvider _aelfClientProvider;
 
-        public TokenAppService(INESTRepository<Token, Guid> tokenIndexRepository, IClusterClient clusterClient,
-            IObjectMapper objectMapper, IDistributedEventBus distributedEventBus)
+
+        public TokenAppService(INESTRepository<TokenEntity, Guid> tokenIndexRepository, 
+            IClusterClient clusterClient,
+            IObjectMapper objectMapper, 
+            IDistributedEventBus distributedEventBus,
+            IAElfClientProvider aelfClientProvider)
         {
             _tokenIndexRepository = tokenIndexRepository;
             _clusterClient = clusterClient;
             _objectMapper = objectMapper;
             _distributedEventBus = distributedEventBus;
             _logger = Log.ForContext<TokenAppService>();
+            _aelfClientProvider = aelfClientProvider;
         }
 
         public void DeleteAsync(Guid id)
@@ -51,10 +59,10 @@ namespace AwakenServer.Tokens
             return SymbolCache.TryGetValue(symbol, out var tokenDto) ? tokenDto : null;
         }
 
-        public async Task<TokenDto> GetAsync(Guid id)
+        public async Task<TokenDto> GetAsync(GetTokenInput input)
         {
-            var tokenStateGrain =  _clusterClient.GetGrain<ITokenStateGrain>(id);
-            var token = await tokenStateGrain.GetByIdAsync(id);
+            var tokenStateGrain =  _clusterClient.GetGrain<ITokenInfoGrain>(GrainIdHelper.GenerateGrainId(input.ChainId, input.Symbol));
+            var token = await tokenStateGrain.GetByIdAsync(input.Id);
             if (token != null)
             {
                 if (token.Success && !token.Data.IsEmpty())
@@ -63,32 +71,7 @@ namespace AwakenServer.Tokens
                 }
             }
             
-            var tokenFromEs = await _tokenIndexRepository.GetAsync(id);
-            if (tokenFromEs == null)
-            {
-                return null;
-            }
-
-            await tokenStateGrain.CreateAsync(_objectMapper.Map<Token,TokenCreateDto>(tokenFromEs));
-            return _objectMapper.Map<Token, TokenDto>(tokenFromEs);
-        }
-
-        public async Task<TokenDto> GetAsync(GetTokenInput input)
-        {
-            //when input has id,go to the cache 1st
-            if (input.Id != Guid.Empty)
-            {
-                var tokenStateGrain =  _clusterClient.GetGrain<ITokenStateGrain>(input.Id);
-                var token = await tokenStateGrain.GetByIdAsync(input.Id);
-                if (token != null)
-                {
-                    if (token.Success && !token.Data.IsEmpty())
-                    {
-                        return _objectMapper.Map<TokenGrainDto, TokenDto>(token.Data);
-                    }
-                }
-            }
-            var mustQuery = new List<Func<QueryContainerDescriptor<Token>, QueryContainer>>();
+            var mustQuery = new List<Func<QueryContainerDescriptor<TokenEntity>, QueryContainer>>();
             if (input.Id != Guid.Empty)
             {
                 mustQuery.Add(q => q.Term(t => t.Field(f => f.Id).Value(input.Id)));
@@ -106,10 +89,31 @@ namespace AwakenServer.Tokens
                 mustQuery.Add(q => q.Term(t => t.Field(f => f.Address).Value(input.Address)));
             }
             
-            QueryContainer Filter(QueryContainerDescriptor<Token> f) => f.Bool(b => b.Must(mustQuery));
+            QueryContainer Filter(QueryContainerDescriptor<TokenEntity> f) => f.Bool(b => b.Must(mustQuery));
             var list = await _tokenIndexRepository.GetListAsync(Filter);
-            var items = _objectMapper.Map<List<Token>, List<TokenDto>>(list.Item2);
-            return items.FirstOrDefault();
+            var items = _objectMapper.Map<List<TokenEntity>, List<TokenDto>>(list.Item2);
+            if (items.Count > 0)
+            {
+                return items[0];
+            }
+            
+            // create
+            var tokenInfo =
+                await _aelfClientProvider.GetTokenInfoAsync(input.ChainId, null, input.Symbol);
+            if (tokenInfo == null)
+            {
+                _logger.Error("GetTokenInfo from aelf client is null:{token}", input.Symbol);
+                return null;
+            }
+            
+            return await CreateAsync(new TokenCreateDto
+            {
+                Symbol = tokenInfo.Symbol,
+                Address = tokenInfo.Address,
+                Decimals = tokenInfo.Decimals,
+                ChainId = tokenInfo.ChainId,
+                ImageUri = tokenInfo.ImageUri,
+            });
         }
 
         public async Task<TokenDto> CreateAsync(TokenCreateDto input)
@@ -118,7 +122,7 @@ namespace AwakenServer.Tokens
             input.Id = (input.Id == Guid.Empty) ? Guid.NewGuid() : input.Id;
             token.Id = input.Id;
 
-            var tokenStateGrain = _clusterClient.GetGrain<ITokenStateGrain>(token.Id);
+            var tokenStateGrain = _clusterClient.GetGrain<ITokenInfoGrain>(GrainIdHelper.GenerateGrainId(input.ChainId, input.Symbol));
             var tokenGrainDto = await tokenStateGrain.CreateAsync(input);
 
             if (tokenGrainDto.Success)

@@ -39,8 +39,8 @@ namespace AwakenServer.EntityHandler.Trade
         public async Task HandleEventAsync(EntityCreatedEto<TradePairEto> eventData)
         {
             var index = ObjectMapper.Map<TradePairEto, TradePair>(eventData.Entity);
-            index.Token0 = await GetTokenAsync(eventData.Entity.Token0Id);
-            index.Token1 = await GetTokenAsync(eventData.Entity.Token1Id);
+            index.Token0 = await GetTokenAsync(eventData.Entity.ChainId, eventData.Entity.Token0Symbol);
+            index.Token1 = await GetTokenAsync(eventData.Entity.ChainId, eventData.Entity.Token1Symbol);
 
             await _tradePairIndexRepository.AddOrUpdateAsync(index);
             

@@ -20,7 +20,7 @@ namespace AwakenServer.Trade
     {
         Task<double> GetTokenUSDPriceAsync(string chainId, string symbol);
         Task<Tuple<double,double>> GetUSDPriceAsync(string chainId, Guid tradePairId, string symbol0, string symbol1, string token0Amount = null, string token1Amount = null);
-        Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price);
+        Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price, string token0Symbol);
     }
 
     public class TokenPriceProvider : ITokenPriceProvider, ITransientDependency
@@ -73,18 +73,18 @@ namespace AwakenServer.Trade
             return new Tuple<double, double>(await GetTokenUSDPriceAsync(chainId, symbol0), await GetTokenUSDPriceAsync(chainId, symbol1));
         }
 
-        public async Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price)
+        public async Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price, string token0Symbol)
         {
             var tokenPrices = await GetTokenPriceCacheAsync(chainId);
 
-            await UpdatePriceAsync(chainId, tokenPrices, token1, token0, 1 / price);
-            await UpdatePriceAsync(chainId, tokenPrices, token0, token1, price);
+            await UpdatePriceAsync(chainId, tokenPrices, token1, token0, 1 / price, token0Symbol);
+            await UpdatePriceAsync(chainId, tokenPrices, token0, token1, price, token0Symbol);
 
             await UpdateCacheAsync(chainId, tokenPrices);
         }
 
         private async Task UpdatePriceAsync(string chainId, Dictionary<Guid, TokenPrice> tokenPrices, Guid token0,
-            Guid token1, double price)
+            Guid token1, double price, string token0Symbol)
         {
             if (tokenPrices.TryGetValue(token0, out var tokenPrice))
             {
@@ -95,7 +95,11 @@ namespace AwakenServer.Trade
             }
             else
             {
-                var tokenInfo0 = await _tokenAppService.GetAsync(token0);
+                var tokenInfo0 = await _tokenAppService.GetAsync(new GetTokenInput()
+                {
+                    ChainId = chainId,
+                    Symbol = token0Symbol
+                });
                 var chain = await _chainIndexRepository.GetAsync(chainId);
                 if (_stableCoinOptions.Coins[chain.Name]
                         .FirstOrDefault(c => c.Address == tokenInfo0.Address && c.Symbol == tokenInfo0.Symbol) != null)

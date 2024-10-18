@@ -216,6 +216,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
     {
         var tokenDto = await _tokenAppService.GetAsync(new GetTokenInput
         {
+            ChainId = chainId,
             Symbol = symbol
         });
 
@@ -321,6 +322,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             var percent = totalValueInUsd != 0.0 ? Double.Parse(userTokenInfo.PriceInUsd) / totalValueInUsd : 0.0;
             var tokenDto = await _tokenAppService.GetAsync(new GetTokenInput
             {
+                ChainId = userTokenInfo.ChainId,
                 Symbol = userTokenInfo.Symbol
             });
             if (i < showCount)

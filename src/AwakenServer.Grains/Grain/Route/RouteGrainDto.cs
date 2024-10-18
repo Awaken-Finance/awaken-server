@@ -9,9 +9,9 @@ using AwakenServer.Trade.Dtos;
 public class SwapRoute
 {
     [Id(0)]
-    public List<TradePairWithToken> TradePairs { get; set; } = new();
+    public List<TradePairWithTokenDto> TradePairs { get; set; } = new();
     [Id(1)]
-    public List<Token> Tokens { get; set; } = new();
+    public List<TokenDto> Tokens { get; set; } = new();
     [Id(2)]
     public List<double> FeeRates { get; set; } = new();
     [Id(3)]

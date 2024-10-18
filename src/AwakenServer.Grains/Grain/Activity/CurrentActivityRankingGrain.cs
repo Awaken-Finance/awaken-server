@@ -4,7 +4,7 @@ using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Grains.Grain.Activity;
 
-public class CurrentActivityRankingGrain : Grain<ActivityRankingSnapshotState>, ICurrentActivityRankingGrain
+public class CurrentActivityRankingGrain : Grain<CurrentActivityRankingState>, ICurrentActivityRankingGrain
 {
     private readonly IObjectMapper _objectMapper;
     public CurrentActivityRankingGrain(IObjectMapper objectMapper)
@@ -55,7 +55,7 @@ public class CurrentActivityRankingGrain : Grain<ActivityRankingSnapshotState>, 
         return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
         {
             Success = true,
-            Data = _objectMapper.Map<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>(State)
+            Data = _objectMapper.Map<CurrentActivityRankingState, ActivityRankingSnapshotGrainDto>(State)
         };
     }
 
@@ -71,7 +71,7 @@ public class CurrentActivityRankingGrain : Grain<ActivityRankingSnapshotState>, 
         return new GrainResultDto<ActivityRankingSnapshotGrainDto>()
         {
             Success = true,
-            Data = _objectMapper.Map<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>(State)
+            Data = _objectMapper.Map<CurrentActivityRankingState, ActivityRankingSnapshotGrainDto>(State)
         };
     }
 }

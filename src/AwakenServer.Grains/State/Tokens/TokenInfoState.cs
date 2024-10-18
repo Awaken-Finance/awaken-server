@@ -4,7 +4,7 @@ using Nest;
 namespace AwakenServer.Grains.State.Tokens;
 
 [GenerateSerializer]
-public class TokenState
+public class TokenInfoState
 {
     [Id(0)]
     public Guid Id { get; set; }

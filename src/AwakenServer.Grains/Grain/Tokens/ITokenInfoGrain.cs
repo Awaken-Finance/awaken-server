@@ -5,7 +5,7 @@ using Orleans;
 
 namespace AwakenServer.Grains.Grain.Tokens;
 
-public interface ITokenStateGrain:IGrainWithGuidKey
+public interface ITokenInfoGrain : IGrainWithStringKey
 {
     Task<GrainResultDto<TokenGrainDto>> CreateAsync(TokenCreateDto input);
     

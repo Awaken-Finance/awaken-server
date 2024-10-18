@@ -579,10 +579,9 @@ namespace AwakenServer.Route
                         Percent = partRoute.Percent,
                         AmountIn = (input.RouteType == RouteType.ExactIn ? partRoute.Exact : partRoute.Quote).ToString(),
                         AmountOut = (input.RouteType == RouteType.ExactOut ? partRoute.Exact : partRoute.Quote).ToString(),
-                        TradePairs =
-                            _objectMapper.Map<List<TradePairWithToken>, List<TradePairWithTokenDto>>(routeMap[partRoute.RouteId].TradePairs),
+                        TradePairs = routeMap[partRoute.RouteId].TradePairs,
                         TradePairExtensions = TradePairExtensios,
-                        Tokens = _objectMapper.Map<List<AwakenServer.Tokens.Token>, List<TokenDto>>(routeMap[partRoute.RouteId].Tokens),
+                        Tokens = routeMap[partRoute.RouteId].Tokens,
                         FeeRates = routeMap[partRoute.RouteId].FeeRates,
                         Amounts = amountsStr
                     });

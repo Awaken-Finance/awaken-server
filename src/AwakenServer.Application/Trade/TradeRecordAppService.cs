@@ -144,10 +144,12 @@ namespace AwakenServer.Trade
                             {
                                 var tokenIn = await _tokenAppService.GetAsync(new GetTokenInput()
                                 {
+                                    ChainId = tradeRecord.ChainId,
                                     Symbol = record.SymbolIn
                                 });
                                 var tokenOut = await _tokenAppService.GetAsync(new GetTokenInput()
                                 {
+                                    ChainId = tradeRecord.ChainId,
                                     Symbol = record.SymbolOut
                                 });
                                 record.TradePair = new Index.TradePair()
@@ -620,6 +622,7 @@ namespace AwakenServer.Trade
             tradeRecord.Id = Guid.NewGuid();
             var labsFeeToken = await _tokenAppService.GetAsync(new GetTokenInput()
             {
+                ChainId = dto.ChainId,
                 Symbol = dto.LabsFeeSymbol
             });
             tradeRecord.LabsFee = dto.LabsFee / Math.Pow(10, labsFeeToken.Decimals);
@@ -962,6 +965,7 @@ namespace AwakenServer.Trade
                     {
                         tokenMap[indexSwapRecord.SymbolIn] = await _tokenAppService.GetAsync(new GetTokenInput()
                         {
+                            ChainId = dto.ChainId,
                             Symbol = indexSwapRecord.SymbolIn
                         });
                     }
@@ -969,6 +973,7 @@ namespace AwakenServer.Trade
                     {
                         tokenMap[indexSwapRecord.SymbolOut] = await _tokenAppService.GetAsync(new GetTokenInput()
                         {
+                            ChainId = dto.ChainId,
                             Symbol = indexSwapRecord.SymbolOut
                         });
                     }
@@ -1029,6 +1034,7 @@ namespace AwakenServer.Trade
             tradeRecord.PercentRoutes = GetPercentRoutes(record.MethodName, indexSwapRecordDistributions, amountInSum, amountOutSum);
             var labsFeeToken = await _tokenAppService.GetAsync(new GetTokenInput()
             {
+                ChainId = dto.ChainId,
                 Symbol = dto.LabsFeeSymbol
             });
             tradeRecord.LabsFee = dto.LabsFee / Math.Pow(10, labsFeeToken.Decimals);

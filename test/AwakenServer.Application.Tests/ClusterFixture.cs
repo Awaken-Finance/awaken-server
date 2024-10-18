@@ -110,15 +110,15 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                                     return Task.FromResult<decimal>(123);
                             }
                         });
-                    
-                    mockTokenProvider.Setup(o => o.GetHistoryPriceAsync(It.IsAny<string>(),It.IsAny<string>()))
+
+                    mockTokenProvider.Setup(o => o.GetHistoryPriceAsync(It.IsAny<string>(), It.IsAny<string>()))
                         .ReturnsAsync(1);
                     services.AddSingleton<ITokenPriceProvider>(mockTokenProvider.Object);
-                    
+
                     services.AddMemoryCache();
                     services.AddDistributedMemoryCache();
                     services.AddAutoMapper(typeof(AwakenServerGrainsModule).Assembly);
-                    
+
                     services.AddSingleton(typeof(DistributedCache<>));
                     services.AddSingleton(typeof(IDistributedCache<>), typeof(DistributedCache<>));
                     services.AddSingleton(typeof(IDistributedCache<,>), typeof(DistributedCache<,>));
@@ -184,16 +184,16 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                     {
                         Mapper = sp.GetRequiredService<IMapper>()
                     });
-                    
+
                     services.AddTransient<IMapperAccessor>(provider => provider.GetRequiredService<MapperAccessor>());
-                
+
                 })
                 .AddMemoryGrainStorage("PubSubStore")
-                .AddMemoryGrainStorageAsDefault()
-                .Services.AddSerializer(serializerBuilder =>
-                {
-                    serializerBuilder.AddCustomSerializer();
-                });
+                .AddMemoryGrainStorageAsDefault();
+            // .Services.AddSerializer(serializerBuilder =>
+            // {
+            //     serializerBuilder.AddCustomSerializer();
+            // });
         }
     }
 

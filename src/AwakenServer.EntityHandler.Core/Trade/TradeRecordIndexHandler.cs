@@ -139,11 +139,13 @@ namespace AwakenServer.EntityHandler.Trade
             var pairWithToken = new TradePairWithToken();
             var token0 = await TokenAppService.GetAsync(new GetTokenInput
             {
+                ChainId = firstTradePair.ChainId,
                 Symbol = swapRecords[0].SymbolIn
             });
             var count = swapRecords.Count;
             var token1 = await TokenAppService.GetAsync(new GetTokenInput
             {
+                ChainId = firstTradePair.ChainId,
                 Symbol = swapRecords[count - 1].SymbolOut
             });
             pairWithToken.Token0 = ObjectMapper.Map<TokenDto, Token>(token0);

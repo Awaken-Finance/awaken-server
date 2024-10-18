@@ -60,6 +60,7 @@ namespace AwakenServer.Trade
             {
                 var tokenDetails = await _tokenAppService.GetAsync(new GetTokenInput
                 {
+                    ChainId = chainId,
                     Symbol = tokenSymbol
                 });
                 tokenMap[tokenSymbol] = new TokenPriceDto()

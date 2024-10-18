@@ -94,18 +94,19 @@ public class ClusterFixture : IDisposable, ISingletonDependency
              hostBuilder.ConfigureServices(services =>
                  {
                      var mockCoinGeckoProvider = new Mock<ICoinGeckoClient>();
-                     mockCoinGeckoProvider.Setup(o => o.CoinsClient.GetHistoryByCoinId("NO-PRICE", DateTime.Now.ToString("dd-MM-yyyy"), "false"))
+                     mockCoinGeckoProvider.Setup(o =>
+                             o.CoinsClient.GetHistoryByCoinId("NO-PRICE", DateTime.Now.ToString("dd-MM-yyyy"), "false"))
                          .ReturnsAsync(new CoinFullData
                          {
                              MarketData = null
                          });
-                     
+
                      services.AddSingleton<ICoinGeckoClient>(mockCoinGeckoProvider.Object);
-                     
+
                      services.AddMemoryCache();
                      services.AddDistributedMemoryCache();
                      services.AddAutoMapper(typeof(AwakenServerGrainsModule).Assembly);
-    
+
                      services.AddSingleton(typeof(DistributedCache<>));
                      services.AddSingleton(typeof(IDistributedCache<>), typeof(DistributedCache<>));
                      services.AddSingleton(typeof(IDistributedCache<,>), typeof(DistributedCache<,>));
@@ -174,11 +175,11 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                      services.AddTransient<IMapperAccessor>(provider => provider.GetRequiredService<MapperAccessor>());
                  })
                  .AddMemoryGrainStorage("PubSubStore")
-                 .AddMemoryGrainStorageAsDefault()
-                 .Services.AddSerializer(serializerBuilder =>
-                 {
-                     serializerBuilder.AddCustomSerializer();
-                 });
+                 .AddMemoryGrainStorageAsDefault();
+             // .Services.AddSerializer(serializerBuilder =>
+             // {
+             //     serializerBuilder.AddCustomSerializer();
+             // });
          }
      }
 

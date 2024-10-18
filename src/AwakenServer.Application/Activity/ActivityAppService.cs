@@ -322,10 +322,11 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return time.Date.AddHours(time.Hour);
     }
 
-    private async Task<double> GetTokenValueInUsdAsync(string tokenSymbol, long amountWithDecimal, long timestamp)
+    private async Task<double> GetTokenValueInUsdAsync(string chainId, string tokenSymbol, long amountWithDecimal, long timestamp)
     {
         var token = await _tokenAppService.GetAsync(new GetTokenInput()
         {
+            ChainId = chainId,
             Symbol = tokenSymbol
         });
         var amount = amountWithDecimal / Math.Pow(10, token.Decimals);
@@ -346,7 +347,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             return 0d;
         }
         
-        var labsFeeInUsd = await GetTokenValueInUsdAsync(dto.LabsFeeSymbol, dto.LabsFee, dto.Timestamp);
+        var labsFeeInUsd = await GetTokenValueInUsdAsync(dto.ChainId, dto.LabsFeeSymbol, dto.LabsFee, dto.Timestamp);
         var swapValueFromLabsFee = labsFeeInUsd / LabsFeeRate;
         
         _logger.Information($"Get trade swap point, txn: {dto.TransactionHash}, labsFeeSymbol: {dto.LabsFeeSymbol}, swapValueFromLabsFee: {swapValueFromLabsFee}");
@@ -364,7 +365,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             // check symbol out is special token and add value
             if (pricingTokensSet.Contains(swapRecord.SymbolIn))
             {
-                var swapValueFromPricingToken = await GetTokenValueInUsdAsync(swapRecord.SymbolIn, swapRecord.AmountIn, dto.Timestamp);
+                var swapValueFromPricingToken = await GetTokenValueInUsdAsync(dto.ChainId, swapRecord.SymbolIn, swapRecord.AmountIn, dto.Timestamp);
                 if (!swapValueFromPricingTokenMap.ContainsKey(swapRecord.SymbolIn))
                 {
                     swapValueFromPricingTokenMap.Add(swapRecord.SymbolIn, 0);
@@ -395,7 +396,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             return 0d;
         }
         
-        var labsFeeInUsd = await GetTokenValueInUsdAsync(dto.SymbolOut, dto.TotalFee, dto.TransactionTime);
+        var labsFeeInUsd = await GetTokenValueInUsdAsync(dto.ChainId, dto.SymbolOut, dto.TotalFee, dto.TransactionTime);
         var swapValueFromLabsFee = labsFeeInUsd / LimitLabsFeeRate;
         
         var pricingTokensSet = new HashSet<string>(_activityOptions.PricingTokens);
@@ -405,7 +406,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
             return swapValueFromLabsFee;
         }
 
-        var swapValueFromPricingToken = await GetTokenValueInUsdAsync(dto.SymbolIn, dto.AmountInFilled, dto.TransactionTime);
+        var swapValueFromPricingToken = await GetTokenValueInUsdAsync(dto.ChainId, dto.SymbolIn, dto.AmountInFilled, dto.TransactionTime);
         var finalPoint = Math.Min(swapValueFromLabsFee, swapValueFromPricingToken);
         _logger.Information($"Get trade limit fill record point, txn: {dto.TransactionHash}, swapValueFromLabsFee: {swapValueFromLabsFee}, swapValueFromPricingToken: {swapValueFromPricingToken}, final point: {finalPoint}");
         return finalPoint;
