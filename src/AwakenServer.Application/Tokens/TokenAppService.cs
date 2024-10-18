@@ -42,13 +42,7 @@ namespace AwakenServer.Tokens
             _logger = Log.ForContext<TokenAppService>();
             _aelfClientProvider = aelfClientProvider;
         }
-
-        public void DeleteAsync(Guid id)
-        {
-            //do nothing
-            return ;
-        }
-
+        
         public TokenDto GetBySymbolCache(string symbol)
         {
             if (string.IsNullOrWhiteSpace(symbol))

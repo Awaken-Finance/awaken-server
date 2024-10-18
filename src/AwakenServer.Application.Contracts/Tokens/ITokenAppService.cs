@@ -10,8 +10,6 @@ namespace AwakenServer.Tokens
         
         Task<TokenDto> CreateAsync(TokenCreateDto input);
         
-        void DeleteAsync(Guid id);
-
         TokenDto GetBySymbolCache(string symbol);
     }
 }
