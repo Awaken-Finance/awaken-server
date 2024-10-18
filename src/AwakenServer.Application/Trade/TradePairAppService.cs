@@ -239,6 +239,23 @@ namespace AwakenServer.Trade
             };
         }
 
+        public async Task<TradePairIndexDto> GetTradePairLatestSnapshotAsync(Guid id)
+        {
+            var tradePairGrain =
+                _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(id));
+            var snapshotGrainDto = await tradePairGrain.GetLatestSnapshotAsync();
+            return new TradePairIndexDto()
+            {
+                Id = snapshotGrainDto.TradePairId,
+                ChainId = snapshotGrainDto.ChainId,
+                TotalSupply = snapshotGrainDto.TotalSupply,
+                Price = snapshotGrainDto.Price,
+                PriceUSD = snapshotGrainDto.PriceUSD,
+                ValueLocked0 = snapshotGrainDto.ValueLocked0,
+                ValueLocked1 = snapshotGrainDto.ValueLocked1
+            };
+        }
+        
         public async Task<TokenListDto> GetTokenListAsync(GetTokenListInput input)
         {
             var grain = _clusterClient.GetGrain<IChainTradePairsGrain>(input.ChainId);

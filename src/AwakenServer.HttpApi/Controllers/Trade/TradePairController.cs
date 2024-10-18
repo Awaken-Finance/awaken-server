@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Asp.Versioning;
+using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using JetBrains.Annotations;
@@ -49,6 +50,13 @@ namespace AwakenServer.Controllers.Trade
         public virtual Task<TokenListDto> GetTokenListAsync(GetTokenListInput input)
         {
             return _tradePairAppService.GetTokenListAsync(input);
+        }
+        
+        [HttpGet]
+        [Route("test/latest-snapshot/{id}")]
+        public virtual Task<TradePairIndexDto> GetTradePairLatestSnapshotAsync(Guid id)
+        {
+            return _tradePairAppService.GetTradePairLatestSnapshotAsync(id);
         }
     }
 }

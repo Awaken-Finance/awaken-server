@@ -21,6 +21,7 @@ namespace AwakenServer.Trade
         Task<ListResultDto<TradePairIndexDto>> GetByIdsAsync(GetTradePairByIdsInput input);
         Task<ListResultDto<TradePairIndexDto>> GetByIdsFromGrainAsync(GetTradePairByIdsInput input);
         Task<TokenListDto> GetTokenListAsync(GetTokenListInput input);
+        Task<TradePairIndexDto> GetTradePairLatestSnapshotAsync(Guid id);
         Task<TradePairDto> GetByAddressAsync(string chainName, [CanBeNull] string address);
         Task<List<TradePairIndexDto>> GetListAsync(string chainId, IEnumerable<string> addresses);
         Task<List<TradePairIndexDto>> GetListFromEsAsync(string chainId, IEnumerable<string> addresses);
