@@ -1,8 +1,12 @@
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.State.Price;
+using AwakenServer.Grains.State.Trade;
 using Orleans;
+using Orleans.Core;
+using Serilog;
 using Volo.Abp.EventBus.Local;
 using Volo.Abp.ObjectMapping;
 
@@ -36,6 +40,14 @@ public class TradeRecordGrain : Grain<TradeRecordState>, ITradeRecordGrain
 
     public async Task<GrainResultDto<TradeRecordGrainDto>> InsertAsync(TradeRecordGrainDto dto)
     {
+        //todo remove
+        var type = typeof(Grain<TradeRecordState>);
+        var fieldInfo1 = type.GetField("_storage", BindingFlags.NonPublic | BindingFlags.Instance);
+        var storage = (IStorage<TradeRecordState>)fieldInfo1.GetValue(this);
+        //todo remove
+        
+        Log.Information($"TradeRecordGrain, InsertAsync, etag: {storage.Etag}, recordExist:{storage.RecordExists}, State.Id: {storage.State.Id}, txn: {dto.TransactionHash}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
+
         State = _objectMapper.Map<TradeRecordGrainDto, TradeRecordState>(dto);
         
         await WriteStateAsync();
