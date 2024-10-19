@@ -63,8 +63,7 @@ public class SyncStateProvider : ISyncStateProvider
         return 0;
     }
 
-    [ExceptionHandler(typeof(Exception),
-        TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+    [ExceptionHandler(typeof(Exception), ReturnDefault = ReturnDefault.Default)]
     public virtual async Task<long> GetLastIrreversibleBlockHeightAsync(string chainId, string key)
     {
         var res = await _httpProvider.InvokeAsync<SyncStateResponse>(HttpMethod.Get, _syncStateOption.Value.Url);

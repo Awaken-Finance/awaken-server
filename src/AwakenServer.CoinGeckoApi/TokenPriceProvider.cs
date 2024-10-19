@@ -28,8 +28,8 @@ public class TokenPriceProvider : ITokenPriceProvider
         _logger = Log.ForContext<TokenPriceProvider>();
     }
 
-    [ExceptionHandler(typeof(Exception), Message = "GetPrice Error", TargetType = typeof(HandlerExceptionService), 
-        MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+    [ExceptionHandler(typeof(Exception), Message = "GetPrice Error", ReturnDefault = ReturnDefault.Default,
+        LogTargets = new[]{"symbol"})]
     public virtual async Task<decimal> GetPriceAsync(string symbol)
     {
         if (string.IsNullOrEmpty(symbol))

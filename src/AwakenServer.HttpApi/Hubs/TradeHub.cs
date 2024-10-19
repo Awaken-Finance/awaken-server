@@ -255,7 +255,7 @@ namespace AwakenServer.Hubs
         }
         
         [ExceptionHandler(typeof(Exception),
-            Message = "RemoveFromGroup Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnBool))]
+            Message = "RemoveFromGroup Error", ReturnDefault = ReturnDefault.Default)]
         public virtual async Task<bool> TryRemoveFromGroupAsync(string connectionId, string groupName)
         {
             await Groups.RemoveFromGroupAsync(connectionId, groupName);

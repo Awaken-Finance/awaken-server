@@ -109,7 +109,7 @@ namespace AwakenServer.Price
             return result;
         }
 
-        [ExceptionHandler(typeof(Exception), Message = "GetHistoryPrice Error",TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+        [ExceptionHandler(typeof(Exception), Message = "GetHistoryPrice Error", ReturnDefault = ReturnDefault.Default)]
         public virtual async Task<decimal> GetHistoryPriceAsync(string symbol, string time)
         {
             var pair = GetTokenApiName(symbol);
@@ -142,16 +142,24 @@ namespace AwakenServer.Price
                     
             if (IsNeedFetchPrice(price))
             {
-                var priceInUsd = await GetPriceAsync(symbol);
-                if (priceInUsd > 0)
+                try
                 {
-                    price.PriceInUsd = priceInUsd;
-                    price.PriceUpdateTime = DateTime.UtcNow;
-                    await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                    var priceInUsd = await GetPriceAsync(symbol);
+                    if (priceInUsd > 0)
                     {
-                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                    });
+                        price.PriceInUsd = priceInUsd;
+                        price.PriceUpdateTime = DateTime.UtcNow;
+                        await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                        {
+                            AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                        });
+                    }
                 }
+                catch (Exception e)
+                {
+                    _logger.Error(e, $"Get token price symbol: {symbol} failed.");
+                }
+                
             }
                     
             _logger.Information($"Get token price symbol: {symbol}, return price: {price.PriceInUsd}");
@@ -360,15 +368,23 @@ namespace AwakenServer.Price
             var noPriceTokens = new List<string>();
             foreach (var relation in graph.Relations)
             {
-                var price = await GetPriceAsync(relation.Key);
-                if (price > 0)
+                try
                 {
-                    withPriceTokens[relation.Key] = (double) price;
+                    var price = await GetPriceAsync(relation.Key);
+                    if (price > 0)
+                    {
+                        withPriceTokens[relation.Key] = (double) price;
+                    }
+                    else
+                    {
+                        noPriceTokens.Add(relation.Key);
+                    }
                 }
-                else
+                catch (Exception e)
                 {
                     noPriceTokens.Add(relation.Key);
                 }
+                
             }
 
             return new Tuple<Dictionary<string, double>, List<string>>(withPriceTokens,noPriceTokens);

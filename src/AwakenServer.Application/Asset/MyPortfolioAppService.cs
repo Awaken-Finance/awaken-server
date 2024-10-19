@@ -77,7 +77,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return $"{baseKey}:{version}";
     }
 
-    [ExceptionHandler(typeof(Exception), Message = "UpdateUserAllAsset Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn0))]
+    [ExceptionHandler(typeof(Exception), Message = "UpdateUserAllAsset Error", ReturnDefault = ReturnDefault.Default)]
     public virtual async Task<int> UpdateUserAllAssetAsync(string address, TimeSpan maxTimeSinceLastUpdate, string dataVersion)
     {
         var affectedCount = 0;

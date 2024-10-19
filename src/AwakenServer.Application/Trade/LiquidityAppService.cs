@@ -358,7 +358,7 @@ namespace AwakenServer.Trade
             await DoRevertAsync(chainId, needDeletedTradeRecords);
         }
         
-        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnBool))]
+        [ExceptionHandler(typeof(Exception), ReturnDefault = ReturnDefault.Default)]
         public virtual async Task<bool> CreateAsync(LiquidityRecordDto input)
         {
             var grain = _clusterClient.GetGrain<ILiquidityRecordGrain>(
