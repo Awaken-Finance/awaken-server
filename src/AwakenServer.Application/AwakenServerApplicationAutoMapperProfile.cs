@@ -112,7 +112,8 @@ namespace AwakenServer
             CreateMap<TradePairGrainDto, TradePairEto>();
             CreateMap<TradePairGrainDto, TradePairWithTokenDto>();
             CreateMap<GetTradePairByIdsInput, GetTradePairsInput>();
-
+            CreateMap<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotDto>();
+            
             CreateMap<LiquidityRecordCreateDto, Trade.LiquidityRecord>().Ignore(x => x.Id).ForMember(
                 destination => destination.Timestamp,
                 opt => opt.MapFrom(source => DateTimeHelper.FromUnixTimeMilliseconds(source.Timestamp)));

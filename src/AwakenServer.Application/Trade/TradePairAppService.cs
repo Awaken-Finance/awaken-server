@@ -239,21 +239,12 @@ namespace AwakenServer.Trade
             };
         }
 
-        public async Task<TradePairIndexDto> GetTradePairLatestSnapshotAsync(Guid id)
+        public async Task<TradePairMarketDataSnapshotDto> GetTradePairLatestSnapshotAsync(Guid id)
         {
             var tradePairGrain =
                 _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(id));
             var snapshotGrainDto = await tradePairGrain.GetLatestSnapshotAsync();
-            return new TradePairIndexDto()
-            {
-                Id = snapshotGrainDto.TradePairId,
-                ChainId = snapshotGrainDto.ChainId,
-                TotalSupply = snapshotGrainDto.TotalSupply,
-                Price = snapshotGrainDto.Price,
-                PriceUSD = snapshotGrainDto.PriceUSD,
-                ValueLocked0 = snapshotGrainDto.ValueLocked0,
-                ValueLocked1 = snapshotGrainDto.ValueLocked1
-            };
+            return _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotDto>(snapshotGrainDto);
         }
         
         public async Task<TokenListDto> GetTokenListAsync(GetTokenListInput input)

@@ -54,7 +54,7 @@ namespace AwakenServer.Controllers.Trade
         
         [HttpGet]
         [Route("test/latest-snapshot/{id}")]
-        public virtual Task<TradePairIndexDto> GetTradePairLatestSnapshotAsync(Guid id)
+        public virtual Task<TradePairMarketDataSnapshotDto> GetTradePairLatestSnapshotAsync(Guid id)
         {
             return _tradePairAppService.GetTradePairLatestSnapshotAsync(id);
         }
