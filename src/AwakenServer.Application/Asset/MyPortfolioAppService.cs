@@ -199,7 +199,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         await _distributedEventBus.PublishAsync(ObjectMapper.Map<UserLiquiditySnapshotGrainDto, UserLiquiditySnapshotEto>(userLiquiditySnapshotResult.Data));
         await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
         {
-            AbsoluteExpiration = DateTimeOffset.UtcNow.AddDays(7)
+            AbsoluteExpiration = DateTimeOffset.UtcNow.AddYears(1)
         });
         return true;
     }
