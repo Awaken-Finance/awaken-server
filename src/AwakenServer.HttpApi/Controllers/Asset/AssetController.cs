@@ -85,18 +85,4 @@ public class AssetController : AbpController
     {
         return await _myPortfolioAppService.GetCurrentUserLiquidityAsync(input);
     }
-    
-    [HttpGet]
-    [Route("test/get-current-trade-pair")]
-    public virtual async Task<string> TestGetCurrentTradePairAsync(GetCurrentUserLiquidityDto input)
-    {
-        return await _myPortfolioAppService.TestGetCurrentTradePairAsync(input);
-    }
-    
-    [HttpGet]
-    [Route("test/get-user-liquidity")]
-    public virtual async Task<string> TestGetCurrentUserLiquidityAsync(GetCurrentUserLiquidityDto input)
-    {
-        return await _myPortfolioAppService.TestGetCurrentUserLiquidityAsync(input);
-    }
 }

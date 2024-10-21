@@ -1,34 +1,29 @@
-using System.Data.SqlTypes;
 using System.Reflection;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
-using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.State.Trade;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
-using Microsoft.Extensions.Logging;
 using Nethereum.Util;
-using Orleans;
+using Newtonsoft.Json;
 using Orleans.Core;
 using Serilog;
 using Volo.Abp.ObjectMapping;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 namespace AwakenServer.Grains.Grain.Price.TradePair;
 
 public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 {
     private readonly IObjectMapper _objectMapper;
-    private readonly ILogger<TradePairGrain> _logger;
+    private readonly ILogger _logger;
     private readonly IClusterClient _clusterClient;
     private SortedDictionary<DateTime, string> _latestMarketDataSnapshots;
 
     public TradePairGrain(IObjectMapper objectMapper,
-        IClusterClient clusterClient,
-        ILogger<TradePairGrain> logger)
+        IClusterClient clusterClient)
     {
         _objectMapper = objectMapper;
-        _logger = logger;
+        _logger = Log.ForContext<TradePairGrain>();
         _clusterClient = clusterClient;
         _latestMarketDataSnapshots = new SortedDictionary<DateTime, string>(
             Comparer<DateTime>.Create((datetime1, datetime2) => { return datetime2.CompareTo(datetime1); })
@@ -60,11 +55,11 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 if (_latestMarketDataSnapshots.Count >= 7 * 24)
                 {
                     var lastKey = _latestMarketDataSnapshots.Last().Key;
-                    Log.Information($"pop the least recently used snapshot: {_latestMarketDataSnapshots.Last().Value}, latest snapshot: {_latestMarketDataSnapshots.First().Value}");
+                    _logger.Information($"pop the least recently used snapshot: {_latestMarketDataSnapshots.Last().Value}, latest snapshot: {_latestMarketDataSnapshots.First().Value}");
                     bool removed = _latestMarketDataSnapshots.Remove(lastKey);
                     if (!removed)
                     {
-                        Log.Error($"pop the least recently used snapshot failed.");
+                        _logger.Error($"pop the least recently used snapshot failed.");
                     }
                 }
                 _latestMarketDataSnapshots.Add(snapshotDataResult.Data.Timestamp,
@@ -83,14 +78,14 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         
         if (State.Id == Guid.Empty || State.IsDeleted)
         {
-            Log.Error($"TradePairGrain, GetAsync error, etag: {storage.Etag}, recordExist:{storage.RecordExists}, State.Id: {storage.State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
+            _logger.Error($"TradePairGrain, GetAsync error, etag: {storage.Etag}, recordExist:{storage.RecordExists}, State.Id: {storage.State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
             return new GrainResultDto<TradePairGrainDto>
             {
                 Success = false
             };
         }
 
-        Log.Information($"TradePairGrain, GetAsync find result, State.Id: {State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, address: {State.Address}, feeRate: {State.FeeRate}");
+        _logger.Information($"TradePairGrain, GetAsync find result, State.Id: {State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, address: {State.Address}, feeRate: {State.FeeRate}");
         return new GrainResultDto<TradePairGrainDto>
         {
             Success = true,
@@ -212,7 +207,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         lpAmount = dto.Type == LiquidityType.Mint ? lpAmount : -lpAmount;
         lpAmount = dto.IsRevert ? -lpAmount : lpAmount;
 
-        Log.Information($"update total supply, " +
+        _logger.Information($"update total supply, " +
                                $"pair id: {State.Id}, " +
                                $"txn hash: {dto.TransactionHash}, " +
                                $"liquidity type: {dto.Type}, " +
@@ -264,7 +259,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             ? dto.ReserveA.ToDecimalsString(State.Token1.Decimals)
             : dto.ReserveB.ToDecimalsString(State.Token1.Decimals);
 
-        Log.Information(
+        _logger.Information(
             "SyncEvent, input chainId: {chainId}, isReversed: {isReversed}, token0Amount: {token0Amount}, " +
             "token1Amount: {token1Amount}, tradePairId: {tradePairId}, timestamp: {timestamp}, blockHeight: {blockHeight}",
             dto.ChainId,
@@ -304,7 +299,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
     {
         if (State.Id == Guid.Empty || State.Token0 == null || State.Token1 == null)
         {
-            Log.Error($"add snapshot to an error trade pair, id: {snapshotDto.TradePairId}, " +
+            _logger.Error($"add snapshot to an error trade pair, id: {snapshotDto.TradePairId}, " +
                              $"timestamp: {snapshotDto.Timestamp}");
             return new GrainResultDto<TradePairMarketDataSnapshotUpdateResult>
             {
@@ -314,7 +309,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 
         snapshotDto.Timestamp = GetSnapshotTime(snapshotDto.Timestamp);
 
-        Log.Information(
+        _logger.Information(
             $"add snapshot id:{State.Id},{State.Token0.Symbol}-{State.Token1.Symbol}, " +
             $"timestamp:{snapshotDto.Timestamp} " +
             $"fee:{State.FeeRate},price:{State.Price}-priceUSD:{State.PriceUSD}, " +
@@ -336,7 +331,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 bool removed = _latestMarketDataSnapshots.Remove(lastKey);
                 if (!removed)
                 {
-                    Log.Error("previous 7 days market data snapshots remove failed");
+                    _logger.Error("previous 7 days market data snapshots remove failed");
                 }
             }
             
@@ -364,7 +359,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         double token0PriceInUsd, 
         double token1PriceInUsd)
     {
-        Log.Debug($"Scheduled trade pair update begin, id: {State.Id}, " +
+        _logger.Debug($"Scheduled trade pair update begin, id: {State.Id}, " +
                          $"timestamp: {timestamp}, " +
                          $"current trade pair: {JsonConvert.SerializeObject(State)}");
 
@@ -381,7 +376,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         var snaoshotCount = 0;
         foreach (var snapshot in daySnapshot)
         {
-            Log.Information($"Scheduled trade pair update, " +
+            _logger.Information($"Scheduled trade pair update, " +
                                    $"daySnapshot : {snaoshotCount}, " +
                                    $"snapshot: {snapshot}");
             snaoshotCount++;
@@ -406,7 +401,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             var snapshot = lastDaySnapshot.First();
             lastDayTvl = snapshot.TVL;
             lastDayPriceUSD = snapshot.PriceUSD;
-            Log.Information($"scheduled trade pair update, get last day snapshot from lastDaySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
+            _logger.Information($"scheduled trade pair update, get last day snapshot from lastDaySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
 
         }
         else
@@ -417,12 +412,12 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
                 var snapshot = sortDaySnapshot.First();
                 lastDayTvl = snapshot.TVL;
                 lastDayPriceUSD = snapshot.PriceUSD;
-                Log.Information($"scheduled trade pair update, get last day snapshot from daySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
+                _logger.Information($"scheduled trade pair update, get last day snapshot from daySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
 
             }
         }
 
-        Log.Information($"Scheduled trade pair update, " +
+        _logger.Information($"Scheduled trade pair update, " +
                                $"lastDaySnapshot count: {lastDaySnapshot.Count}, " +
                                $"lastDayVolume24h: {lastDayVolume24h}, " +
                                $"lastDayTvl: {lastDayTvl}, " +
@@ -460,7 +455,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         State.TradeAddressCount24h = userTradeAddressCount;
         State.TotalSupply = totalSupply;
 
-        Log.Debug($"Scheduled trade pair update end, id: {State.Id}, " +
+        _logger.Debug($"Scheduled trade pair update end, id: {State.Id}, " +
                          $"timestamp: {timestamp}, " +
                          $"after update, trade pair: {JsonConvert.SerializeObject(State)}");
 
@@ -477,7 +472,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
     public async Task<GrainResultDto<TradePairGrainDto>> UpdateFromSnapshotAsync(
         TradePairMarketDataSnapshotGrainDto dto)
     {
-        Log.Debug($"update pair from snapshot begin, id: {State.Id}, " +
+        _logger.Debug($"update pair from snapshot begin, id: {State.Id}, " +
                                $"snapshot: {JsonConvert.SerializeObject(dto)}, " +
                                $"current trade pair: {JsonConvert.SerializeObject(State)}");
         
@@ -544,7 +539,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             var snapshot = lastDaySnapshot.First();
             lastDayTvl = snapshot.TVL;
             lastDayPriceUSD = snapshot.PriceUSD;
-            Log.Information(
+            _logger.Information(
                 $"get last day snapshot from lastDaySnapshot, time: {snapshot.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
         }
         else
@@ -554,7 +549,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
             {
                 lastDayTvl = latestBeforeThisSnapshotDto.TVL;
                 lastDayPriceUSD = latestBeforeThisSnapshotDto.PriceUSD;
-                Log.Information(
+                _logger.Information(
                     $"get last day snapshot from daySnapshot, time: {latestBeforeThisSnapshotDto.Timestamp}, lastDayTvl: {lastDayTvl}, lastDayPriceUSD: {lastDayPriceUSD}");
             }
         }
@@ -597,7 +592,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 
         await WriteStateAsync();
 
-        Log.Debug($"update pair from snapshot end, id: {State.Id}, " +
+        _logger.Debug($"update pair from snapshot end, id: {State.Id}, " +
                          $"dto timestamp: {dto.Timestamp}, " +
                          $"current trade pair: {JsonConvert.SerializeObject(State)}");
         

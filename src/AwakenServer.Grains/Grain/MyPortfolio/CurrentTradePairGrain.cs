@@ -56,7 +56,7 @@ public class CurrentTradePairGrain : Grain<CurrentTradePairState>, ICurrentTrade
         var type = typeof(Grain<CurrentTradePairState>);
         var fieldInfo1 = type.GetField("_storage", BindingFlags.NonPublic | BindingFlags.Instance);
         var storage = (IStorage<CurrentTradePairState>)fieldInfo1.GetValue(this);
-        Log.Information($"CurrentTradePairGrain, GetAsync, Etag: {storage.Etag}, RecordExists: {storage.RecordExists}, GrainId: {this.GetGrainId()}");
+        Log.ForContext<CurrentTradePairGrain>().Information($"CurrentTradePairGrain, GetAsync, Etag: {storage.Etag}, RecordExists: {storage.RecordExists}, GrainId: {this.GetGrainId()}");
         //todo remove
         var result = new GrainResultDto<CurrentTradePairGrainDto>();
         if (State.TradePairId == Guid.Empty)

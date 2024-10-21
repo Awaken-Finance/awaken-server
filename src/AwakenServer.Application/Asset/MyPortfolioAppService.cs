@@ -1092,18 +1092,4 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         }
         return currentUserLiquidityDto;
     }
-    
-    public async Task<string> TestGetCurrentTradePairAsync(GetCurrentUserLiquidityDto input)
-    {
-        var currentTradePairGrain = _clusterClient.GetGrain<ICurrentTradePairGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(input.TradePairId), _portfolioOptions.Value.DataVersion));
-        var result = await currentTradePairGrain.GetAsync();
-        return JsonConvert.SerializeObject(result);
-    }
-    
-    public async Task<string> TestGetCurrentUserLiquidityAsync(GetCurrentUserLiquidityDto input)
-    {
-        var currentUserLiquidityGrain = _clusterClient.GetGrain<ICurrentUserLiquidityGrain>(AddVersionToKey(GrainIdHelper.GenerateGrainId(input.Address, input.TradePairId), _portfolioOptions.Value.DataVersion));
-        var result = await currentUserLiquidityGrain.GetAsync();
-        return JsonConvert.SerializeObject(result);
-    }
 }

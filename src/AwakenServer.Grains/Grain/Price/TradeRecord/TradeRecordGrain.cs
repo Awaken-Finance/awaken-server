@@ -46,7 +46,7 @@ public class TradeRecordGrain : Grain<TradeRecordState>, ITradeRecordGrain
         var storage = (IStorage<TradeRecordState>)fieldInfo1.GetValue(this);
         //todo remove
         
-        Log.Information($"TradeRecordGrain, InsertAsync, etag: {storage.Etag}, recordExist:{storage.RecordExists}, State.Id: {storage.State.Id}, txn: {dto.TransactionHash}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
+        Log.ForContext<TradeRecordGrain>().Information($"TradeRecordGrain, InsertAsync, etag: {storage.Etag}, recordExist:{storage.RecordExists}, State.Id: {storage.State.Id}, txn: {dto.TransactionHash}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
 
         State = _objectMapper.Map<TradeRecordGrainDto, TradeRecordState>(dto);
         
