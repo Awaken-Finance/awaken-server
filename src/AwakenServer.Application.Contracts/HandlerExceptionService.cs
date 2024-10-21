@@ -49,4 +49,13 @@ public class HandlerExceptionService
             ReturnValue = -1
         };
     }
+    
+    public static async Task<FlowBehavior> HandleWithReturnLongMinusOne(Exception ex)
+    {
+        return new FlowBehavior
+        {
+            ExceptionHandlingStrategy = ExceptionHandlingStrategy.Return,
+            ReturnValue = -1L
+        };
+    }
 }
