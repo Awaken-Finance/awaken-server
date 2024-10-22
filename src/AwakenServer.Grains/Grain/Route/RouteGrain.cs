@@ -161,12 +161,6 @@ public class RouteGrain : Grain<RouteState>, IRouteGrain
 
     public async Task<GrainResultDto<RoutesResultGrainDto>> GetRoutesAsync(GetRoutesGrainDto dto)
     {
-        //todo remove
-        var type = typeof(Grain<RouteState>);
-        var fieldInfo1 = type.GetField("_storage", BindingFlags.NonPublic | BindingFlags.Instance);
-        var storage = (IStorage<RouteState>)fieldInfo1.GetValue(this);
-        _logger.Information($"RouteGrain, GetRoutesAsync, Etag: {storage.Etag}, RecordExists: {storage.RecordExists}, GrainId: {this.GetGrainId()}");
-        //todo remove
         var cacheKey = GenCacheKey(dto.SymbolBegin, dto.SymbolEnd, dto.MaxDepth);
         if (State.RouteCache.ContainsKey(cacheKey))
         {

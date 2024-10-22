@@ -23,20 +23,18 @@ public class AwakenMongoGrainStorage : MongoGrainStorage
 
     protected override string ReturnGrainName<T>(string stateName, GrainId grainId)
     {
-        //todo remove
         if (_grainCollectionNameOptions.GrainSpecificCollectionName.ContainsKey(typeof(T).FullName))
         {
-            Log.Information($"ReturnGrainName, FullName: {typeof(T).FullName}, grainName: {_grainCollectionNameOptions.GrainSpecificCollectionName[typeof(T).FullName]}");
+            Log.Debug($"ReturnGrainName, FullName: {typeof(T).FullName}, grainName: {_grainCollectionNameOptions.GrainSpecificCollectionName[typeof(T).FullName]}");
         }
         else
         {
-            Log.Information($"ReturnGrainName, FullName: {typeof(T).FullName}, can't find in GrainSpecificCollectionName.");
+            Log.Debug($"ReturnGrainName, FullName: {typeof(T).FullName}, can't find in GrainSpecificCollectionName.");
             foreach (var kv in _grainCollectionNameOptions.GrainSpecificCollectionName)
             {
-                Log.Information($"ReturnGrainName, GrainSpecificCollectionName, {kv.Key}:{kv.Value}");
+                Log.Debug($"ReturnGrainName, GrainSpecificCollectionName, {kv.Key}:{kv.Value}");
             }
         }
-        //todo remove
         
         return _grainCollectionNameOptions.GrainSpecificCollectionName.TryGetValue(typeof(T).FullName,
             out var grainName)

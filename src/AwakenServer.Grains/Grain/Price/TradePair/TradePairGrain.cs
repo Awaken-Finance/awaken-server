@@ -70,15 +70,9 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 
     public async Task<GrainResultDto<TradePairGrainDto>> GetAsync()
     {
-        //todo remove
-        var type = typeof(Grain<TradePairState>);
-        var fieldInfo1 = type.GetField("_storage", BindingFlags.NonPublic | BindingFlags.Instance);
-        var storage = (IStorage<TradePairState>)fieldInfo1.GetValue(this);
-        //todo remove
-        
         if (State.Id == Guid.Empty || State.IsDeleted)
         {
-            _logger.Error($"TradePairGrain, GetAsync error, etag: {storage.Etag}, recordExist:{storage.RecordExists}, State.Id: {storage.State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
+            _logger.Error($"TradePairGrain, GetAsync error, etag: State.Id: {State.Id}, IsDeleted: {State.IsDeleted}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
             return new GrainResultDto<TradePairGrainDto>
             {
                 Success = false

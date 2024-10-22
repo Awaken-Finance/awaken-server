@@ -40,14 +40,7 @@ public class TradeRecordGrain : Grain<TradeRecordState>, ITradeRecordGrain
 
     public async Task<GrainResultDto<TradeRecordGrainDto>> InsertAsync(TradeRecordGrainDto dto)
     {
-        //todo remove
-        var type = typeof(Grain<TradeRecordState>);
-        var fieldInfo1 = type.GetField("_storage", BindingFlags.NonPublic | BindingFlags.Instance);
-        var storage = (IStorage<TradeRecordState>)fieldInfo1.GetValue(this);
-        //todo remove
-        
-        Log.ForContext<TradeRecordGrain>().Information($"TradeRecordGrain, InsertAsync, etag: {storage.Etag}, recordExist:{storage.RecordExists}, State.Id: {storage.State.Id}, txn: {dto.TransactionHash}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
-
+        Log.ForContext<TradeRecordGrain>().Information($"TradeRecordGrain, InsertAsync, State.Id: {State.Id}, txn: {dto.TransactionHash}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
         State = _objectMapper.Map<TradeRecordGrainDto, TradeRecordState>(dto);
         
         await WriteStateAsync();

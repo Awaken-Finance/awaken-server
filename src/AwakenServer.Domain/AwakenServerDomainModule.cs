@@ -19,7 +19,6 @@ namespace AwakenServer
     [DependsOn(
         typeof(AwakenServerDomainSharedModule),
         typeof(AbpAuditLoggingDomainModule),
-        typeof(AbpSettingManagementDomainModule),
         typeof(AbpTenantManagementDomainModule),
         typeof(AbpEmailingModule),
         typeof(AElfIndexingElasticsearchModule),
