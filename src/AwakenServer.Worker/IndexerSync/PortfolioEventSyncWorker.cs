@@ -84,7 +84,6 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
                 logCount = 0;
             }
         }
-        
         return blockHeight;
     }
 
