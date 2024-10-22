@@ -6,11 +6,10 @@ namespace AwakenServer.Entities
 {
     /// <inheritdoc cref="IEntity{TKey}" />
     [Serializable]
-    [GenerateSerializer]
     public abstract class AwakenEntity<TKey> : Entity, IEntity<TKey>
     {
         /// <inheritdoc/>
-        [Id(0)] public virtual TKey Id { get; set; }
+        public virtual TKey Id { get; set; }
 
         protected AwakenEntity()
         {

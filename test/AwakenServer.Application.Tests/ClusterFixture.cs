@@ -6,9 +6,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains;
-using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Price;
-using AwakenServer.Silo;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,10 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
-using Nethereum.Util;
-using Orleans;
 using Orleans.Hosting;
-using Orleans.Serialization;
 using Orleans.TestingHost;
 using Volo.Abp;
 using Volo.Abp.AutoMapper;
@@ -190,10 +185,6 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                 })
                 .AddMemoryGrainStorage("PubSubStore")
                 .AddMemoryGrainStorageAsDefault();
-            // .Services.AddSerializer(serializerBuilder =>
-            // {
-            //     serializerBuilder.AddCustomSerializer();
-            // });
         }
     }
 
