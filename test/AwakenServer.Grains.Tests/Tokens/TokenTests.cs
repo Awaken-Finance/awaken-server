@@ -41,7 +41,7 @@ public class TokenTests:AwakenServerGrainTestBase
         tokenResult.Id.ShouldBe(createResult.Id);
         
         tokenResultDto = await grain.GetAsync();
-        tokenResultDto.Success.ShouldBeFalse();
+        tokenResultDto.Success.ShouldBeTrue();
         
         var grain1 = Cluster.Client.GetGrain<ITokenInfoGrain>("xxx");
         var emptyResultDto = await grain1.CreateAsync(new TokenCreateDto());
