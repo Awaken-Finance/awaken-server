@@ -27,7 +27,6 @@
     <ItemGroup>
         <ProjectReference Include="..\..\src\AwakenServer.CoinGeckoApi\AwakenServer.CoinGeckoApi.csproj" />
         <ProjectReference Include="..\..\src\AwakenServer.Grains\AwakenServer.Grains.csproj" />
-        <ProjectReference Include="..\..\src\AwakenServer.Silo\AwakenServer.Silo.csproj" />
         <ProjectReference Include="..\AwakenServer.Domain.Tests\AwakenServer.Domain.Tests.csproj" />
         <ProjectReference Include="..\AwakenServer.TestBase\AwakenServer.TestBase.csproj" />
     </ItemGroup>
