@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.Threading.Tasks;
+using Asp.Versioning;
 using AwakenServer.Asset;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.AspNetCore.Mvc;
@@ -44,7 +46,7 @@ public class AssetController : AbpController
     public virtual async Task<IdleTokensDto> IdleTokensAsync(GetIdleTokensDto input)
     {
         var acceptLanguage = Request.Headers["Accept-Language"].ToString();
-        Logger.LogInformation($"get idle tokens, acceptLanguage: {acceptLanguage}");
+        Log.ForContext<AssetController>().Information($"get idle tokens, acceptLanguage: {acceptLanguage}");
         return await _assetAppService.GetIdleTokensAsync(input);
     }
     

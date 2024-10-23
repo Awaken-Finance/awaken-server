@@ -7,9 +7,9 @@ using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using MassTransit;
-using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Orleans;
+using Serilog;
 using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using TradePair = AwakenServer.Trade.Index.TradePair;
@@ -24,24 +24,23 @@ namespace AwakenServer.EntityHandler.Trade
         private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
         private readonly IBus _bus;
         private readonly IClusterClient _clusterClient;
-        private readonly ILogger<TradePairIndexHandler> _logger;
+        private readonly ILogger _logger;
         
         public TradePairIndexHandler(INESTRepository<TradePair, Guid> tradePairIndexRepository,
             IBus bus,
-            IClusterClient clusterClient,
-            ILogger<TradePairIndexHandler> logger)
+            IClusterClient clusterClient)
         {
             _tradePairIndexRepository = tradePairIndexRepository;
             _bus = bus;
             _clusterClient = clusterClient;
-            _logger = logger;
+            _logger = Log.ForContext<TradePairIndexHandler>();
         }
 
         public async Task HandleEventAsync(EntityCreatedEto<TradePairEto> eventData)
         {
             var index = ObjectMapper.Map<TradePairEto, TradePair>(eventData.Entity);
-            index.Token0 = await GetTokenAsync(eventData.Entity.Token0Id);
-            index.Token1 = await GetTokenAsync(eventData.Entity.Token1Id);
+            index.Token0 = await GetTokenAsync(eventData.Entity.ChainId, eventData.Entity.Token0Symbol);
+            index.Token1 = await GetTokenAsync(eventData.Entity.ChainId, eventData.Entity.Token1Symbol);
 
             await _tradePairIndexRepository.AddOrUpdateAsync(index);
             
@@ -50,7 +49,7 @@ namespace AwakenServer.EntityHandler.Trade
                 Data = ObjectMapper.Map<TradePair, TradePairIndexDto>(index)
             });
             
-            _logger.LogInformation($"write trade pair to es, {JsonConvert.SerializeObject(index)}");
+            _logger.Information($"write trade pair to es, {JsonConvert.SerializeObject(index)}");
         }
     }
 }

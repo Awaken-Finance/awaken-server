@@ -2,24 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AElf.Client.MultiToken;
-using Volo.Abp.ObjectMapping;
+using AElf.ExceptionHandler;
 using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Grains;
-using AwakenServer.Grains.Grain.Price.TradePair;
-using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
 using AwakenServer.Trade.Dtos;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using Orleans;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.EventBus.Local;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
+using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Trade
 {
@@ -33,12 +31,12 @@ namespace AwakenServer.Trade
         private readonly IClusterClient _clusterClient;
         private readonly IAElfClientProvider _aelfClientProvider;
         private readonly ILocalEventBus _localEventBus;
-        private readonly ILogger<LiquidityAppService> _logger;
         private readonly IRevertProvider _revertProvider;
         private readonly IObjectMapper _objectMapper;
         private readonly IAElfClientProvider _blockchainClientProvider;
         private readonly ContractsTokenOptions _contractsTokenOptions;
-        
+        private readonly ILogger _logger;
+
         private const string ASC = "asc";
         private const string ASCEND = "ascend";
         private const string ASSETUSD = "assetusd";
@@ -52,7 +50,6 @@ namespace AwakenServer.Trade
             IClusterClient clusterClient,
             IAElfClientProvider aefClientProvider,
             ILocalEventBus localEventBus,
-            ILogger<LiquidityAppService> logger,
             IRevertProvider revertProvider,
             IObjectMapper objectMapper,
             IAElfClientProvider blockchainClientProvider,
@@ -65,39 +62,31 @@ namespace AwakenServer.Trade
             _clusterClient = clusterClient;
             _aelfClientProvider = aefClientProvider;
             _localEventBus = localEventBus;
-            _logger = logger;
             _revertProvider = revertProvider;
             _objectMapper = objectMapper;
             _blockchainClientProvider = blockchainClientProvider;
             _contractsTokenOptions = contractsTokenOptions.Value;
+            _logger = Log.ForContext<LiquidityAppService>();
         }
 
-        
-        public async Task<PagedResultDto<LiquidityRecordIndexDto>> GetRecordsAsync(GetLiquidityRecordsInput input)
+        [ExceptionHandler(typeof(Exception), TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReThrow))]
+        public virtual async Task<PagedResultDto<LiquidityRecordIndexDto>> GetRecordsAsync(GetLiquidityRecordsInput input)
         {
-            _logger.LogInformation($"GetRecordsAsync, {JsonConvert.SerializeObject(input)}");
+            _logger.Information($"GetRecordsAsync, {JsonConvert.SerializeObject(input)}");
             
             var qlQueryInput = new GetLiquidityRecordIndexInput();
 
-            try
+            ObjectMapper.Map(input, qlQueryInput);
+            if (input.TradePairId.HasValue)
             {
-                ObjectMapper.Map(input, qlQueryInput);
-                if (input.TradePairId.HasValue)
-                {
-                    var tradePairIndexDto = await _tradePairAppService.GetFromGrainAsync(input.TradePairId.Value);
-                    qlQueryInput.Pair = tradePairIndexDto?.Address;
-                }
+                var tradePairIndexDto = await _tradePairAppService.GetFromGrainAsync(input.TradePairId.Value);
+                qlQueryInput.Pair = tradePairIndexDto?.Address;
             }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Get tradePairIndexDto failed.");
-                throw;
-            }
-            
+
             var queryResult = await _graphQlProvider.QueryLiquidityRecordAsync(qlQueryInput);
             var dataList = new List<LiquidityRecordIndexDto>();
             
-            _logger.LogInformation($"QueryLiquidityRecordAsync data count: {queryResult.Data.Count}");
+            _logger.Information($"QueryLiquidityRecordAsync data count: {queryResult.Data.Count}");
             
             if (queryResult.TotalCount == 0 || queryResult.Data.IsNullOrEmpty())
             {
@@ -115,7 +104,7 @@ namespace AwakenServer.Trade
                     t => t);
             
             
-            _logger.LogInformation($"get trade pairs: {JsonConvert.SerializeObject(pairs)}");
+            _logger.Information($"get trade pairs: {JsonConvert.SerializeObject(pairs)}");
             foreach (var recordDto in queryResult.Data)
             {
                 var indexDto = new LiquidityRecordIndexDto();
@@ -124,7 +113,7 @@ namespace AwakenServer.Trade
                 indexDto.TradePair = pairs.GetValueOrDefault(recordDto.Pair, null);
                 if (indexDto.TradePair == null)
                 {
-                    _logger.LogError($"can't find trade pair {recordDto.Pair}");
+                    _logger.Error($"can't find trade pair {recordDto.Pair}");
                     continue;
                 }
 
@@ -144,7 +133,7 @@ namespace AwakenServer.Trade
                 indexDto.TransactionFee =
                     await _aelfClientProvider.GetTransactionFeeAsync(qlQueryInput.ChainId, recordDto.TransactionHash) /
                     Math.Pow(10, 8);
-                _logger.LogInformation($"liquidity record index, txn hash :{indexDto.TransactionHash}, Txn fee{indexDto.TransactionFee}");
+                _logger.Information($"liquidity record index, txn hash :{indexDto.TransactionHash}, Txn fee{indexDto.TransactionFee}");
                 dataList.Add(indexDto);
             }
 
@@ -193,7 +182,7 @@ namespace AwakenServer.Trade
             var dataList = new List<UserLiquidityIndexDto>();
 
             var queryResult = await _graphQlProvider.QueryUserLiquidityAsync(input);
-            _logger.LogInformation($"GetUserLiquidityFromGraphQLAsync data count: {queryResult.Data.Count}");
+            _logger.Information($"GetUserLiquidityFromGraphQLAsync data count: {queryResult.Data.Count}");
             
             if (queryResult.TotalCount == 0 || queryResult.Data.IsNullOrEmpty())
             {
@@ -216,7 +205,7 @@ namespace AwakenServer.Trade
                 var tradePairIndex = pairs.GetValueOrDefault(dto.Pair, null);
                 if (tradePairIndex == null)
                 {
-                    _logger.LogError($"can't find trade pair {dto.Pair}");
+                    _logger.Error($"can't find trade pair {dto.Pair}");
                     continue;
                 }
 
@@ -232,7 +221,7 @@ namespace AwakenServer.Trade
                     : dto.LpTokenAmount / double.Parse(tradePairIndex.TotalSupply);
                 
                 
-                _logger.LogInformation(
+                _logger.Information(
                     "User liquidity, tradePairIndex.TotalSupply: {supply}, " +
                     "dto.LpTokenAmount: {LpTokenAmount}, " +
                     "prop:{prop}, " +
@@ -317,7 +306,7 @@ namespace AwakenServer.Trade
             var tradePair = await _tradePairAppService.GetTradePairAsync(input.ChainId, input.Pair);
             if (tradePair == null)
             {
-                _logger.LogInformation("tradePair not existed,chainId:{chainId}, address:{address}", input.ChainId,
+                _logger.Information("tradePair not existed,chainId:{chainId}, address:{address}", input.ChainId,
                     input.Pair);
                 return false;
             }
@@ -360,22 +349,17 @@ namespace AwakenServer.Trade
             }
         }
         
-        public async Task RevertLiquidityAsync(string chainId)
+        [ExceptionHandler(typeof(Exception), Message = "RevertLiquidity Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+        public virtual async Task RevertLiquidityAsync(string chainId)
         {
-            try
-            {
-                var needDeletedTradeRecords =
-                    await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.LiquidityEvent, chainId);
+            var needDeletedTradeRecords =
+                await _revertProvider.GetNeedDeleteTransactionsAsync(EventType.LiquidityEvent, chainId);
 
-                await DoRevertAsync(chainId, needDeletedTradeRecords);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError("Revert liquidity err:{0}", e);
-            }
+            await DoRevertAsync(chainId, needDeletedTradeRecords);
         }
         
-        public async Task<bool> CreateAsync(LiquidityRecordDto input)
+        [ExceptionHandler(typeof(Exception), ReturnDefault = ReturnDefault.Default)]
+        public virtual async Task<bool> CreateAsync(LiquidityRecordDto input)
         {
             var grain = _clusterClient.GetGrain<ILiquidityRecordGrain>(
                 GrainIdHelper.GenerateGrainId(input.ChainId, input.TransactionHash));

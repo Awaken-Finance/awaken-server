@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using AElf.Client.MultiToken;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.Commons;
@@ -15,22 +15,16 @@ using AwakenServer.Price;
 using AwakenServer.Provider;
 using AwakenServer.Tokens;
 using AwakenServer.Trade;
-using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
 using Orleans;
+using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
-using Index = System.Index;
-using TradePair = AwakenServer.Trade.TradePair;
-using Volo.Abp.ObjectMapping;
-using ITokenPriceProvider = AwakenServer.Trade.ITokenPriceProvider;
-using TradePairMarketDataSnapshot = AwakenServer.Trade.Index.TradePairMarketDataSnapshot;
 
 namespace AwakenServer.Asset;
 
@@ -49,7 +43,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
 
     private const string userAssetInfoDtoPrefix = "AwakenServer:Asset:";
     private readonly IClusterClient _clusterClient;
-    private readonly ILogger<AssetAppService> _logger;
+    private readonly ILogger _logger;
 
     public AssetAppService(IGraphQLProvider graphQlProvider,
         ITokenAppService tokenAppService,
@@ -58,7 +52,6 @@ public class AssetAppService : ApplicationService, IAssetAppService
         IAElfClientProvider aelfClientProvider,
         IOptionsSnapshot<AssetWhenNoTransactionOptions> showSymbolsWhenNoTransactionOptions,
         IDistributedCache<UserAssetInfoDto> userAssetInfoDtoCache, IClusterClient clusterClient,
-        ILogger<AssetAppService> logger,
         IOptionsSnapshot<PortfolioOptions> portfolioOptions,
         INESTRepository<CurrentUserLiquidityIndex, Guid> currentUserLiquidityIndexRepository)
     {
@@ -70,7 +63,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
         _clusterClient = clusterClient;
         _assetWhenNoTransactionOptions = showSymbolsWhenNoTransactionOptions.Value;
         _userAssetInfoDtoCache = userAssetInfoDtoCache;
-        _logger = logger;
+        _logger = Log.ForContext<AssetAppService>();
         _portfolioOptions = portfolioOptions;
         _currentUserLiquidityIndexRepository = currentUserLiquidityIndexRepository;
     }
@@ -83,7 +76,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
     public async Task<UserAssetInfoDto> GetUserAssetInfoAsync(GetUserAssetInfoDto input)
     {
         var tokenList = await _graphQlProvider.GetUserTokensAsync(input.ChainId, input.Address);
-        _logger.LogInformation("get user token list from indexer,symbol:{symbol}",
+        _logger.Information("get user token list from indexer,symbol:{symbol}",
             tokenList.Select(s => s.Symbol).ToList());
         if (tokenList == null || tokenList.Count == 0)
         {
@@ -138,7 +131,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
                     continue;
                 }
 
-                _logger.LogInformation("get balance,token:{token},balance:{balance}", nftSymbol, balanceOutput.Balance);
+                _logger.Information("get balance,token:{token},balance:{balance}", nftSymbol, balanceOutput.Balance);
                 if (balanceOutput != null)
                 {
                     var userTokenInfo = new UserTokenInfo()
@@ -223,6 +216,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
     {
         var tokenDto = await _tokenAppService.GetAsync(new GetTokenInput
         {
+            ChainId = chainId,
             Symbol = symbol
         });
 
@@ -236,7 +230,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             await _aelfClientProvider.GetTokenInfoAsync(chainId, null, symbol);
         if (tokenInfo == null)
         {
-            _logger.LogInformation("GetTokenInfo is null:{token}", symbol);
+            _logger.Information("GetTokenInfo is null:{token}", symbol);
             return 0;
         }
 
@@ -261,25 +255,28 @@ public class AssetAppService : ApplicationService, IAssetAppService
             TransactionFee = _assetShowOptions.TransactionFee
         };
     }
-
-    public async Task<CommonResponseDto<Empty>> SetDefaultTokenAsync(SetDefaultTokenDto input)
+    
+    public async Task<FlowBehavior> HandleException(Exception ex)
     {
-        try
+        return new FlowBehavior
         {
-            if (!_assetShowOptions.ShowList.Exists(o => o == input.TokenSymbol))
-            {
-                throw new ArgumentException("no support symbol", input.TokenSymbol);
-            }
+            ExceptionHandlingStrategy = ExceptionHandlingStrategy.Return,
+            ReturnValue = new CommonResponseDto<Empty>().Error(ex)
+        };
+    }
 
-            var defaultTokenGrain = _clusterClient.GetGrain<IDefaultTokenGrain>(input.Address);
-
-            await defaultTokenGrain.SetTokenAsync(input.TokenSymbol);
-            return new CommonResponseDto<Empty>();
-        }
-        catch (Exception e)
+    [ExceptionHandler(typeof(Exception), TargetType = typeof(AssetAppService), MethodName = nameof(HandleException))]
+    public virtual async Task<CommonResponseDto<Empty>> SetDefaultTokenAsync(SetDefaultTokenDto input)
+    {
+        if (!_assetShowOptions.ShowList.Exists(o => o == input.TokenSymbol))
         {
-            return new CommonResponseDto<Empty>().Error(e);
+            throw new ArgumentException("no support symbol", input.TokenSymbol);
         }
+
+        var defaultTokenGrain = _clusterClient.GetGrain<IDefaultTokenGrain>(input.Address);
+
+        await defaultTokenGrain.SetTokenAsync(input.TokenSymbol);
+        return new CommonResponseDto<Empty>();
     }
 
 
@@ -298,7 +295,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
 
     public async Task<IdleTokensDto> GetIdleTokensAsync(GetIdleTokensDto input)
     {
-        _logger.LogInformation($"get idle tokens, CultureInfo.CurrentCulture: {CultureInfo.CurrentCulture.Name}");
+        _logger.Information($"get idle tokens, CultureInfo.CurrentCulture: {CultureInfo.CurrentCulture.Name}");
         
         var tokenListDto = await GetUserAssetInfoAsync(new GetUserAssetInfoDto()
         {
@@ -325,6 +322,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
             var percent = totalValueInUsd != 0.0 ? Double.Parse(userTokenInfo.PriceInUsd) / totalValueInUsd : 0.0;
             var tokenDto = await _tokenAppService.GetAsync(new GetTokenInput
             {
+                ChainId = userTokenInfo.ChainId,
                 Symbol = userTokenInfo.Symbol
             });
             if (i < showCount)
@@ -358,7 +356,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
                 idleTokenList[idleTokenList.Count - 1].ValueInUsd = otherSumValueInUsd.ToString();
             }
 
-            _logger.LogInformation(
+            _logger.Information(
                 $"get idle tokens symbol: {tokenDto.Symbol}, price usd: {userTokenInfo.PriceInUsd}, total usd: {totalValueInUsd}, percent: {percent}");
         }
         

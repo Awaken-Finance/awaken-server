@@ -10,6 +10,7 @@ using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 using SwapRecord = AwakenServer.Trade.Dtos.SwapRecord;
@@ -28,14 +29,13 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
     private readonly IMyPortfolioAppService _portfolioAppService;
 
     public PortfolioEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        ILogger<AwakenServerWorkerBase> logger,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         IMyPortfolioAppService portfolioAppService,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
@@ -52,43 +52,40 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
         }
         var liquidityRecordList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
-        _logger.LogInformation("portfolioWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
+        _logger.Information("portfolioWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
             liquidityRecordList.Count, swapRecordList.Count);
         long blockHeight = -1;
         var logCount = 0;
-        try
+        for (;;)
         {
-            for (;;)
+            GetEarliestRecord(liquidityRecordList, swapRecordList, out var liquidityRecord, out var swapRecord);
+            if (liquidityRecord == null && swapRecord == null)
             {
-                GetEarliestRecord(liquidityRecordList, swapRecordList, out var liquidityRecord, out var swapRecord);
-                if (liquidityRecord == null && swapRecord == null)
-                {
-                    break;
-                }
-                if (liquidityRecord != null)
-                {
-                    await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord, _workerOptions.DataVersion, !_workerOptions.IsSyncHistoryData);
-                    blockHeight = Math.Max(blockHeight, liquidityRecord.BlockHeight);
-                    await Task.Delay(3000);
-                }
-                else
-                {
-                    await _portfolioAppService.SyncSwapRecordAsync(swapRecord, _workerOptions.DataVersion);
-                    blockHeight = Math.Max(blockHeight, swapRecord.BlockHeight);
-                }
+                break;
+            }
 
-                if (logCount++ == 10)
-                {
-                    _logger.LogInformation("Portfolio blockHeight : {height}, data version : {version}", blockHeight, _workerOptions.DataVersion);
-                    logCount = 0;
-                }
+            if (liquidityRecord != null)
+            {
+                await _portfolioAppService.SyncLiquidityRecordAsync(liquidityRecord, _workerOptions.DataVersion,
+                    !_workerOptions.IsSyncHistoryData);
+                blockHeight = Math.Max(blockHeight, liquidityRecord.BlockHeight);
+                await Task.Delay(3000);
+            }
+            else
+            {
+                await _portfolioAppService.SyncSwapRecordAsync(swapRecord, _workerOptions.DataVersion);
+                blockHeight = Math.Max(blockHeight, swapRecord.BlockHeight);
+            }
+
+            if (logCount++ == 10)
+            {
+                _logger.Information("Portfolio blockHeight : {height}, data version : {version}", blockHeight,
+                    _workerOptions.DataVersion);
+                logCount = 0;
             }
         }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "Portfolio event fail.");
-        }
-
+        
+        
         return blockHeight;
     }
 

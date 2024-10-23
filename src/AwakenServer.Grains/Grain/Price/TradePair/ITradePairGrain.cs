@@ -9,10 +9,15 @@ using Nethereum.Util;
 using Orleans;
 
 namespace AwakenServer.Grains.Grain.Price.TradePair;
+
+[GenerateSerializer]
 public class TradePairMarketDataSnapshotUpdateResult
 {
+    [Id(0)]
     public TradePairGrainDto TradePairDto;
+    [Id(1)]
     public TradePairMarketDataSnapshotGrainDto SnapshotDto;
+    [Id(2)]
     public TradePairMarketDataSnapshotGrainDto LatestSnapshotDto;
 }
 

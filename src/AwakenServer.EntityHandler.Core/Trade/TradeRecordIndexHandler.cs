@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.Price;
@@ -11,7 +12,7 @@ using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
 using AwakenServer.Trade.Index;
 using MassTransit;
-using Microsoft.Extensions.Logging;
+using Serilog;
 using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using SwapRecord = AwakenServer.Trade.SwapRecord;
@@ -29,19 +30,18 @@ namespace AwakenServer.EntityHandler.Trade
         private readonly INESTRepository<TradeRecord, Guid> _tradeRecordIndexRepository;
         private readonly IPriceAppService _priceAppService;
         private readonly IAElfClientProvider _aelfClientProvider;
-        private readonly ILogger<TradeRecordIndexHandler> _logger;
+        private readonly ILogger _logger;
         private readonly IBus _bus;
 
         public TradeRecordIndexHandler(INESTRepository<TradeRecord, Guid> tradeRecordIndexRepository,
             IPriceAppService priceAppService,
             IAElfClientProvider aefClientProvider,
-            IBus bus,
-            ILogger<TradeRecordIndexHandler> logger)
+            IBus bus)
         {
             _tradeRecordIndexRepository = tradeRecordIndexRepository;
             _priceAppService = priceAppService;
             _aelfClientProvider = aefClientProvider;
-            _logger = logger;
+            _logger = Log.ForContext<TradeRecordIndexHandler>();
             _bus = bus;
         }
 
@@ -61,7 +61,7 @@ namespace AwakenServer.EntityHandler.Trade
                 Data = ObjectMapper.Map<TradeRecord, TradeRecordIndexDto>(index)
             });
 
-            _logger.LogInformation(
+            _logger.Information(
                 $"publish normal swap record, " +
                 $"address:{index.Address} " +
                 $"tradePairId:{index.TradePair.Id} " +
@@ -73,7 +73,7 @@ namespace AwakenServer.EntityHandler.Trade
         {
             if (eventData.Entity.PercentRoutes.Count <= 0)
             {
-                _logger.LogError($"creare multi swap records handle entity create event faild. percent routes empty.");
+                _logger.Error($"creare multi swap records handle entity create event faild. percent routes empty.");
                 return;
             }
             
@@ -84,7 +84,7 @@ namespace AwakenServer.EntityHandler.Trade
                 await _aelfClientProvider.GetTransactionFeeAsync(index.ChainId, index.TransactionHash) /
                 Math.Pow(10, 8);
             
-            _logger.LogInformation($"creare multi swap records handle entity create event. " +
+            _logger.Information($"creare multi swap records handle entity create event. " +
                                    $"record: {JsonConvert.SerializeObject(index)}");
             
             await _tradeRecordIndexRepository.AddOrUpdateAsync(index);
@@ -119,7 +119,7 @@ namespace AwakenServer.EntityHandler.Trade
                 
                 await _tradeRecordIndexRepository.AddOrUpdateAsync(subRecordIndex);
                 
-                _logger.LogInformation($"creare multi swap records handle entity create event. " +
+                _logger.Information($"creare multi swap records handle entity create event. " +
                                        $"record: {JsonConvert.SerializeObject(subRecordIndex)}");
                 
                 await _bus.Publish(new NewIndexEvent<TradeRecordIndexDto>
@@ -139,11 +139,13 @@ namespace AwakenServer.EntityHandler.Trade
             var pairWithToken = new TradePairWithToken();
             var token0 = await TokenAppService.GetAsync(new GetTokenInput
             {
+                ChainId = firstTradePair.ChainId,
                 Symbol = swapRecords[0].SymbolIn
             });
             var count = swapRecords.Count;
             var token1 = await TokenAppService.GetAsync(new GetTokenInput
             {
+                ChainId = firstTradePair.ChainId,
                 Symbol = swapRecords[count - 1].SymbolOut
             });
             pairWithToken.Token0 = ObjectMapper.Map<TokenDto, Token>(token0);
@@ -153,31 +155,25 @@ namespace AwakenServer.EntityHandler.Trade
             return pairWithToken;
         }
             
-        private async Task<double> GetHistoryPriceInUsdAsync(TradeRecord index)
+        [ExceptionHandler(typeof(Exception), Message = "GetHistoryPriceInUsd Error", ReturnDefault = ReturnDefault.Default)]
+        public virtual async Task<double> GetHistoryPriceInUsdAsync(TradeRecord index)
         {
-            try
-            {
-                var list = await _priceAppService.GetTokenHistoryPriceDataAsync(
-                    new List<GetTokenHistoryPriceInput>
-                    {
-                        new GetTokenHistoryPriceInput()
-                        {
-                            Symbol = index.TradePair.Token1.Symbol,
-                            DateTime = index.Timestamp
-                        }
-                    });
-                if (list.Items != null && list.Items.Count >= 1 &&
-                    double.Parse(list.Items[0].PriceInUsd.ToString()) > 0)
+            var list = await _priceAppService.GetTokenHistoryPriceDataAsync(
+                new List<GetTokenHistoryPriceInput>
                 {
-                    _logger.LogInformation("{token1Symbol}, time: {time}, get history price: {price}",
-                        index.TradePair.Token1.Symbol, index.Timestamp, list.Items[0].PriceInUsd.ToString());
-                    return index.Price * double.Parse(index.Token0Amount) *
-                           double.Parse(list.Items[0].PriceInUsd.ToString());
-                }
-            }
-            catch (Exception ex)
+                    new GetTokenHistoryPriceInput()
+                    {
+                        Symbol = index.TradePair.Token1.Symbol,
+                        DateTime = index.Timestamp
+                    }
+                });
+            if (list.Items != null && list.Items.Count >= 1 &&
+                double.Parse(list.Items[0].PriceInUsd.ToString()) > 0)
             {
-                _logger.LogError(ex, "Get history price failed.");
+                _logger.Information("{token1Symbol}, time: {time}, get history price: {price}",
+                    index.TradePair.Token1.Symbol, index.Timestamp, list.Items[0].PriceInUsd.ToString());
+                return index.Price * double.Parse(index.Token0Amount) *
+                       double.Parse(list.Items[0].PriceInUsd.ToString());
             }
 
             return 0;

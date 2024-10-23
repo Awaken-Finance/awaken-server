@@ -12,7 +12,7 @@ using MassTransit;
 using Microsoft.Extensions.Logging;
 using Nethereum.Util;
 using Orleans;
-using Orleans.Runtime;
+
 using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using JsonConvert = Newtonsoft.Json.JsonConvert;

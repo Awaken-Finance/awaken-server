@@ -6,7 +6,6 @@ using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
@@ -28,12 +27,11 @@ namespace AwakenServer.Worker
             ITradePairAppService tradePairAppService, IChainAppService chainAppService,
             IGraphQLProvider graphQlProvider,
             IOptionsMonitor<WorkerOptions> optionsMonitor,
-            ILogger<AwakenServerWorkerBase> logger,
             ILiquidityAppService liquidityService,
             ITradeRecordAppService tradeRecordAppService,
             IOptions<ChainsInitOptions> chainsOption,
             ISyncStateProvider syncStateProvider)
-            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
         {
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;

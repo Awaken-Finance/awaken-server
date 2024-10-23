@@ -28,11 +28,12 @@ public class CurrentUserLiquidityGrain : Grain<CurrentUserLiquidityState>, ICurr
         return result;
     }
 
-    public async Task<GrainResultDto<CurrentUserLiquidityGrainDto>> AddLiquidityAsync(TradePair tradePair, LiquidityRecordDto liquidityRecordDto)
+    public async Task<GrainResultDto<CurrentUserLiquidityGrainDto>> AddLiquidityAsync(
+        LiquidityRecordDto liquidityRecordDto, Guid tradePairId, string token0Symbol)
     {
         if (State.TradePairId == Guid.Empty)
         {
-            State.TradePairId = tradePair.Id;
+            State.TradePairId = tradePairId;
             State.Address = liquidityRecordDto.Address;
         }
         if (State.IsDeleted)
@@ -53,7 +54,7 @@ public class CurrentUserLiquidityGrain : Grain<CurrentUserLiquidityState>, ICurr
             State.AverageHoldingStartTime = State.LastUpdateTime;
         }
         State.LpTokenAmount += liquidityRecordDto.LpTokenAmount;
-        var isTokenReversed = tradePair.Token0.Symbol != liquidityRecordDto.Token0;
+        var isTokenReversed = token0Symbol != liquidityRecordDto.Token0;
         State.Token0CumulativeAddition +=
             isTokenReversed ? liquidityRecordDto.Token1Amount : liquidityRecordDto.Token0Amount;
         State.Token1CumulativeAddition +=
@@ -66,11 +67,12 @@ public class CurrentUserLiquidityGrain : Grain<CurrentUserLiquidityState>, ICurr
         };
     }
 
-    public async Task<GrainResultDto<CurrentUserLiquidityGrainDto>> RemoveLiquidityAsync(TradePair tradePair, LiquidityRecordDto liquidityRecordDto)
+    public async Task<GrainResultDto<CurrentUserLiquidityGrainDto>> RemoveLiquidityAsync(
+        LiquidityRecordDto liquidityRecordDto, Guid tradePairId, string token0Symbol)
     {
         if (State.TradePairId == Guid.Empty)
         {
-            State.TradePairId = tradePair.Id;
+            State.TradePairId = tradePairId;
             State.Address = liquidityRecordDto.Address;
         }
         var removePercent = (double)liquidityRecordDto.LpTokenAmount / State.LpTokenAmount;
@@ -81,7 +83,7 @@ public class CurrentUserLiquidityGrain : Grain<CurrentUserLiquidityState>, ICurr
         State.Token0ReceivedFee += receivedToken0TotalFee;
         State.Token1ReceivedFee += receivedToken1TotalFee;
         
-        var isTokenReversed = tradePair.Token0.Symbol != liquidityRecordDto.Token0;
+        var isTokenReversed = token0Symbol != liquidityRecordDto.Token0;
         State.Token0CumulativeAddition -= isTokenReversed
             ? liquidityRecordDto.Token1Amount
             : liquidityRecordDto.Token0Amount;

@@ -23,13 +23,13 @@ public class SwapEventReSyncWorker : AwakenServerWorkerBase
 
 
     public SwapEventReSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        ITradeRecordAppService tradeRecordAppService, ILogger<AwakenServerWorkerBase> logger,
+        ITradeRecordAppService tradeRecordAppService,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;

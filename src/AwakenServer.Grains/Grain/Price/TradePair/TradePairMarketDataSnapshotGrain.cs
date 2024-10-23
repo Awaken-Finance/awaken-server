@@ -1,11 +1,7 @@
-using System;
 using AwakenServer.Grains.State.Price;
-using Microsoft.Extensions.Logging;
-using Orleans;
-using Volo.Abp.ObjectMapping;
-using System.Numerics;
-using System.Threading.Tasks;
 using Nethereum.Util;
+using Serilog;
+using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Grains.Grain.Price.TradePair;
 
@@ -13,26 +9,25 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
     ITradePairMarketDataSnapshotGrain
 {
     private readonly IObjectMapper _objectMapper;
-    private readonly ILogger<TradePairMarketDataSnapshotGrain> _logger;
+    private readonly ILogger _logger;
 
 
-    public TradePairMarketDataSnapshotGrain(IObjectMapper objectMapper,
-        ILogger<TradePairMarketDataSnapshotGrain> logger)
+    public TradePairMarketDataSnapshotGrain(IObjectMapper objectMapper)
     {
         _objectMapper = objectMapper;
-        _logger = logger;
+        _logger = Log.ForContext<TradePairMarketDataSnapshotGrain>();
     }
 
-    public override async Task OnActivateAsync()
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         await ReadStateAsync();
-        await base.OnActivateAsync();
+        await base.OnActivateAsync(cancellationToken);
     }
 
-    public override async Task OnDeactivateAsync()
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         await WriteStateAsync();
-        await base.OnDeactivateAsync();
+        await base.OnDeactivateAsync(reason, cancellationToken);
     }
 
     public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> GetAsync()
@@ -58,9 +53,9 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         return latestBeforeDto.Timestamp != dto.Timestamp;
     }
 
-    public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AccumulateTotalSupplyAsync(BigDecimal supply)
+    public async Task<GrainResultDto<TradePairMarketDataSnapshotGrainDto>> AccumulateTotalSupplyAsync(string supply)
     {
-        State.TotalSupply = (BigDecimal.Parse(State.TotalSupply) + supply).ToNormalizeString();
+        State.TotalSupply = (BigDecimal.Parse(State.TotalSupply) + BigDecimal.Parse(supply)).ToNormalizeString();
 
         await WriteStateAsync();
 
@@ -76,7 +71,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         TradePairMarketDataSnapshotGrainDto dto,
         TradePairMarketDataSnapshotGrainDto lastDto)
     {
-        _logger.LogInformation($"new snapshot dto, trade pair: {dto.TradePairId}, total supply: {dto.TotalSupply}");
+        _logger.Information($"new snapshot dto, trade pair: {dto.TradePairId}, total supply: {dto.TotalSupply}");
 
         if (dto.TotalSupply == "0" || dto.TotalSupply.IsNullOrEmpty())
         {
@@ -127,7 +122,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         State =
             _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(dto);
 
-        _logger.LogInformation(
+        _logger.Information(
             $"new snapshot state, trade pair: {State.TradePairId}, total supply: {State.TotalSupply}");
     }
 
@@ -135,7 +130,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         TradePairMarketDataSnapshotGrainDto updateDto,
         TradePairMarketDataSnapshotGrainDto lastDto)
     {
-        _logger.LogInformation(
+        _logger.Information(
             $"update snapshot dto, trade pair: {updateDto.TradePairId}, total supply: {updateDto.TotalSupply}");
 
         if (updateDto.TotalSupply == "0" || updateDto.TotalSupply.IsNullOrEmpty())
@@ -204,7 +199,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
         State =
             _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(lastDto);
 
-        _logger.LogInformation(
+        _logger.Information(
             $"update snapshot state, trade pair: {State.TradePairId}, total supply: {State.TotalSupply}");
     }
 
@@ -240,7 +235,7 @@ public class TradePairMarketDataSnapshotGrain : Grain<TradePairMarketDataSnapsho
             State = _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotState>(updateDto);
         }
 
-        _logger.LogInformation("UpdateTotalSupplyAsync: totalSupply: {supply}", State.TotalSupply);
+        _logger.Information("UpdateTotalSupplyAsync: totalSupply: {supply}", State.TotalSupply);
 
         await WriteStateAsync();
 

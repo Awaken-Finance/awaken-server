@@ -6,11 +6,12 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
-using Microsoft.Extensions.Logging;
+using AElf.ExceptionHandler;
 using Newtonsoft.Json;
 using Awaken.Samples.HttpClient;
+using AwakenServer;
 using AwakenServer.Commons;
-using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 
 namespace Awaken.Common.HttpClient;
@@ -71,16 +72,18 @@ public class HttpProvider : IHttpProvider
 
     private const int DefaultTimeout = 5000;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<HttpProvider> _logger;
+    private readonly ILogger _logger;
 
-    public HttpProvider(IHttpClientFactory httpClientFactory, 
-        ILogger<HttpProvider> logger)
+    public HttpProvider(IHttpClientFactory httpClientFactory)
     {
         _httpClientFactory = httpClientFactory;
-        _logger = logger;
+        _logger = Log.ForContext<HttpProvider>();
     }
 
-    public async Task<T> InvokeAsync<T>(string domain, ApiInfo apiInfo,
+    
+    [ExceptionHandler(typeof(Exception),
+        TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithHttpException))]
+    public virtual async Task<T> InvokeAsync<T>(string domain, ApiInfo apiInfo,
         Dictionary<string, string> pathParams = null,
         Dictionary<string, string> param = null,
         string body = null,
@@ -89,17 +92,12 @@ public class HttpProvider : IHttpProvider
     {
         var resp = await InvokeAsync(apiInfo.Method, domain + apiInfo.Path, pathParams, param, body, header, timeout,
             withInfoLog, withDebugLog);
-        try
-        {
-            return JsonConvert.DeserializeObject<T>(resp, settings ?? DefaultJsonSettings);
-        }
-        catch (Exception ex)
-        {
-            throw new HttpRequestException($"Error deserializing service [{apiInfo.Path}] response body: {resp}", ex);
-        }
+        return JsonConvert.DeserializeObject<T>(resp, settings ?? DefaultJsonSettings);
     }
-
-    public async Task<T> InvokeAsync<T>(HttpMethod method, string url,
+    
+    [ExceptionHandler(typeof(Exception),
+        TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithHttpException))]
+    public virtual async Task<T> InvokeAsync<T>(HttpMethod method, string url,
         Dictionary<string, string> pathParams = null,
         Dictionary<string, string> param = null,
         string body = null,
@@ -107,14 +105,7 @@ public class HttpProvider : IHttpProvider
         bool withInfoLog = false, bool withDebugLog = true)
     {
         var resp = await InvokeAsync(method, url, pathParams, param, body, header, timeout, withInfoLog, withDebugLog);
-        try
-        {
-            return JsonConvert.DeserializeObject<T>(resp, settings ?? DefaultJsonSettings);
-        }
-        catch (Exception ex)
-        {
-            throw new HttpRequestException($"Error deserializing service [{url}] response body: {resp}", ex);
-        }
+        return JsonConvert.DeserializeObject<T>(resp, settings ?? DefaultJsonSettings);
     }
 
     public async Task<HttpResponseMessage> InvokeResponseAsync(string domain, ApiInfo apiInfo,
@@ -195,11 +186,11 @@ public class HttpProvider : IHttpProvider
         var time = stopwatch.ElapsedMilliseconds;
         // log
         if (withLog)
-            _logger.LogInformation(
+            _logger.Information(
                 "Request To {FullUrl}, statusCode={StatusCode}, time={Time}, query={Query}, body={Body}, resp={Content}",
                 fullUrl, response.StatusCode, time, builder.Query, body, content);
         else if (debugLog)
-            _logger.LogDebug(
+            _logger.Debug(
                 "Request To {FullUrl}, statusCode={StatusCode}, time={Time}, query={Query}, body={Body}, resp={Content}",
                 fullUrl, response.StatusCode, time, builder.Query,  body, content);
         return response;

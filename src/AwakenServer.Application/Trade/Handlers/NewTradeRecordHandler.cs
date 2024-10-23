@@ -6,6 +6,7 @@ using AwakenServer.Price;
 using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
 using Volo.Abp.ObjectMapping;
@@ -41,15 +42,8 @@ namespace AwakenServer.Trade.Handlers
             {
                 return await grain.UpdateTradeRecordAsync(dto, tradeAddressCount24h);
             });
-            try
-            {
-                await _priceAppService.UpdateAffectedPriceMapAsync(eventData.ChainId, eventData.TradePairId,
-                    eventData.Token0Amount, eventData.Token1Amount);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Update affected price map from swap failed. {e}");
-            }
+            await _priceAppService.UpdateAffectedPriceMapAsync(eventData.ChainId, eventData.TradePairId,
+                eventData.Token0Amount, eventData.Token1Amount);
         }
     }
 }

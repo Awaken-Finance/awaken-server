@@ -22,11 +22,25 @@ public class MockAelfClientProvider : IAElfClientProvider
 
     public Task<TokenDto> GetTokenInfoAsync(string chainName, string address, string symbol)
     {
-        return Task.FromResult<TokenDto>(new TokenDto()
+        switch (symbol)
         {
-            Address = "0x123456789",
-            Decimals = 8
-        });
+            case "NewToken":
+                return Task.FromResult(new TokenDto
+                {
+                    Address = "7RzVGiuVWkvL4VfVHdZfQF2Tri3sgLe9U991bohHFfSRZXuGX",
+                    Decimals = 8,
+                    Symbol = symbol,
+                    ImageUri = "TestImageUri"
+                });
+            default:
+                return Task.FromResult<TokenDto>(new TokenDto()
+                {
+                    Address = "0x123456789",
+                    Decimals = 8,
+                    Symbol = symbol
+                }); 
+        }
+        
     }
 
     public async Task<int> ExistTransactionAsync(string chainName, string transactionHash)
@@ -36,9 +50,13 @@ public class MockAelfClientProvider : IAElfClientProvider
         else return -1;
     }
 
-    public Task<TokenInfo> GetTokenInfoFromChainAsync(string chainName, string address, string symbol)
+    public async Task<TokenInfo> GetTokenInfoFromChainAsync(string chainName, string address, string symbol)
     {
-        throw new System.NotImplementedException();
+        return new TokenInfo()
+        {
+            Symbol = symbol,
+            Decimals = 8
+        };
     }
 
 

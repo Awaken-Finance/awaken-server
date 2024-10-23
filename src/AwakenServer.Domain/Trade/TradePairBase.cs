@@ -1,9 +1,11 @@
 using System;
 using AwakenServer.Entities;
 using Nest;
+using Orleans;
 
 namespace AwakenServer.Trade
 {
+    
     public abstract class TradePairBase : MultiChainEntity<Guid>
     {
         [Keyword]

@@ -1,31 +1,19 @@
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using AElf.Client.Proto;
 using AElf.Indexing.Elasticsearch;
-using AwakenServer.Chains;
-using AwakenServer.Comparers;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain;
 using AwakenServer.Grains.Grain.Price.TradePair;
-using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
-using MassTransit;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Nest;
 using Nethereum.Util;
+using Newtonsoft.Json;
 using Orleans;
-using Volo.Abp.Caching;
+using Serilog;
 using Volo.Abp.DependencyInjection;
-using Volo.Abp.DistributedLocking;
 using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.Distributed;
 using Volo.Abp.ObjectMapping;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 namespace AwakenServer.Trade
 {
@@ -49,16 +37,10 @@ namespace AwakenServer.Trade
     public class TradePairMarketDataProvider : ITransientDependency, ITradePairMarketDataProvider
     {
         private readonly INESTRepository<Index.TradePairMarketDataSnapshot, Guid> _snapshotIndexRepository;
-        private readonly INESTRepository<Index.TradePair, Guid> _tradePairIndexRepository;
-        private readonly ITradeRecordAppService _tradeRecordAppService;
         private readonly IDistributedEventBus _distributedEventBus;
         private readonly IObjectMapper _objectMapper;
-        private readonly IBus _bus;
-        private readonly ILogger<TradePairMarketDataProvider> _logger;
-        private readonly IAbpDistributedLock _distributedLock;
+        private readonly ILogger _logger;
         private readonly IClusterClient _clusterClient;
-        private readonly IAElfClientProvider _blockchainClientProvider;
-        private readonly ContractsTokenOptions _contractsTokenOptions;
 
         private static DateTime lastWriteTime;
 
@@ -66,27 +48,15 @@ namespace AwakenServer.Trade
 
         public TradePairMarketDataProvider(
             INESTRepository<Index.TradePairMarketDataSnapshot, Guid> snapshotIndexRepository,
-            INESTRepository<Index.TradePair, Guid> tradePairIndexRepository,
-            ITradeRecordAppService tradeRecordAppService,
             IDistributedEventBus distributedEventBus,
-            IBus bus,
             IObjectMapper objectMapper,
-            IAbpDistributedLock distributedLock,
-            ILogger<TradePairMarketDataProvider> logger,
-            IClusterClient clusterClient,
-            IAElfClientProvider blockchainClientProvider, IOptions<ContractsTokenOptions> contractsTokenOptions)
+            IClusterClient clusterClient)
         {
             _snapshotIndexRepository = snapshotIndexRepository;
-            _tradePairIndexRepository = tradePairIndexRepository;
-            _tradeRecordAppService = tradeRecordAppService;
             _distributedEventBus = distributedEventBus;
             _objectMapper = objectMapper;
-            _bus = bus;
-            _distributedLock = distributedLock;
-            _logger = logger;
+            _logger = Log.ForContext<TradePairMarketDataProvider>();
             _clusterClient = clusterClient;
-            _blockchainClientProvider = blockchainClientProvider;
-            _contractsTokenOptions = contractsTokenOptions.Value;
         }
         
         public async Task AddOrUpdateSnapshotAsync(Guid tradePairId, TradePairMethodDelegate methodDelegate)
@@ -94,21 +64,20 @@ namespace AwakenServer.Trade
             var grain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePairId));
             if (!(await grain.GetAsync()).Success)
             {
-                _logger.LogInformation($"trade pair: {tradePairId} not exist");
+                _logger.Information("trade pair: {tradePairId} not exist", tradePairId);
                 return;
             }
             
             var result = await methodDelegate(grain);
             
-            _logger.LogDebug($"from {methodDelegate.Method.Name} publishAsync TradePairEto: {JsonConvert.SerializeObject(result.Data.TradePairDto)}");
-
+            _logger.Debug("from {name} publishAsync TradePairEto: {tradePairEto}", methodDelegate.Method.Name, JsonConvert.SerializeObject(result.Data.TradePairDto));
             await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairEto>(
                 _objectMapper.Map<TradePairGrainDto, TradePairEto>(
                     result.Data.TradePairDto)
             ));
             
-            _logger.LogDebug($"from {methodDelegate.Method.Name} publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.SnapshotDto)}");
-            
+            _logger.Debug("from {name} publishAsync TradePairMarketDataSnapshotEto: {tradePairMarketDataSnapshotEto}", methodDelegate.Method.Name, JsonConvert.SerializeObject(result.Data.SnapshotDto));
+
             await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairMarketDataSnapshotEto>(
                 _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>(
                     result.Data.SnapshotDto)
@@ -116,8 +85,7 @@ namespace AwakenServer.Trade
 
             if (result.Data.LatestSnapshotDto != null)
             {
-                _logger.LogDebug($"update latest snapshot from {methodDelegate.Method.Name} publishAsync TradePairMarketDataSnapshotEto: {JsonConvert.SerializeObject(result.Data.LatestSnapshotDto)}");
-            
+                _logger.Debug("update latest snapshot from {name} publishAsync TradePairMarketDataSnapshotEto: {latestSnapshotDto}", methodDelegate.Method.Name, JsonConvert.SerializeObject(result.Data.LatestSnapshotDto));
                 await _distributedEventBus.PublishAsync(new EntityCreatedEto<TradePairMarketDataSnapshotEto>(
                     _objectMapper.Map<TradePairMarketDataSnapshotGrainDto, TradePairMarketDataSnapshotEto>(
                         result.Data.LatestSnapshotDto)

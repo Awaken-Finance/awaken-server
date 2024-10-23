@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains;
-using AwakenServer.Grains.Grain.Tokens.TokenPrice;
 using AwakenServer.Price;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
@@ -14,8 +14,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
-using Nethereum.Util;
-using Orleans;
 using Orleans.Hosting;
 using Orleans.TestingHost;
 using Volo.Abp;
@@ -87,9 +85,9 @@ public class ClusterFixture : IDisposable, ISingletonDependency
 
     public TestCluster Cluster { get; private set; }
 
-    private class TestSiloConfigurations : ISiloBuilderConfigurator
+    private class TestSiloConfigurations : ISiloConfigurator
     {
-        public void Configure(ISiloHostBuilder hostBuilder)
+        public void Configure(ISiloBuilder hostBuilder)
         {
             hostBuilder.ConfigureServices(services =>
                 {
@@ -107,15 +105,15 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                                     return Task.FromResult<decimal>(123);
                             }
                         });
-                    
-                    mockTokenProvider.Setup(o => o.GetHistoryPriceAsync(It.IsAny<string>(),It.IsAny<string>()))
+
+                    mockTokenProvider.Setup(o => o.GetHistoryPriceAsync(It.IsAny<string>(), It.IsAny<string>()))
                         .ReturnsAsync(1);
                     services.AddSingleton<ITokenPriceProvider>(mockTokenProvider.Object);
-                    
+
                     services.AddMemoryCache();
                     services.AddDistributedMemoryCache();
                     services.AddAutoMapper(typeof(AwakenServerGrainsModule).Assembly);
-                    
+
                     services.AddSingleton(typeof(DistributedCache<>));
                     services.AddSingleton(typeof(IDistributedCache<>), typeof(DistributedCache<>));
                     services.AddSingleton(typeof(IDistributedCache<,>), typeof(DistributedCache<,>));
@@ -148,7 +146,7 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                         typeof(ICurrentTenant),
                         typeof(CurrentTenant)
                     );
-                    services.OnRegistred(UnitOfWorkInterceptorRegistrar.RegisterIfNeeded);
+                    // services.OnRegistred(UnitOfWorkInterceptorRegistrar.RegisterIfNeeded);
                     services.AddTransient(
                         typeof(IUnitOfWorkManager),
                         typeof(UnitOfWorkManager)
@@ -159,12 +157,12 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                     );
                     services.OnExposing(onServiceExposingContext =>
                     {
-                        //Register types for IObjectMapper<TSource, TDestination> if implements
+                        var implementedTypes = ReflectionHelper.GetImplementedGenericTypes(
+                            onServiceExposingContext.ImplementationType,
+                            typeof(IObjectMapper<,>)
+                        );
                         onServiceExposingContext.ExposedTypes.AddRange(
-                            ReflectionHelper.GetImplementedGenericTypes(
-                                onServiceExposingContext.ImplementationType,
-                                typeof(IObjectMapper<,>)
-                            )
+                            implementedTypes.Select(type => new ServiceIdentifier(type))
                         );
                     });
                     services.AddTransient(
@@ -181,9 +179,9 @@ public class ClusterFixture : IDisposable, ISingletonDependency
                     {
                         Mapper = sp.GetRequiredService<IMapper>()
                     });
-                    
+
                     services.AddTransient<IMapperAccessor>(provider => provider.GetRequiredService<MapperAccessor>());
-                
+
                 })
                 .AddMemoryGrainStorage("PubSubStore")
                 .AddMemoryGrainStorageAsDefault();
@@ -708,6 +706,6 @@ public class ClusterFixture : IDisposable, ISingletonDependency
     private class TestClientBuilderConfigurator : IClientBuilderConfigurator
     {
         public void Configure(IConfiguration configuration, IClientBuilder clientBuilder) => clientBuilder
-            .AddSimpleMessageStreamProvider("AwakenServer");
+            .AddMemoryStreams("AwakenServer");
     }
 }

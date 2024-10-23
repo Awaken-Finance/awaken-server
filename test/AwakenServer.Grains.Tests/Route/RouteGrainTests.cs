@@ -1,5 +1,6 @@
 using AwakenServer.Grains.Grain.Route;
 using AwakenServer.Tokens;
+using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
 
 namespace AwakenServer.Grains.Tests.Route;
@@ -17,54 +18,54 @@ public class RouteGrainTests : AwakenServerGrainTestBase
     {
         var feeRate1 = 0.03;
         var feeRate2 = 0.005;
-        var pairs = new List<TradePairWithToken>()
+        var pairs = new List<TradePairWithTokenDto>()
         {
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "SGR"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "ELEPHANT-1"
                 },
                 Address = "0x1",
                 FeeRate = feeRate1
             },
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "SGR"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "ELEPHANT-1"
                 },
                 Address = "0x2",
                 FeeRate = feeRate2
             },
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "SGR"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "ELF"
                 },
                 Address = "0x3",
                 FeeRate = feeRate1
             },
-            new TradePairWithToken
+            new TradePairWithTokenDto
             {
-                Token0 = new Token()
+                Token0 = new TokenDto()
                 {
                     Symbol = "SGR"
                 },
-                Token1 = new Token()
+                Token1 = new TokenDto()
                 {
                     Symbol = "ELF"
                 },

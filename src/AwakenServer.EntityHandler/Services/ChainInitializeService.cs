@@ -4,6 +4,7 @@ using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.ObjectMapping;
 
@@ -42,7 +43,7 @@ public class ChainInitializeService : ITransientDependency
                 continue;
             }
             
-            _logger.LogInformation("Initialize chain {chainId}-{chainName}-{AElfChainId}",chainsOptionChain.Id,chainsOptionChain.Name,chainsOptionChain.AElfChainId);
+            Log.Information("Initialize chain {chainId}-{chainName}-{AElfChainId}",chainsOptionChain.Id,chainsOptionChain.Name,chainsOptionChain.AElfChainId);
             await _chainIndexRepository.AddOrUpdateAsync(_objectMapper.Map<ChainDto, Chain>(chainsOptionChain));
         }
     }

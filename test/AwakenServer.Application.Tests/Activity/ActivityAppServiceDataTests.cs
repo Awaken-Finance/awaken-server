@@ -67,29 +67,53 @@ namespace AwakenServer.Activity
             };
             var createActivitySwapResult = await _activityAppService.CreateSwapAsync(swapRecord);
             createActivitySwapResult.ShouldBe(true);
+            var userActivityInfo = await _userActivityInfoRepository.GetListAsync();
+            userActivityInfo.Item2.Count.ShouldBe(1);
+            userActivityInfo.Item2[0].ActivityId.ShouldBe(1);
+            userActivityInfo.Item2[0].Address.ShouldBe("TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2");
+            userActivityInfo.Item2[0].TotalPoint.ShouldBe(1);
             
             createActivitySwapResult = await _activityAppService.CreateSwapAsync(swapRecord);
-            createActivitySwapResult.ShouldBe(false);
+            createActivitySwapResult.ShouldBe(true);
+            userActivityInfo = await _userActivityInfoRepository.GetListAsync();
+            userActivityInfo.Item2.Count.ShouldBe(1);
+            userActivityInfo.Item2[0].ActivityId.ShouldBe(1);
+            userActivityInfo.Item2[0].Address.ShouldBe("TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2");
+            userActivityInfo.Item2[0].TotalPoint.ShouldBe(1);
+        }
 
+        [Fact]
+        public async Task LimitRepeatScanTest()
+        {
             var limitFillRecord = new LimitOrderFillRecordDto()
             {
                 ChainId = ChainId,
                 OrderId = 1,
                 MakerAddress = "0x123",
-                SymbolIn = TokenEthSymbol,
-                SymbolOut = TokenUsdtSymbol,
+                SymbolIn = TokenUsdtSymbol,
+                SymbolOut = TokenEthSymbol,
                 TakerAddress = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
                 TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
                 AmountInFilled = NumberFormatter.WithDecimals(10, 8),
                 AmountOutFilled = NumberFormatter.WithDecimals(100, 6),
-                TotalFee = 150000,
-                TransactionTime = DateTimeHelper.ToUnixTimeMilliseconds(swapTime)
+                TotalFee = 50000,
+                TransactionTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow)
             };
             var createActivityLimitFillRecordResult = await _activityAppService.CreateLimitOrderFillRecordAsync(limitFillRecord);
             createActivityLimitFillRecordResult.ShouldBe(true);
+            var userActivityInfo = await _userActivityInfoRepository.GetListAsync();
+            userActivityInfo.Item2.Count.ShouldBe(1);
+            userActivityInfo.Item2[0].ActivityId.ShouldBe(1);
+            userActivityInfo.Item2[0].Address.ShouldBe("0x123");
+            userActivityInfo.Item2[0].TotalPoint.ShouldBe(1);
             
             createActivityLimitFillRecordResult = await _activityAppService.CreateLimitOrderFillRecordAsync(limitFillRecord);
-            createActivityLimitFillRecordResult.ShouldBe(false);
+            createActivityLimitFillRecordResult.ShouldBe(true);
+            userActivityInfo = await _userActivityInfoRepository.GetListAsync();
+            userActivityInfo.Item2.Count.ShouldBe(1);
+            userActivityInfo.Item2[0].ActivityId.ShouldBe(1);
+            userActivityInfo.Item2[0].Address.ShouldBe("0x123");
+            userActivityInfo.Item2[0].TotalPoint.ShouldBe(1);
         }
         
         [Fact]

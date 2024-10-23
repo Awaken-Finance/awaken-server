@@ -5,13 +5,15 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+using Serilog;
 using Volo.Abp.Data;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.Identity;
 using Volo.Abp.MultiTenancy;
 using Volo.Abp.TenantManagement;
+using ILogger = Serilog.ILogger;
 
 namespace AwakenServer.Data
 {
@@ -23,6 +25,7 @@ namespace AwakenServer.Data
         private readonly IEnumerable<IAwakenServerDbSchemaMigrator> _dbSchemaMigrators;
         private readonly ITenantRepository _tenantRepository;
         private readonly ICurrentTenant _currentTenant;
+        private readonly ILogger _logger;
 
         public AwakenServerDbMigrationService(
             IDataSeeder dataSeeder,
@@ -34,25 +37,24 @@ namespace AwakenServer.Data
             _dbSchemaMigrators = dbSchemaMigrators;
             _tenantRepository = tenantRepository;
             _currentTenant = currentTenant;
-
-            Logger = NullLogger<AwakenServerDbMigrationService>.Instance;
+            _logger = Log.ForContext<AwakenServerDbMigrationService>();
         }
 
         public async Task MigrateAsync()
         {
-            var initialMigrationAdded = AddInitialMigrationIfNotExist();
+            var initialMigrationAdded = await AddInitialMigrationIfNotExist();
 
             if (initialMigrationAdded)
             {
                 return;
             }
 
-            Logger.LogInformation("Started database migrations...");
+            _logger.Information("Started database migrations...");
 
             await MigrateDatabaseSchemaAsync();
             await SeedDataAsync();
 
-            Logger.LogInformation($"Successfully completed host database migrations.");
+            _logger.Information($"Successfully completed host database migrations.");
 
             var tenants = await _tenantRepository.GetListAsync(includeDetails: true);
 
@@ -78,16 +80,16 @@ namespace AwakenServer.Data
                     await SeedDataAsync(tenant);
                 }
 
-                Logger.LogInformation($"Successfully completed {tenant.Name} tenant database migrations.");
+                _logger.Information($"Successfully completed {tenant.Name} tenant database migrations.");
             }
 
-            Logger.LogInformation("Successfully completed all database migrations.");
-            Logger.LogInformation("You can safely end this process...");
+            _logger.Information("Successfully completed all database migrations.");
+            _logger.Information("You can safely end this process...");
         }
 
         private async Task MigrateDatabaseSchemaAsync(Tenant tenant = null)
         {
-            Logger.LogInformation(
+            _logger.Information(
                 $"Migrating schema for {(tenant == null ? "host" : tenant.Name + " tenant")} database...");
 
             foreach (var migrator in _dbSchemaMigrators)
@@ -98,7 +100,7 @@ namespace AwakenServer.Data
 
         private async Task SeedDataAsync(Tenant tenant = null)
         {
-            Logger.LogInformation($"Executing {(tenant == null ? "host" : tenant.Name + " tenant")} database seed...");
+            _logger.Information($"Executing {(tenant == null ? "host" : tenant.Name + " tenant")} database seed...");
 
             await _dataSeeder.SeedAsync(new DataSeedContext(tenant?.Id)
                 .WithProperty(IdentityDataSeedContributor.AdminEmailPropertyName, IdentityDataSeedContributor.AdminEmailDefaultValue)
@@ -106,35 +108,21 @@ namespace AwakenServer.Data
             );
         }
 
-        private bool AddInitialMigrationIfNotExist()
+        [ExceptionHandler(typeof(Exception), ReturnDefault = ReturnDefault.Default)]
+        public virtual async Task<bool> AddInitialMigrationIfNotExist()
         {
-            try
-            {
-                if (!DbMigrationsProjectExists())
-                {
-                    return false;
-                }
-            }
-            catch (Exception)
+            if (!DbMigrationsProjectExists())
             {
                 return false;
             }
 
-            try
+            if (!MigrationsFolderExists())
             {
-                if (!MigrationsFolderExists())
-                {
-                    AddInitialMigration();
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                await AddInitialMigration();
+                return true;
             }
-            catch (Exception e)
+            else
             {
-                Logger.LogWarning("Couldn't determinate if any migrations exist : " + e.Message);
                 return false;
             }
         }
@@ -153,9 +141,10 @@ namespace AwakenServer.Data
             return Directory.Exists(Path.Combine(dbMigrationsProjectFolder, "Migrations"));
         }
 
-        private void AddInitialMigration()
+        [ExceptionHandler(typeof(Exception), LogOnly = true)]
+        public virtual async Task AddInitialMigration()
         {
-            Logger.LogInformation("Creating initial migration...");
+            _logger.Information("Creating initial migration...");
 
             string argumentPrefix;
             string fileName;
@@ -174,15 +163,8 @@ namespace AwakenServer.Data
             var procStartInfo = new ProcessStartInfo(fileName,
                 $"{argumentPrefix} \"abp create-migration-and-run-migrator \"{GetEntityFrameworkCoreProjectFolderPath()}\"\""
             );
-
-            try
-            {
-                Process.Start(procStartInfo);
-            }
-            catch (Exception)
-            {
-                throw new Exception("Couldn't run ABP CLI...");
-            }
+            
+            Process.Start(procStartInfo);
         }
 
         private string GetEntityFrameworkCoreProjectFolderPath()

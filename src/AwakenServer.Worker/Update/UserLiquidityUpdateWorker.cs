@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AwakenServer.Asset;
 using AwakenServer.Chains;
 using AwakenServer.Common;
@@ -10,6 +11,7 @@ using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
@@ -28,11 +30,10 @@ namespace AwakenServer.Worker
             IMyPortfolioAppService myPortfolioAppService, IChainAppService chainAppService,
             IGraphQLProvider graphQlProvider,
             IOptionsMonitor<WorkerOptions> optionsMonitor,
-            ILogger<AwakenServerWorkerBase> logger,
             IOptions<ChainsInitOptions> chainsOption,
             IOptionsSnapshot<PortfolioOptions> portfolioOptions,
             ISyncStateProvider syncStateProvider)
-            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+            : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
         {
             _chainAppService = chainAppService;
             _graphQlProvider = graphQlProvider;
@@ -45,16 +46,8 @@ namespace AwakenServer.Worker
             var addresses = await _myPortfolioAppService.GetAllUserAddressesAsync(_workerOptions.DataVersion);
             foreach (var address in addresses)
             {
-                try
-                {
-                    var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod), _workerOptions.DataVersion);
-                    _logger.LogInformation($"update user all liquidity address: {address}, affected liquidity count: {count}");
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError($"update user all liquidity faild. address: {address}, {e}");
-                }
-                
+                var count = await _myPortfolioAppService.UpdateUserAllAssetAsync(address, TimeSpan.FromMilliseconds(_workerOptions.TimePeriod), _workerOptions.DataVersion);
+                _logger.Information($"update user all liquidity address: {address}, affected liquidity count: {count}");
             }
             return 0;
         }
