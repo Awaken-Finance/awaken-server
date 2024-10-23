@@ -135,8 +135,14 @@ namespace AwakenServer.Chains
                 return 0;
             }
 
+            var feeLogEvent = result.Logs.FirstOrDefault(l => l.Name == nameof(TransactionFeeCharged));
+            if (feeLogEvent == null)
+            {
+                return 0;
+            }
+
             var transactionFeeCharged = TransactionFeeCharged.Parser.ParseFrom(
-                ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
+                ByteString.FromBase64(feeLogEvent.NonIndexed));
             return transactionFeeCharged.Amount;
            
         }
