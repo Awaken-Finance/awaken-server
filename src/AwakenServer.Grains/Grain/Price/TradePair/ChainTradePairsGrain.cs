@@ -1,13 +1,7 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using AwakenServer.Grains.Grain.Price.TradePair;
-using AwakenServer.Grains.Grain.Tokens;
 using AwakenServer.Grains.State.Price;
-using AwakenServer.Grains.State.Tokens;
-using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
-using Microsoft.Extensions.Logging;
-using Orleans;
+using Serilog;
 using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Grains.Grain.Price;
@@ -16,28 +10,27 @@ public class ChainTradePairsGrain : Grain<ChainTradePairsState>, IChainTradePair
 {
     private readonly IObjectMapper _objectMapper;
     private readonly IClusterClient _clusterClient;
-    private readonly ILogger<ChainTradePairsGrain> _logger;
+    private readonly ILogger _logger;
 
 
     public ChainTradePairsGrain(IObjectMapper objectMapper,
-        IClusterClient clusterClient,
-        ILogger<ChainTradePairsGrain> logger)
+        IClusterClient clusterClient)
     {
         _objectMapper = objectMapper;
         _clusterClient = clusterClient;
-        _logger = logger;
+        _logger = Log.ForContext<ChainTradePairsGrain>();
     }
 
-    public override async Task OnActivateAsync()
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         await ReadStateAsync();
-        await base.OnActivateAsync();
+        await base.OnActivateAsync(cancellationToken);
     }
 
-    public override async Task OnDeactivateAsync()
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         await WriteStateAsync();
-        await base.OnDeactivateAsync();
+        await base.OnDeactivateAsync(reason, cancellationToken);
     }
 
     public async Task<GrainResultDto<ChainTradePairsGrainDto>> AddOrUpdateAsync(ChainTradePairsGrainDto dto)
@@ -59,7 +52,7 @@ public class ChainTradePairsGrain : Grain<ChainTradePairsState>, IChainTradePair
             var result = await grain.GetAsync();
             if (!result.Success)
             {
-                _logger.LogError($"get trade pair grain id: {tradePair.Value} failed.");
+                _logger.Error($"get trade pair grain id: {tradePair.Value} failed.");
             }
             data.Add(result.Data);
         }
@@ -82,7 +75,7 @@ public class ChainTradePairsGrain : Grain<ChainTradePairsState>, IChainTradePair
                 var result = await grain.GetAsync();
                 if (!result.Success)
                 {
-                    _logger.LogError($"get trade pair grain id: {State.TradePairs[address]} failed.");
+                    _logger.Error($"get trade pair grain id: {State.TradePairs[address]} failed.");
                 }
                 data.Add(result.Data);
             }
@@ -106,7 +99,7 @@ public class ChainTradePairsGrain : Grain<ChainTradePairsState>, IChainTradePair
         var result = await grain.GetAsync();
         if (!result.Success)
         {
-            _logger.LogError($"get trade pair grain id: {State.TradePairs[address]} failed.");
+            _logger.Error($"get trade pair grain id: {State.TradePairs[address]} failed.");
         }
 
         return new GrainResultDto<TradePairGrainDto>()

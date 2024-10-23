@@ -1,5 +1,6 @@
 using System;
 using AwakenServer.Tokens;
+using Orleans;
 
 namespace AwakenServer.Trade.Index
 {

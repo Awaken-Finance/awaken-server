@@ -7,7 +7,9 @@ namespace AwakenServer.Grains.Grain.MyPortfolio;
 public interface ICurrentUserLiquidityGrain : IGrainWithStringKey
 {
     Task<GrainResultDto<CurrentUserLiquidityGrainDto>> GetAsync();
-    Task<GrainResultDto<CurrentUserLiquidityGrainDto>> AddLiquidityAsync(TradePair tradePair, LiquidityRecordDto liquidityRecordDto);
-    Task<GrainResultDto<CurrentUserLiquidityGrainDto>> RemoveLiquidityAsync(TradePair tradePair, LiquidityRecordDto liquidityRecordDto);
+    Task<GrainResultDto<CurrentUserLiquidityGrainDto>> AddLiquidityAsync(LiquidityRecordDto liquidityRecordDto,
+        Guid tradePairId, string token0Symbol);
+    Task<GrainResultDto<CurrentUserLiquidityGrainDto>> RemoveLiquidityAsync(LiquidityRecordDto liquidityRecordDto,
+        Guid tradePairId, string token0Symbol);
     Task<GrainResultDto<CurrentUserLiquidityGrainDto>> AddTotalFee(long total0Fee, long total1Fee, SwapRecordDto swapRecordDto);
 }

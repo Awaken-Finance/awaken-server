@@ -45,6 +45,8 @@ namespace AwakenServer.Route
                     Id = Guid.Parse("3F2504E0-4F89-41D3-9A0C-0305E82C3304"),
                     Token0Id = TokenEthId,
                     Token1Id = TokenUsdtId,
+                    Token0Symbol = TokenEthSymbol,
+                    Token1Symbol = TokenUsdtSymbol,
                     FeeRate = 0.001
                 }));
             TradePairEthUsdtFee2Id = tradePairEthUsdtFee2.Id;
@@ -58,6 +60,8 @@ namespace AwakenServer.Route
                     Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3305"),
                     Token0Id = TokenBtcId,
                     Token1Id = TokenUsdtId,
+                    Token0Symbol = TokenBtcSymbol,
+                    Token1Symbol = TokenUsdtSymbol,
                     FeeRate = 0.001,
                 }));
             TradePairBtcUsdtFee2Id = tradePairBtcUsdtFee2.Id;

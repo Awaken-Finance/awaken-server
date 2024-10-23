@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using AElf.CSharp.Core;
 using AwakenServer.Activity;
 using AwakenServer.Chains;
 using AwakenServer.Common;
@@ -8,8 +7,8 @@ using AwakenServer.Provider;
 using AwakenServer.Trade;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Caching;
 using Volo.Abp.Threading;
@@ -34,7 +33,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
     private const int TvlSnapshotTimeFactor = 3;
 
     public ActivityEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        ITradeRecordAppService tradeRecordAppService, ILogger<AwakenServerWorkerBase> logger,
+        ITradeRecordAppService tradeRecordAppService,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IOptionsSnapshot<ActivityOptions> activityOptions,
@@ -42,7 +41,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider,
         IActivityAppService activityAppService)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
@@ -65,7 +64,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         {
             _firstExecution = false; 
             SetNextExecutionTime(now);
-            _logger.LogInformation($"Init LP snapshot worker, Next executing time set to: {_nextLpSnapshotExecutionTime}");
+            _logger.Information($"Init LP snapshot worker, Next executing time set to: {_nextLpSnapshotExecutionTime}");
         }
         else
         {
@@ -76,17 +75,17 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
                 {
                     var isActivityBeginTime = timestamp >= activity.BeginTime &&
                                       timestamp < activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor;
-                    // _logger.LogInformation($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor}, isActivityBeginTime: {isActivityBeginTime}");
+                    // _logger.Information($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor}, isActivityBeginTime: {isActivityBeginTime}");
                     if (isActivityBeginTime)
                     {
                         var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker activity begin");
                         if (success)
                         {
-                            _logger.LogInformation($"Executing LP snapshot at activity begin done at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
+                            _logger.Information($"Executing LP snapshot at activity begin done at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
                         }
                         else
                         {
-                            _logger.LogError($"Executing LP snapshot at activity begin failed at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
+                            _logger.Error($"Executing LP snapshot at activity begin failed at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
                         }
                     }
                 }
@@ -98,12 +97,13 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
                 var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker");
                 if (success)
                 {
-                    _logger.LogInformation($"Executing LP snapshot done at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
+                    _logger.Information($"Executing LP snapshot done at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
                 }
                 else
                 {
-                    _logger.LogError($"Executing LP snapshot at activity failed at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
+                    _logger.Error($"Executing LP snapshot at activity failed at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
                 }
+
             }
         }
         
@@ -112,7 +112,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         var limitOrderFillRecordList = await _graphQlProvider.GetLimitOrderFillRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        _logger.LogInformation($"Activity swap queryList count: {swapRecordList.Count}, limit fill record count: {limitOrderFillRecordList.Count}");
+        _logger.Information($"Activity swap queryList count: {swapRecordList.Count}, limit fill record count: {limitOrderFillRecordList.Count}");
 
         foreach (var limitOrderFillRecord in limitOrderFillRecordList)
         {

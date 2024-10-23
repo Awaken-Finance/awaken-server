@@ -39,8 +39,16 @@ public class TradePairTestHelper
             input.Id = Guid.NewGuid();
         }
 
-        var token0 = await _tokenAppService.GetAsync(input.Token0Id);
-        var token1 = await _tokenAppService.GetAsync(input.Token1Id);
+        var token0 = await _tokenAppService.GetAsync(new GetTokenInput()
+        {
+            ChainId = input.ChainId,
+            Symbol = input.Token0Symbol
+        });
+        var token1 = await _tokenAppService.GetAsync(new GetTokenInput()
+        {
+            ChainId = input.ChainId,
+            Symbol = input.Token1Symbol
+        });
         var tradePairInfo = _objectMapper.Map<TradePairCreateDto, TradePairInfoIndex>(input);
         tradePairInfo.Token0Symbol = token0.Symbol;
         tradePairInfo.Token1Symbol = token1.Symbol;

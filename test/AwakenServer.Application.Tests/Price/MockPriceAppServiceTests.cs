@@ -53,7 +53,7 @@ namespace AwakenServer.Price
             decimal.Parse(ethPrice).ShouldBe(0);
             
             //Get token price from trade
-            await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenBtcId, TokenUSDTId, 59366);
+            await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenBtcId, TokenUSDTId, 59366, "BTC");
             
             var newBtcPrice = await _priceAppService.GetTokenPriceAsync(new GetTokenPriceInput
             {

@@ -1,6 +1,10 @@
 using System;
 using System.Net;
+using Awaken.Silo;
+using Awaken.Silo.MongoDB;
+using AwakenServer.Grains;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -8,6 +12,8 @@ using Orleans;
 using Orleans.Configuration;
 using Orleans.Hosting;
 using Orleans.Providers.MongoDB.Configuration;
+using Orleans.Providers.MongoDB.StorageProviders.Serializers;
+using Orleans.Serialization;
 using Orleans.Statistics;
 using Serilog;
 
@@ -28,34 +34,35 @@ public static class OrleansHostExtensions
         {
             //Configure OrleansSnapshot
             configSection = context.Configuration.GetSection("Orleans");
-            Log.Logger.Warning("==Orleans.IsRunningInKubernetes={0}", configSection.GetValue<bool>("IsRunningInKubernetes"));
+            Log.Warning("==Orleans.IsRunningInKubernetes={0}", configSection.GetValue<bool>("IsRunningInKubernetes"));
             if (configSection.GetValue<bool>("IsRunningInKubernetes"))
             {
-                Log.Logger.Warning("==Use kubernetes hosting...");
+                Log.Warning("==Use kubernetes hosting...");
                 UseKubernetesHostClustering(siloBuilder, configSection);
-                Log.Logger.Warning("==Use kubernetes hosting end...");
+                Log.Warning("==Use kubernetes hosting end...");
             }
             else
             {
-                Log.Logger.Warning("==Use docker hosting...");
+                Log.Warning("==Use docker hosting...");
                 UseDockerHostClustering(siloBuilder, configSection);
-                Log.Logger.Warning("==Use docker hosting end...");
+                Log.Warning("==Use docker hosting end...");
             }
         });
     }
 
     private static void UseKubernetesHostClustering(ISiloBuilder siloBuilder, IConfigurationSection configSection)
     {
-        Log.Logger.Warning("==Configuration");
-        Log.Logger.Warning("==  POD_IP: {0}", Environment.GetEnvironmentVariable("POD_IP"));
-        Log.Logger.Warning("==  SiloPort: {0}", configSection.GetValue<int>("SiloPort"));
-        Log.Logger.Warning("==  GatewayPort: {0}", configSection.GetValue<int>("GatewayPort"));
-        Log.Logger.Warning("==  DatabaseName: {0}", configSection.GetValue<string>("DataBase"));
-        Log.Logger.Warning("==  ClusterId: {0}", Environment.GetEnvironmentVariable("ORLEANS_CLUSTER_ID"));
-        Log.Logger.Warning("==  ServiceId: {0}", Environment.GetEnvironmentVariable("ORLEANS_SERVICE_ID"));
-        Log.Logger.Warning("==Configuration");
+        Log.Warning("==Configuration");
+        Log.Warning("==  POD_IP: {0}", Environment.GetEnvironmentVariable("POD_IP"));
+        Log.Warning("==  SiloPort: {0}", configSection.GetValue<int>("SiloPort"));
+        Log.Warning("==  GatewayPort: {0}", configSection.GetValue<int>("GatewayPort"));
+        Log.Warning("==  DatabaseName: {0}", configSection.GetValue<string>("DataBase"));
+        Log.Warning("==  ClusterId: {0}", Environment.GetEnvironmentVariable("ORLEANS_CLUSTER_ID"));
+        Log.Warning("==  ServiceId: {0}", Environment.GetEnvironmentVariable("ORLEANS_SERVICE_ID"));
+        Log.Warning("==Configuration");
         siloBuilder /*.UseKubernetesHosting()*/
-            .ConfigureEndpoints(advertisedIP: IPAddress.Parse(Environment.GetEnvironmentVariable("POD_IP") ?? string.Empty),
+            .ConfigureEndpoints(
+                advertisedIP: IPAddress.Parse(Environment.GetEnvironmentVariable("POD_IP") ?? string.Empty),
                 siloPort: configSection.GetValue<int>("SiloPort"),
                 gatewayPort: configSection.GetValue<int>("GatewayPort"), listenOnAnyHostAddress: true)
             .UseMongoDBClient(configSection.GetValue<string>("MongoDBClient"))
@@ -64,17 +71,11 @@ public static class OrleansHostExtensions
                 options.DatabaseName = configSection.GetValue<string>("DataBase");
                 options.Strategy = MongoDBMembershipStrategy.SingleDocument;
             })
-            .AddMongoDBGrainStorage("Default", (MongoDBGrainStorageOptions op) =>
+            .Configure<GrainCollectionNameOptions>(options =>
             {
-                op.CollectionPrefix = "GrainStorage";
-                op.DatabaseName = configSection.GetValue<string>("DataBase");
-                op.ConfigureJsonSerializerSettings = jsonSettings =>
-                {
-                    // jsonSettings.ContractResolver = new PrivateSetterContractResolver();
-                    jsonSettings.NullValueHandling = NullValueHandling.Include;
-                    jsonSettings.DefaultValueHandling = DefaultValueHandling.Populate;
-                    jsonSettings.ObjectCreationHandling = ObjectCreationHandling.Replace;
-                };
+                var collectionName = configSection
+                    .GetSection(nameof(GrainCollectionNameOptions.GrainSpecificCollectionName)).GetChildren();
+                options.GrainSpecificCollectionName = collectionName.ToDictionary(o => o.Key, o => o.Value);
             })
             .UseMongoDBReminders(options =>
             {
@@ -86,8 +87,36 @@ public static class OrleansHostExtensions
                 options.ClusterId = Environment.GetEnvironmentVariable("ORLEANS_CLUSTER_ID");
                 options.ServiceId = Environment.GetEnvironmentVariable("ORLEANS_SERVICE_ID");
             })
-            .ConfigureApplicationParts(parts => parts.AddFromApplicationBaseDirectory())
-            .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); });
+            .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); })
+            .ConfigureServices(services =>
+                services.AddSingleton<IGrainStateSerializer, AwakenJsonGrainStateSerializer>())
+            .AddAwakenMongoDBGrainStorage("Default", (MongoDBGrainStorageOptions op) =>
+            {
+                op.CollectionPrefix = OrleansConstants.GrainCollectionPrefix;
+                op.DatabaseName = configSection.GetValue<string>("DataBase");
+
+                var grainIdPrefix = configSection
+                    .GetSection("GrainSpecificIdPrefix").GetChildren().ToDictionary(o => o.Key.ToLower(), o => o.Value);
+                foreach (var kv in grainIdPrefix)
+                {
+                    Log.Information($"GrainSpecificIdPrefix, key: {kv.Key}, Value: {kv.Value}");
+                }
+
+                op.KeyGenerator = id =>
+                {
+                    var grainType = id.Type.ToString();
+                    if (grainIdPrefix.TryGetValue(grainType, out var prefix))
+                    {
+                        Log.Debug($"KeyGenerator, grainType: {grainType}, prefix: {prefix}");
+                        return $"{prefix}+{id.Key}";
+                    }
+
+                    Log.Debug($"KeyGenerator, grainType: {grainType}, id: {id}");
+                    return id.ToString();
+                };
+                op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);
+            });
+
     }
 
     private static void UseDockerHostClustering(ISiloBuilder siloBuilder, IConfigurationSection configSection)
@@ -102,19 +131,30 @@ public static class OrleansHostExtensions
                     options.DatabaseName = configSection.GetValue<string>("DataBase");
                     options.Strategy = MongoDBMembershipStrategy.SingleDocument;
                 })
-                .AddMongoDBGrainStorage("Default", (MongoDBGrainStorageOptions op) =>
-                {
-                    op.CollectionPrefix = "GrainStorage";
-                    op.DatabaseName = configSection.GetValue<string>("DataBase");
+                .AddAwakenMongoDBGrainStorage("Default", (MongoDBGrainStorageOptions op) =>
+            {
+                op.CollectionPrefix = OrleansConstants.GrainCollectionPrefix;
+                op.DatabaseName = configSection.GetValue<string>("DataBase");
 
-                    op.ConfigureJsonSerializerSettings = jsonSettings =>
+                var grainIdPrefix = configSection
+                    .GetSection("GrainSpecificIdPrefix").GetChildren().ToDictionary(o => o.Key.ToLower(), o => o.Value);
+                foreach (var kv in grainIdPrefix)
+                {
+                    Log.Information($"GrainSpecificIdPrefix, key: {kv.Key}, Value: {kv.Value}");
+                }
+                op.KeyGenerator = id =>
+                {
+                    var grainType = id.Type.ToString();
+                    if (grainIdPrefix.TryGetValue(grainType, out var prefix))
                     {
-                        // jsonSettings.ContractResolver = new PrivateSetterContractResolver();
-                        jsonSettings.NullValueHandling = NullValueHandling.Include;
-                        jsonSettings.DefaultValueHandling = DefaultValueHandling.Populate;
-                        jsonSettings.ObjectCreationHandling = ObjectCreationHandling.Replace;
-                    };
-                })
+                        Log.Debug($"KeyGenerator, grainType: {grainType}, prefix: {prefix}");
+                        return $"{prefix}+{id.Key}";
+                    }
+                    Log.Debug($"KeyGenerator, grainType: {grainType}, id: {id}");
+                    return id.ToString();
+                };
+                op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);
+            })
                 .UseMongoDBReminders(options =>
                 {
                     options.DatabaseName = configSection.GetValue<string>("DataBase");
@@ -126,7 +166,6 @@ public static class OrleansHostExtensions
                     options.ServiceId = configSection.GetValue<string>("ServiceId");
                 })
                 // .AddMemoryGrainStorage("PubSubStore")
-                .ConfigureApplicationParts(parts => parts.AddFromApplicationBaseDirectory())
                 .UseDashboard(options =>
                 {
                     options.Username = configSection.GetValue<string>("DashboardUserName");
@@ -136,7 +175,8 @@ public static class OrleansHostExtensions
                     options.HostSelf = true;
                     options.CounterUpdateIntervalMs = configSection.GetValue<int>("DashboardCounterUpdateIntervalMs");
                 })
-                .UseLinuxEnvironmentStatistics()
+                // .UseLinuxEnvironmentStatistics()
                 .ConfigureLogging(logging => { logging.SetMinimumLevel(LogLevel.Debug).AddConsole(); });
+        
     }
 }

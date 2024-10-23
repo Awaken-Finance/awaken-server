@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using AElf.Client.Service;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.CMS;
@@ -16,14 +16,14 @@ public class CmsAppService : AwakenServerAppService, ICmsAppService, ISingletonD
     private static DateTimeOffset _lastUpdateCmsSymbolListTime = DateTimeOffset.MinValue;
     private readonly CmsOptions _cmsOptions;
     private readonly IHttpService _httpService;
-    private readonly ILogger<CmsAppService> _logger;
+    private readonly ILogger _logger;
     private readonly object _lockObject = new();
 
-    public CmsAppService(IHttpService httpService, IOptions<CmsOptions> cmsOptions, ILogger<CmsAppService> logger)
+    public CmsAppService(IHttpService httpService, IOptions<CmsOptions> cmsOptions)
     {
         _httpService = httpService;
         _cmsOptions = cmsOptions.Value;
-        _logger = logger;
+        _logger = Log.ForContext<CmsAppService>();
 
         _updateCmsSymbolListIntervalMs = _cmsOptions.CmsLoopIntervalMs > 0 ? _cmsOptions.CmsLoopIntervalMs : CmsConst.CmsLoopIntervalMs;
     }
@@ -75,10 +75,10 @@ public class CmsAppService : AwakenServerAppService, ICmsAppService, ISingletonD
                     PinnedTokens.Add(pinnedTokensDto.ChainId, new List<PinnedTokensDto> { pinnedTokensDto });
                 }
             }
-            _logger.LogInformation("Update cms symbol list success.");
+            _logger.Information("Update cms symbol list success.");
             foreach (var keyValuePair in PinnedTokens)
             {
-                _logger.LogInformation("ChainId: {chainId}, Symbol: {symbol}", keyValuePair.Key, string.Join(",", keyValuePair.Value));
+                _logger.Information("ChainId: {chainId}, Symbol: {symbol}", keyValuePair.Key, string.Join(",", keyValuePair.Value));
             }
         }
     }

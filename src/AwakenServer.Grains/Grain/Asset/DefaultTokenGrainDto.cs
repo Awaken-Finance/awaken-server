@@ -2,7 +2,8 @@ using AwakenServer.Asset;
 
 namespace AwakenServer.Grains.Grain.Asset;
 
+[GenerateSerializer]
 public class DefaultTokenGrainDto
 {
-    public string TokenSymbol { get; set; }
+    [Id(0)] public string TokenSymbol { get; set; }
 }

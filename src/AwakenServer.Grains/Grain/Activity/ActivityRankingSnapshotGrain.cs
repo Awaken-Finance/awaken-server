@@ -25,7 +25,7 @@ public class ActivityRankingSnapshotGrain : Grain<ActivityRankingSnapshotState>,
             State.Timestamp = dto.Timestamp;
         }
         
-        State.RankingList = _objectMapper.Map<List<AwakenServer.Activity.RankingInfo>, List<RankingInfo>>(dto.RankingList);
+        State.RankingList = dto.RankingList;
         State.NumOfJoin = dto.NumOfJoin;
         
         await WriteStateAsync();

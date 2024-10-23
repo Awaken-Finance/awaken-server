@@ -10,6 +10,7 @@ using DnsClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
@@ -24,13 +25,13 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
     private readonly ITradePairAppService _tradePairAppService;
 
     public SyncEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
-        ITradePairAppService tradePairAppService, ILogger<AwakenServerWorkerBase> logger,
+        ITradePairAppService tradePairAppService,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
@@ -43,19 +44,12 @@ public class SyncEventSyncWorker : AwakenServerWorkerBase
         
         var queryList = await _graphQlProvider.GetSyncRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        _logger.LogInformation("sync queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Id);
+        _logger.Information("sync queryList count: {count} ,chainId:{chainId}", queryList.Count, chain.Id);
         
-        try
+        foreach (var queryDto in queryList)
         {
-            foreach (var queryDto in queryList)
-            {
-                await _tradePairAppService.CreateSyncAsync(queryDto);
-                blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
-            }
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "sync event fail.");
+            await _tradePairAppService.CreateSyncAsync(queryDto);
+            blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
         }
 
         return blockHeight;

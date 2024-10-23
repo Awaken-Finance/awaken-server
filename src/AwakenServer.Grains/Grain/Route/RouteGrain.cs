@@ -1,30 +1,18 @@
-using AwakenServer.Grains.Grain.Price;
-using AwakenServer.Grains.Grain.Price.TradePair;
-using AwakenServer.Grains.Grain.Price.TradeRecord;
-using AwakenServer.Grains.Grain.SwapTokenPath;
-using AwakenServer.Grains.Grain.Tokens.TokenPrice;
-using AwakenServer.Grains.Grain.Trade;
+using System.Reflection;
 using AwakenServer.Grains.State.Route;
-using AwakenServer.Grains.State.SwapTokenPath;
-using AwakenServer.Grains.State.Trade;
 using AwakenServer.Tokens;
-using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
-using Microsoft.Extensions.Logging;
-using Nethereum.Util;
-using Orleans;
+using Orleans.Core;
+using Serilog;
 using Volo.Abp.ObjectMapping;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
-using AwakenServer.Tokens;
-using AwakenServer.Trade.Index;
 
 namespace AwakenServer.Grains.Grain.Route;
 
 public class Graph
 {
     public Dictionary<string, HashSet<string>> Adjacents { get; set; } = new();
-    public Dictionary<string, TradePairWithToken> RelationTradePairAddressToData { get; set; } = new();
-    public Dictionary<string, Token> TokenDictionary { get; set; } = new();
+    public Dictionary<string, TradePairWithTokenDto> RelationTradePairAddressToData { get; set; } = new();
+    public Dictionary<string, TokenDto> TokenDictionary { get; set; } = new();
 }
 
 public class RawRoute
@@ -36,25 +24,24 @@ public class RawRoute
 public class RouteGrain : Grain<RouteState>, IRouteGrain
 {
     private readonly IObjectMapper _objectMapper;
-    private readonly ILogger<RouteGrain> _logger;
+    private readonly ILogger _logger;
 
-    public RouteGrain(IObjectMapper objectMapper,
-        ILogger<RouteGrain> logger)
+    public RouteGrain(IObjectMapper objectMapper)
     {
         _objectMapper = objectMapper;
-        _logger = logger;
+        _logger = Log.ForContext<RouteGrain>();
     }
 
-    public override async Task OnActivateAsync()
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         await ReadStateAsync();
-        await base.OnActivateAsync();
+        await base.OnActivateAsync(cancellationToken);
     }
 
-    public override async Task OnDeactivateAsync()
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         await WriteStateAsync();
-        await base.OnDeactivateAsync();
+        await base.OnDeactivateAsync(reason, cancellationToken);
     }
 
     private void DFS(Graph graph, string relationTradePairAddress, string current, string end, int maxDepth, HashSet<string> visited, RawRoute route, List<RawRoute> allRoutes)
@@ -197,7 +184,7 @@ public class RouteGrain : Grain<RouteState>, IRouteGrain
     {
         var cacheCount = State.RouteCache.Count;
         State.RouteCache.Clear();
-        _logger.LogInformation($"clear route cache, grain id: {this.GetPrimaryKeyString()}, remove count: {cacheCount}, now count: {State.RouteCache.Count}");
+        _logger.Information($"clear route cache, grain id: {this.GetPrimaryKeyString()}, remove count: {cacheCount}, now count: {State.RouteCache.Count}");
         return new GrainResultDto<long>
         {
             Success = true,

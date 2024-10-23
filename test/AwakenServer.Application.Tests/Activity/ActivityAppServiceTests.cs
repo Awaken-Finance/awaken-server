@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using System.Threading.Tasks;
 using AElf;
@@ -57,4 +58,42 @@ public class ActivityAppServiceTests : TradeTestBase
         joinStatusDto.NumberOfJoin.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task MyRankingTest()
+    {
+        var address = Address.FromPublicKey("AAA".HexToByteArray());
+
+        try
+        {
+            await _activityAppService.GetMyRankingAsync(new GetMyRankingInput()
+            {
+                Address = address.ToBase58(),
+                ActivityId = 3
+            });
+        }
+        catch (Exception e)
+        {
+            e.Message.ShouldBe("Activity not existed");
+        }
+        
+        try
+        {
+            await _activityAppService.GetRankingListAsync(new ActivityBaseDto()
+            {
+                ActivityId = 3
+            });
+        }
+        catch (Exception e)
+        {
+            e.Message.ShouldBe("Activity not existed");
+        }
+
+        var myRankingDto = await _activityAppService.GetMyRankingAsync(new GetMyRankingInput()
+        {
+            Address = address.ToBase58(),
+            ActivityId = 1
+        });
+        myRankingDto.Ranking.ShouldBe(0);
+        myRankingDto.TotalPoint.ShouldBe("0");
+    }
 }

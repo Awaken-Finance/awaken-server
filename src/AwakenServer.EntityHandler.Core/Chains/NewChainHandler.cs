@@ -1,9 +1,11 @@
 using System;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Distributed;
 using Volo.Abp.ObjectMapping;
@@ -25,18 +27,12 @@ public class NewChainHandler : IDistributedEventHandler<NewChainEvent>, ITransie
         _logger = logger;
     }
     
-    public async Task HandleEventAsync(NewChainEvent eventData)
+    [ExceptionHandler(typeof(Exception), Message = "Handle NewChainEvent Error", LogLevel = LogLevel.Error, 
+        TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    public virtual async Task HandleEventAsync(NewChainEvent eventData)
     {
-        try
-        {
-            await _chainIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewChainEvent, Chain>(eventData));
-            _logger.LogDebug("Chain info add success: {Id}-{Name}-{AElfChainId}", eventData.Id, 
+        await _chainIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewChainEvent, Chain>(eventData));
+            Log.Debug("Chain info add success: {Id}-{Name}-{AElfChainId}", eventData.Id, 
                 eventData.Name, eventData.AElfChainId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Chain info add Fail: {Id}-{Name}-{AElfChainId}", eventData.Id,
-                eventData.Name, eventData.AElfChainId);
-        }
     }
 }

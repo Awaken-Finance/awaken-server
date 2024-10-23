@@ -6,11 +6,10 @@ using AElf.Indexing.Elasticsearch;
 using AwakenServer.Chains;
 using AwakenServer.Price;
 using AwakenServer.Tokens;
-using AwakenServer.Trade.Dtos;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nest;
+using Serilog;
 using Volo.Abp.Caching;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.ObjectMapping;
@@ -21,7 +20,7 @@ namespace AwakenServer.Trade
     {
         Task<double> GetTokenUSDPriceAsync(string chainId, string symbol);
         Task<Tuple<double,double>> GetUSDPriceAsync(string chainId, Guid tradePairId, string symbol0, string symbol1, string token0Amount = null, string token1Amount = null);
-        Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price);
+        Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price, string token0Symbol);
     }
 
     public class TokenPriceProvider : ITokenPriceProvider, ITransientDependency
@@ -33,7 +32,7 @@ namespace AwakenServer.Trade
         private readonly ITradePairMarketDataProvider _tradePairMarketDataProvider;
         private readonly IPriceAppService _priceAppService;
         private readonly IObjectMapper _objectMapper;
-        private readonly ILogger<TokenPriceProvider> _logger;
+        private readonly ILogger _logger;
         private readonly IDistributedCache<Dictionary<Guid, TokenPrice>> _tokenPriceCache;
 
         private const int MaxLevel = 2;
@@ -43,8 +42,7 @@ namespace AwakenServer.Trade
             IOptionsSnapshot<StableCoinOptions> stableCoinOptions, INESTRepository<Chain, string> chainIndexRepository,
             TokenAppService tokenAppService, ITradePairMarketDataProvider tradePairMarketDataProvider,
             IPriceAppService priceAppService,
-            IObjectMapper objectMapper,
-            ILogger<TokenPriceProvider> logger)
+            IObjectMapper objectMapper)
         {
             _tradePairInfoIndex = tradePairInfoIndex;
             _tokenPriceCache = tokenPriceCache;
@@ -54,7 +52,7 @@ namespace AwakenServer.Trade
             _stableCoinOptions = stableCoinOptions.Value;
             _priceAppService = priceAppService;
             _objectMapper = objectMapper;
-            _logger = logger;
+            _logger = Log.ForContext<TokenPriceProvider>();
         }
 
         public async Task<double> GetTokenUSDPriceAsync(string chainId, string symbol)
@@ -62,7 +60,7 @@ namespace AwakenServer.Trade
             var price = await _priceAppService.GetTokenPriceListAsync(new List<string> { symbol });
             if (price == null || price.Items.Count == 0)
             {
-                _logger.LogError("GetTokenUSDPriceAsync，can not find price,token:{symbol},chain:{chainId}",
+                _logger.Error("GetTokenUSDPriceAsync，can not find price,token:{symbol},chain:{chainId}",
                     symbol, chainId);
                 return 0;
             }
@@ -75,18 +73,18 @@ namespace AwakenServer.Trade
             return new Tuple<double, double>(await GetTokenUSDPriceAsync(chainId, symbol0), await GetTokenUSDPriceAsync(chainId, symbol1));
         }
 
-        public async Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price)
+        public async Task UpdatePriceAsync(string chainId, Guid token0, Guid token1, double price, string token0Symbol)
         {
             var tokenPrices = await GetTokenPriceCacheAsync(chainId);
 
-            await UpdatePriceAsync(chainId, tokenPrices, token1, token0, 1 / price);
-            await UpdatePriceAsync(chainId, tokenPrices, token0, token1, price);
+            await UpdatePriceAsync(chainId, tokenPrices, token1, token0, 1 / price, token0Symbol);
+            await UpdatePriceAsync(chainId, tokenPrices, token0, token1, price, token0Symbol);
 
             await UpdateCacheAsync(chainId, tokenPrices);
         }
 
         private async Task UpdatePriceAsync(string chainId, Dictionary<Guid, TokenPrice> tokenPrices, Guid token0,
-            Guid token1, double price)
+            Guid token1, double price, string token0Symbol)
         {
             if (tokenPrices.TryGetValue(token0, out var tokenPrice))
             {
@@ -97,7 +95,11 @@ namespace AwakenServer.Trade
             }
             else
             {
-                var tokenInfo0 = await _tokenAppService.GetAsync(token0);
+                var tokenInfo0 = await _tokenAppService.GetAsync(new GetTokenInput()
+                {
+                    ChainId = chainId,
+                    Symbol = token0Symbol
+                });
                 var chain = await _chainIndexRepository.GetAsync(chainId);
                 if (_stableCoinOptions.Coins[chain.Name]
                         .FirstOrDefault(c => c.Address == tokenInfo0.Address && c.Symbol == tokenInfo0.Symbol) != null)
