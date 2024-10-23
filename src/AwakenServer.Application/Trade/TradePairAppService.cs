@@ -472,32 +472,11 @@ namespace AwakenServer.Trade
 
         public async Task<TokenDto> SyncTokenAsync(string chainId, string symbol, ChainDto chain)
         {
-            var tokenDto = await _tokenAppService.GetAsync(new GetTokenInput
+            return await _tokenAppService.GetAsync(new GetTokenInput
             {
                 ChainId = chainId,
                 Symbol = symbol,
             });
-            
-            if (tokenDto == null)
-            {
-                _logger.Information($"get token from es failed. token symbol: {symbol}, chain id: {chainId}, go to create.");
-                
-                var tokenInfo =
-                    await _blockchainAppService.GetTokenInfoAsync(chainId, null, symbol);
-
-                var token = await _tokenAppService.CreateAsync(new TokenCreateDto
-                {
-                    Address = tokenInfo.Address,
-                    Decimals = tokenInfo.Decimals,
-                    Symbol = tokenInfo.Symbol,
-                    ImageUri = tokenInfo.ImageUri,
-                    ChainId = chain.Id
-                });
-                
-                return token;
-            }
-
-            return tokenDto;
         }
 
         public async Task<bool> SyncPairAsync(TradePairInfoDto pair, ChainDto chain)
