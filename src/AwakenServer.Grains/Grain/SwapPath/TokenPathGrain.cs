@@ -1,19 +1,7 @@
-using AwakenServer.Grains.Grain.Price;
-using AwakenServer.Grains.Grain.Price.TradePair;
-using AwakenServer.Grains.Grain.Price.TradeRecord;
-using AwakenServer.Grains.Grain.Tokens.TokenPrice;
-using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.State.SwapTokenPath;
-using AwakenServer.Grains.State.Trade;
 using AwakenServer.Tokens;
-using AwakenServer.Trade;
-using AwakenServer.Trade.Dtos;
-using Microsoft.Extensions.Logging;
-using Nethereum.Util;
-using Orleans;
+using Serilog;
 using Volo.Abp.ObjectMapping;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
-using AwakenServer.Tokens;
 
 namespace AwakenServer.Grains.Grain.SwapTokenPath;
 
@@ -28,31 +16,30 @@ public class FeeRateGraph
 public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
 {
     private readonly IObjectMapper _objectMapper;
-    private readonly ILogger<TokenPathGrain> _logger;
+    private readonly ILogger _logger;
     private readonly IClusterClient _clusterClient;
     private Dictionary<double, FeeRateGraph> _feeRateGraphs { get; set; } = new Dictionary<double, FeeRateGraph>();
     
     public TokenPathGrain(IObjectMapper objectMapper,
-        IClusterClient clusterClient,
-        ILogger<TokenPathGrain> logger)
+        IClusterClient clusterClient)
     {
         _objectMapper = objectMapper;
-        _logger = logger;
+        _logger = Log.ForContext<TokenPathGrain>();
         _clusterClient = clusterClient;
     }
 
-    public override async Task OnActivateAsync()
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         await ReadStateAsync();
         // fix me
         ResetCacheAsync();
-        await base.OnActivateAsync();
+        await base.OnActivateAsync(cancellationToken);
     }
 
-    public override async Task OnDeactivateAsync()
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         await WriteStateAsync();
-        await base.OnDeactivateAsync();
+        await base.OnDeactivateAsync(reason, cancellationToken);
     }
 
     private string GenCacheKey(GetTokenPathGrainDto dto)
@@ -115,7 +102,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
     
     public async Task<GrainResultDto<TokenPathResultGrainDto>> GetPathAsync(GetTokenPathGrainDto dto)
     {
-        _logger.LogInformation($"get swap path do search, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}");
+        _logger.Information($"get swap path do search, input: {dto.StartSymbol}, {dto.EndSymbol}, {dto.MaxDepth}");
         
         var pathResult = new List<TokenPath>();
         var distinctPaths = new HashSet<string>();
@@ -204,21 +191,21 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
 
             graph.RelationTokenDictionary[pair.Token0.Symbol][pair.Token1.Symbol] = new PathNode()
             {
-                Token0 = _objectMapper.Map<Token, TokenDto>(pair.Token0),
-                Token1 = _objectMapper.Map<Token, TokenDto>(pair.Token1),
+                Token0 = pair.Token0,
+                Token1 = pair.Token1,
                 Address = pair.Address,
                 FeeRate = pair.FeeRate
             };
             graph.RelationTokenDictionary[pair.Token1.Symbol][pair.Token0.Symbol] = new PathNode()
             {
-                Token0 = _objectMapper.Map<Token, TokenDto>(pair.Token0),
-                Token1 = _objectMapper.Map<Token, TokenDto>(pair.Token1),
+                Token0 = pair.Token0,
+                Token1 = pair.Token1,
                 Address = pair.Address,
                 FeeRate = pair.FeeRate
             };
             
-            graph.TokenDictionary[pair.Token0.Symbol] = _objectMapper.Map<Token, TokenDto>(pair.Token0);
-            graph.TokenDictionary[pair.Token1.Symbol] = _objectMapper.Map<Token, TokenDto>(pair.Token1);
+            graph.TokenDictionary[pair.Token0.Symbol] = pair.Token0;
+            graph.TokenDictionary[pair.Token1.Symbol] = pair.Token1;
         }
         
         return new GrainResultDto()
@@ -231,7 +218,7 @@ public class TokenPathGrain : Grain<TokenPathState>, ITokenPathGrain
     {
         var cacheCount = State.PathCache.Count;
         State.PathCache.Clear();
-        _logger.LogInformation($"clear path cache, grain id: {this.GetPrimaryKeyString()}, remove count: {cacheCount}, now count: {State.PathCache.Count}");
+        _logger.Information($"clear path cache, grain id: {this.GetPrimaryKeyString()}, remove count: {cacheCount}, now count: {State.PathCache.Count}");
         return new GrainResultDto<long>
         {
             Success = true,

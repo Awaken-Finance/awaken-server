@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
+using AwakenServer.Activity;
+using AwakenServer.Activity.Dtos;
 using AwakenServer.Models;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
+using Serilog;
 using Volo.Abp.AspNetCore.SignalR;
 
 namespace AwakenServer.Hubs
@@ -18,20 +21,22 @@ namespace AwakenServer.Hubs
         private readonly ITradeHubGroupProvider _tradeHubGroupProvider;
         private readonly IKLineAppService _kLineAppService;
         private readonly ITradePairAppService _tradePairAppService;
-        private readonly ILogger<TradeHub> _logger;
+        private readonly IActivityAppService _activityAppService;
+        private readonly ILogger _logger;
 
         public TradeHub(ITradeRecordAppService tradeRecordAppService,
             ITradeHubConnectionProvider tradeHubConnectionProvider,
             IKLineAppService kLineAppService, ITradeHubGroupProvider tradeHubGroupProvider,
             ITradePairAppService tradePairAppService,
-            ILogger<TradeHub> logger)
+            IActivityAppService activityAppService)
         {
             _tradeRecordAppService = tradeRecordAppService;
             _tradeHubConnectionProvider = tradeHubConnectionProvider;
             _kLineAppService = kLineAppService;
             _tradeHubGroupProvider = tradeHubGroupProvider;
             _tradePairAppService = tradePairAppService;
-            _logger = logger;
+            _activityAppService = activityAppService;
+            _logger = Log.ForContext<TradeHub>();
         }
 
         public async Task RequestTradeRecord(string chainId, string tradePairId, long timestamp, int maxResultCount)
@@ -50,7 +55,7 @@ namespace AwakenServer.Hubs
                 SkipCount = 0,
                 MaxResultCount = maxResultCount
             });
-            _logger.LogInformation("RequestTradeRecord TimestampMin: {timestamp}",
+            _logger.Information("RequestTradeRecord TimestampMin: {timestamp}",
                 timestamp == 0 ? DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.Date.AddHours(-8)) : timestamp);
             await Clients.Caller.SendAsync("ReceiveTradeRecords", new TradeRecordModel<List<TradeRecordIndexDto>>
             {
@@ -197,6 +202,25 @@ namespace AwakenServer.Hubs
             _tradeHubConnectionProvider.ClearRemovedUserConnection(chainId, Guid.Parse(tradePairId), address,
                 Context.ConnectionId);
         }
+        
+        public async Task RequestActivityRankingList(int activityId)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId,
+                _tradeHubGroupProvider.GetActivityRankingListGroupName(activityId));
+            
+            var rankingListDto = await _activityAppService.GetRankingListAsync(new ActivityBaseDto()
+            {
+                ActivityId = activityId
+            });
+
+            await Clients.Caller.SendAsync("ReceiveActivityRankingList", rankingListDto);
+        }
+
+        public async Task UnsubscribeActivityRankingList(int activityId)
+        {
+            await TryRemoveFromGroupAsync(Context.ConnectionId,
+                _tradeHubGroupProvider.GetActivityRankingListGroupName(activityId));
+        }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
@@ -218,23 +242,24 @@ namespace AwakenServer.Hubs
                 await TryRemoveFromGroupAsync(Context.ConnectionId, group);
             }
 
+            var activityRankingListGroups = _tradeHubGroupProvider.GetAllActivityRankingListGroup();
+            foreach (var group in activityRankingListGroups)
+            {
+                await TryRemoveFromGroupAsync(Context.ConnectionId, group);
+            }
+
             _tradeHubConnectionProvider.ClearUserConnection(Context.ConnectionId);
             _tradeHubConnectionProvider.ClearRemovedUserConnection(Context.ConnectionId);
 
             await base.OnDisconnectedAsync(exception);
         }
-
-        private async Task<bool> TryRemoveFromGroupAsync(string connectionId, string groupName)
+        
+        [ExceptionHandler(typeof(Exception),
+            Message = "RemoveFromGroup Error", ReturnDefault = ReturnDefault.Default)]
+        public virtual async Task<bool> TryRemoveFromGroupAsync(string connectionId, string groupName)
         {
-            try
-            {
-                await Groups.RemoveFromGroupAsync(connectionId, groupName);
-                return true;
-            }
-            catch (Exception e)
-            {
-                return false;
-            }
+            await Groups.RemoveFromGroupAsync(connectionId, groupName);
+            return true;
         }
     }
 }

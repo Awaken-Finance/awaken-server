@@ -18,4 +18,5 @@ public enum WorkerBusinessType
     NewVersionStatInfoIndexEvent,
     StatInfoUpdateEvent,
     NewVersionStatInfoUpdateEvent,
+    ActivityEvent
 }

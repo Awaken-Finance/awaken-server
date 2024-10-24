@@ -19,5 +19,5 @@ public interface IGraphQLProvider
     public Task SetLastEndHeightAsync(string chainId, WorkerBusinessType type, long height);
     public Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrdersInput input);
     public Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrderDetailsInput input);
-    
+    public Task<List<LimitOrderFillRecordDto>> GetLimitOrderFillRecordsAsync(string chainId, long startBlockHeight, long endBlockHeight, int skipCount, int maxResultCount);
 }

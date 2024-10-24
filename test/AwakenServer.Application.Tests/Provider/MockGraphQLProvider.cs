@@ -224,4 +224,11 @@ public class MockGraphQLProvider :  IGraphQLProvider, ISingletonDependency
             Data = resultList
         };
     }
+
+    public async Task<List<LimitOrderFillRecordDto>> GetLimitOrderFillRecordsAsync(string chainId,
+        long startBlockHeight, long endBlockHeight, int skipCount, int maxResultCount)
+    {
+        throw new NotImplementedException();
+    }
+    
 }

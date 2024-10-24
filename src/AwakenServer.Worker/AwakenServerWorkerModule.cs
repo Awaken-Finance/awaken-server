@@ -31,6 +31,7 @@ namespace AwakenServer.Worker
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<SwapEventReSyncWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<StatInfoEventSyncWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<StatInfoUpdateWorker>());
+            backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<ActivityEventSyncWorker>());
         }
     }
 }

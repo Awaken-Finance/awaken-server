@@ -1,8 +1,12 @@
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.State.Price;
+using AwakenServer.Grains.State.Trade;
 using Orleans;
+using Orleans.Core;
+using Serilog;
 using Volo.Abp.EventBus.Local;
 using Volo.Abp.ObjectMapping;
 
@@ -17,16 +21,16 @@ public class TradeRecordGrain : Grain<TradeRecordState>, ITradeRecordGrain
         _objectMapper = objectMapper;
     }
 
-    public override async Task OnActivateAsync()
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         await ReadStateAsync();
-        await base.OnActivateAsync();
+        await base.OnActivateAsync(cancellationToken);
     }
 
-    public override async Task OnDeactivateAsync()
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         await WriteStateAsync();
-        await base.OnDeactivateAsync();
+        await base.OnDeactivateAsync(reason, cancellationToken);
     }
 
     public async Task<bool> Exist()
@@ -36,6 +40,7 @@ public class TradeRecordGrain : Grain<TradeRecordState>, ITradeRecordGrain
 
     public async Task<GrainResultDto<TradeRecordGrainDto>> InsertAsync(TradeRecordGrainDto dto)
     {
+        Log.ForContext<TradeRecordGrain>().Information($"TradeRecordGrain, InsertAsync, State.Id: {State.Id}, txn: {dto.TransactionHash}, grain id: {this.GetGrainId()}, PrimaryKeyString: {this.GetPrimaryKeyString()}");
         State = _objectMapper.Map<TradeRecordGrainDto, TradeRecordState>(dto);
         
         await WriteStateAsync();

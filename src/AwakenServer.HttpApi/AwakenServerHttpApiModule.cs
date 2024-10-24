@@ -31,6 +31,7 @@ namespace AwakenServer
                 x.AddConsumer<NewTradeRecordHandler>();
                 x.AddConsumer<NewKLineHandler>();
                 x.AddConsumer<RemoveTradeRecordHandler>();
+                x.AddConsumer<ActivityRankingListHandler>();
                 x.UsingRabbitMq((ctx, cfg) =>
                 {
                     var rabbitMqConfig = configuration.GetSection("MassTransit:RabbitMQ").Get<RabbitMqOptions>();
@@ -46,6 +47,7 @@ namespace AwakenServer
                         e.ConfigureConsumer<NewTradeRecordHandler>(ctx);
                         e.ConfigureConsumer<NewKLineHandler>(ctx);
                         e.ConfigureConsumer<RemoveTradeRecordHandler>(ctx);
+                        e.ConfigureConsumer<ActivityRankingListHandler>(ctx);
                     });
                 });
     

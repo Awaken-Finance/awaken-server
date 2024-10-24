@@ -5,11 +5,11 @@ using AElf;
 using AElf.Client.Dto;
 using AElf.Client.MultiToken;
 using AElf.Client.Service;
+using AElf.ExceptionHandler;
 using AElf.Types;
 using AwakenServer.Tokens;
 using Google.Protobuf;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson.IO;
+using Serilog;
 using TransactionFeeCharged = AElf.Contracts.MultiToken.TransactionFeeCharged;
 using TokenInfo = AElf.Contracts.MultiToken.TokenInfo;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
@@ -26,16 +26,15 @@ namespace AwakenServer.Chains
     public class AElfClientProvider : IAElfClientProvider
     {
         private readonly IBlockchainClientFactory<AElfClient> _blockchainClientFactory;
-        private readonly ILogger<AElfClientProvider> _logger;
+        private readonly ILogger _logger;
         private const string FTImageUriKey = "__ft_image_uri";
         private const string NFTImageUriKey = "__nft_image_uri";
         private const string NFTImageUrlKey = "__nft_image_url";
 
-        public AElfClientProvider(IBlockchainClientFactory<AElfClient> blockchainClientFactory,
-            ILogger<AElfClientProvider> logger)
+        public AElfClientProvider(IBlockchainClientFactory<AElfClient> blockchainClientFactory)
         {
             _blockchainClientFactory = blockchainClientFactory;
-            _logger = logger;
+            _logger = Log.ForContext<AElfClientProvider>();
         }
 
         public string ChainType { get; } = "AElf";
@@ -58,7 +57,7 @@ namespace AwakenServer.Chains
 
             var token = await GetTokenInfoFromChainAsync(chainName, address, symbol);
             
-            _logger.LogInformation($"get token info, chain: {chainName}, address:{address}, symbol: {symbol}, TokenInfo: {JsonConvert.SerializeObject(token)}");
+            _logger.Information($"get token info, chain: {chainName}, address:{address}, symbol: {symbol}, TokenInfo: {JsonConvert.SerializeObject(token)}");
             
             var externalInfo = token.ExternalInfo;
             if (externalInfo != null && externalInfo.Value != null)
@@ -126,25 +125,26 @@ namespace AwakenServer.Chains
                     ByteArrayHelper.HexStringToByteArray(transactionGetTokenResult));
         }
 
-        public async Task<long> GetTransactionFeeAsync(string chainName, string transactionId)
+        [ExceptionHandler(typeof(Exception), ReturnDefault = ReturnDefault.Default)]
+        public virtual async Task<long> GetTransactionFeeAsync(string chainName, string transactionId)
         {
-            try
+            var client = _blockchainClientFactory.GetClient(chainName);
+            var result = await client.GetTransactionResultAsync(transactionId);
+            if (result == null)
             {
-                var client = _blockchainClientFactory.GetClient(chainName);
-                var result = await client.GetTransactionResultAsync(transactionId);
-                if (result == null)
-                {
-                    return 0;
-                }
-                var transactionFeeCharged = TransactionFeeCharged.Parser.
-                    ParseFrom(ByteString.FromBase64(result.Logs.First(l => l.Name == nameof(TransactionFeeCharged)).NonIndexed));
-                return transactionFeeCharged.Amount;
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "GetTransactionFeeAsync fail.");
                 return 0;
             }
+
+            var feeLogEvent = result.Logs.FirstOrDefault(l => l.Name == nameof(TransactionFeeCharged));
+            if (feeLogEvent == null)
+            {
+                return 0;
+            }
+
+            var transactionFeeCharged = TransactionFeeCharged.Parser.ParseFrom(
+                ByteString.FromBase64(feeLogEvent.NonIndexed));
+            return transactionFeeCharged.Amount;
+           
         }
 
         public async Task<GetBalanceOutput> GetBalanceAsync(string chainName, string address,
@@ -161,13 +161,13 @@ namespace AwakenServer.Chains
             };
 
             var from = client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey);
-            _logger.LogInformation($"GenerateTransactionAsync, key: {ChainsInitOptions.PrivateKey}, from: {from}, to: {contractAddress}");
+            _logger.Information($"GenerateTransactionAsync, key: {ChainsInitOptions.PrivateKey}, from: {from}, to: {contractAddress}");
             var transactionGetBalance =
                 await client.GenerateTransactionAsync(from,
                     contractAddress,
                     "GetBalance",
                     paramGetBalance);
-            _logger.LogInformation($"transactionGetBalance: {transactionGetBalance}, from: {from}, to: {contractAddress}");
+            _logger.Information($"transactionGetBalance: {transactionGetBalance}, from: {from}, to: {contractAddress}");
             var txWithSignGetBalance = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetBalance);
             var transactionGetTokenResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
             {
@@ -177,32 +177,26 @@ namespace AwakenServer.Chains
             return GetBalanceOutput.Parser.ParseFrom(ByteArrayHelper.HexStringToByteArray(transactionGetTokenResult));
         }
 
-        public async Task<int> ExistTransactionAsync(string chainName, string transactionHash)
+        
+        [ExceptionHandler(typeof(Exception), Message = "ExistTransaction Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnMinusOne))]
+        public virtual async Task<int> ExistTransactionAsync(string chainName, string transactionHash)
         {
-            try
+            var client = _blockchainClientFactory.GetClient(chainName);
+            var result = await client.GetTransactionResultAsync(transactionHash);
+            if (result == null)
             {
-                var client = _blockchainClientFactory.GetClient(chainName);
-                var result = await client.GetTransactionResultAsync(transactionHash);
-                if (result == null)
-                {
-                    return -1;
-                }
-
-                return !string.IsNullOrWhiteSpace(result.Status)
-                       && (result.Status.Equals(TransactionResultStatus.Pending.ToString(),
-                               StringComparison.OrdinalIgnoreCase)
-                           || result.Status.Equals(TransactionResultStatus.Mined.ToString(),
-                               StringComparison.OrdinalIgnoreCase) 
-                           || result.Status.Equals(TransactionResultStatus.PendingValidation.ToString(),
-                               StringComparison.OrdinalIgnoreCase))
-                    ? 1
-                    : 0;
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Get the current status of a transaction {chainName}:{transactionHash} fail.", chainName, transactionHash);
                 return -1;
             }
+
+            return !string.IsNullOrWhiteSpace(result.Status)
+                   && (result.Status.Equals(TransactionResultStatus.Pending.ToString(),
+                           StringComparison.OrdinalIgnoreCase)
+                       || result.Status.Equals(TransactionResultStatus.Mined.ToString(),
+                           StringComparison.OrdinalIgnoreCase)
+                       || result.Status.Equals(TransactionResultStatus.PendingValidation.ToString(),
+                           StringComparison.OrdinalIgnoreCase))
+                ? 1
+                : 0;
         }
     }
 }

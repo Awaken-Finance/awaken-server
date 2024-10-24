@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AwakenServer.Asset;
 using AwakenServer.Common;
 using AwakenServer.ContractEventHandler.Application;
@@ -13,10 +14,10 @@ using AwakenServer.Trade.Dtos;
 using GraphQL;
 using GraphQL.Client.Http;
 using GraphQL.Client.Serializer.Newtonsoft;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Orleans;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 
 namespace AwakenServer.Provider;
@@ -26,15 +27,15 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     private readonly GraphQLOptions _graphQLOptions;
     private readonly GraphQLHttpClient _graphQLClient;
     private readonly IClusterClient _clusterClient;
-    private readonly ILogger<GraphQLProvider> _logger;
+    private readonly ILogger _logger;
     private readonly ITokenAppService _tokenAppService;
     
     
-    public GraphQLProvider(ILogger<GraphQLProvider> logger, IClusterClient clusterClient,
+    public GraphQLProvider(IClusterClient clusterClient,
         ITokenAppService tokenAppService,
         IOptions<GraphQLOptions> graphQLOptions)
     {
-        _logger = logger;
+        _logger = Log.ForContext<GraphQLProvider>();
         _clusterClient = clusterClient;
         _graphQLOptions = graphQLOptions.Value;
         _graphQLClient = new GraphQLHttpClient(_graphQLOptions.Configuration, new NewtonsoftJsonSerializer());
@@ -93,7 +94,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             };
         }
         
-        _logger.LogInformation("graphQlResponse: {totalCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount);
+        _logger.Information("graphQlResponse: {totalCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount);
         
         if (graphQlResponse.Data.TradePairInfoDtoList.TotalCount == 0)
         {
@@ -106,7 +107,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
                 },
             };
         }
-        _logger.LogInformation("total count is {totalCount},data count:{dataCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount,graphQlResponse.Data.TradePairInfoDtoList.Data.Count);
+        _logger.Information("total count is {totalCount},data count:{dataCount}", graphQlResponse.Data.TradePairInfoDtoList.TotalCount,graphQlResponse.Data.TradePairInfoDtoList.Data.Count);
 
         graphQlResponse.Data.TradePairInfoDtoList.Data.ForEach(pair =>
         {
@@ -131,7 +132,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     {
         /*if (startBlockHeight > endBlockHeight)
         {
-            _logger.LogInformation("EndBlockHeight should be higher than StartBlockHeight");
+            _logger.Information("EndBlockHeight should be higher than StartBlockHeight");
             return new List<LiquidityRecordDto>();
         }*/
 
@@ -167,7 +168,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
         });
         
-        _logger.LogInformation($"getLiquidityRecords " +
+        _logger.Information($"getLiquidityRecords " +
                                $"startBlockHeight: {startBlockHeight}, " +
                                $"endBlockHeight: {endBlockHeight}, " +
                                $"maxResultCount: {maxResultCount}, " +
@@ -191,7 +192,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     {
         // if (startBlockHeight > endBlockHeight)
         // {
-        //     _logger.LogInformation("EndBlockHeight should be higher than StartBlockHeight");
+        //     _logger.Information("EndBlockHeight should be higher than StartBlockHeight");
         //     return new List<SwapRecordDto>();
         // }
 
@@ -248,6 +249,50 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             return new List<SwapRecordDto>();
         }
         return graphQlResponse.Data.GetSwapRecords;
+    }
+
+
+    public async Task<List<LimitOrderFillRecordDto>> GetLimitOrderFillRecordsAsync(string chainId, long startBlockHeight,
+        long endBlockHeight, int skipCount, int maxResultCount)
+    {
+        var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderFillRecordResultDto>(new GraphQLRequest
+        {
+            Query =
+                @"query($chainId:String,$startBlockHeight:Long!,$endBlockHeight:Long!,$maxResultCount:Int!,$skipCount:Int!){
+            getLimitOrderFillRecords(dto: {chainId:$chainId,startBlockHeight:$startBlockHeight,endBlockHeight:$endBlockHeight,maxResultCount:$maxResultCount,skipCount:$skipCount})
+            {
+                chainId
+                orderId
+                makerAddress
+                symbolIn
+                symbolOut
+                takerAddress
+                transactionHash
+                amountInFilled
+                amountOutFilled
+                totalFee
+                transactionTime
+                transactionFee
+            }}",
+            Variables = new
+            {
+                chainId,
+                startBlockHeight,
+                endBlockHeight,
+                maxResultCount,
+                skipCount
+            }
+        });
+        if (graphQlResponse.Errors != null)
+        {
+            ErrorLog(graphQlResponse.Errors);
+            return new List<LimitOrderFillRecordDto>();
+        }
+        if (graphQlResponse.Data.GetLimitOrderFillRecords.IsNullOrEmpty())
+        {
+            return new List<LimitOrderFillRecordDto>();
+        }
+        return graphQlResponse.Data.GetLimitOrderFillRecords;
     }
 
     public async Task<List<SyncRecordDto>> GetSyncRecordsAsync(string chainId, long startBlockHeight, long endBlockHeight, int skipCount, int maxResultCount)
@@ -335,7 +380,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
             }
                 
         });
-        _logger.LogInformation($"liquidityRecord from graphql: {graphQlResponse.Data.LiquidityRecord.TotalCount}");
+        _logger.Information($"liquidityRecord from graphql: {graphQlResponse.Data.LiquidityRecord.TotalCount}");
         return graphQlResponse.Data.LiquidityRecord;
     }
 
@@ -426,7 +471,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
     
     public async Task<LimitOrderPageResultDto> QueryLimitOrderAsync(GetLimitOrderDetailsInput input)
     {
-        _logger.LogInformation($"Query limitOrderDetails, OrderId: {input.OrderId}");
+        _logger.Information($"Query limitOrderDetails, OrderId: {input.OrderId}");
         var graphQlResponse = await _graphQLClient.SendQueryAsync<LimitOrderDetailResultDto>(new GraphQLRequest
         {
             Query = 
@@ -479,7 +524,7 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         
         if (graphQlResponse.Data == null || graphQlResponse.Data.LimitOrderDetails == null)
         {
-            _logger.LogError($"Query limitOrderDetails, result is null");
+            _logger.Error($"Query limitOrderDetails, result is null");
             return new LimitOrderPageResultDto();
         }
         
@@ -508,39 +553,26 @@ public class GraphQLProvider : IGraphQLProvider, ISingletonDependency
         return graphQLResponse.Data.GetUserTokens;
     }
     
-    public async Task<long> GetLastEndHeightAsync(string chainId, WorkerBusinessType type)
+    [ExceptionHandler(typeof(Exception), Message = "GetLastEndHeight Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturnLongMinusOne))]
+    public virtual async Task<long> GetLastEndHeightAsync(string chainId, WorkerBusinessType type)
     {
-        try
-        {
-            var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() + chainId);
+        var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() + chainId);
             return await grain.GetStateAsync();
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "GetIndexBlockHeight on chain {id} error", chainId);
-            return AppServiceConstant.LongError;
-        }
     }
 
-    public async Task SetLastEndHeightAsync(string chainId, WorkerBusinessType type, long height)
+    [ExceptionHandler(typeof(Exception), Message = "SetLastEndHeight Error", TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
+    public virtual async Task SetLastEndHeightAsync(string chainId, WorkerBusinessType type, long height)
     {
-        try
-        {
-            var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() +
-                                                                              chainId);
-            await grain.SetStateAsync(height);
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "SetIndexBlockHeight on chain {id} error", chainId);
-        }
+        var grain = _clusterClient.GetGrain<IContractServiceGraphQLGrain>(type.ToString() +
+                                                                          chainId);
+        await grain.SetStateAsync(height);
     }
 
     private void ErrorLog(GraphQLError[] errors)
     {
         errors.ToList().ForEach(error =>
         {
-            _logger.LogError("GraphQL error: {message}", error.Message);
+            _logger.Error("GraphQL error: {message}", error.Message);
         });
     }
 }

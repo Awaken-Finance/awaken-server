@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AwakenServer.Chains;
 using AwakenServer.Common;
 using AwakenServer.Provider;
@@ -8,6 +9,7 @@ using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
@@ -25,13 +27,12 @@ public class LiquidityEventSyncWorker : AwakenServerWorkerBase
 
     public LiquidityEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory,
         ILiquidityAppService liquidityService,
-        ILogger<AwakenServerWorkerBase> logger,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider)
-        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        : base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _chainAppService = chainAppService;
         _graphQlProvider = graphQlProvider;
@@ -43,21 +44,17 @@ public class LiquidityEventSyncWorker : AwakenServerWorkerBase
         var queryList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
         long blockHeight = -1;
-        try
+
+        foreach (var queryDto in queryList)
         {
-            foreach (var queryDto in queryList)
+            if (!await _liquidityService.CreateAsync(queryDto))
             {
-                if (!await _liquidityService.CreateAsync(queryDto))
-                {
-                    continue;
-                }
-                blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
+                continue;
             }
+
+            blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
         }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "liquidity event fail.");
-        }
+       
 
         return blockHeight;
     }

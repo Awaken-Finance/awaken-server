@@ -4,9 +4,9 @@ using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Trade.Etos;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Serilog;
 using Serilog.Core;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
@@ -20,21 +20,20 @@ namespace AwakenServer.Trade.Handlers
         private readonly IClusterClient _clusterClient;
         private readonly IObjectMapper _objectMapper;
         private readonly KLinePeriodOptions _kLinePeriodOptions;
-        private readonly ILogger<KLineHandler> _logger;
+        private readonly ILogger _logger;
 
         public IDistributedEventBus _distributedEventBus { get; set; }
 
         public KLineHandler(IClusterClient clusterClient,
             IObjectMapper objectMapper,
             IOptionsSnapshot<KLinePeriodOptions> kLinePeriodOptions,
-            IDistributedEventBus distributedEventBus,
-            ILogger<KLineHandler> logger)
+            IDistributedEventBus distributedEventBus)
         {
             _clusterClient = clusterClient;
             _objectMapper = objectMapper;
             _kLinePeriodOptions = kLinePeriodOptions.Value;
             _distributedEventBus = distributedEventBus;
-            _logger = logger;
+            _logger = Log.ForContext<KLineHandler>();
         }
 
         public async Task HandleEventAsync(NewTradeRecordEvent eventData)
@@ -57,7 +56,7 @@ namespace AwakenServer.Trade.Handlers
                 var tradePairResult = await tradePairGrain.GetAsync();
                 if (!tradePairResult.Success)
                 {
-                    _logger.LogError($"kline handler, can't find trade pair: {eventData.TradePairId}");
+                    _logger.Error($"kline handler, can't find trade pair: {eventData.TradePairId}");
                     continue;
                 }
                 

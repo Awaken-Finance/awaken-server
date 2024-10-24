@@ -139,6 +139,8 @@ namespace AwakenServer.Price
                     Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3301"),
                     Token0Id = tokenCPU.Id,
                     Token1Id = tokenUSDT.Id,
+                    Token0Symbol = tokenCPU.Symbol,
+                    Token1Symbol = tokenUSDT.Symbol,
                     FeeRate = 0.5
                 }));
             
@@ -150,6 +152,8 @@ namespace AwakenServer.Price
                     Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3302"),
                     Token0Id = tokenCPU.Id,
                     Token1Id = tokenUSDC.Id,
+                    Token0Symbol = tokenCPU.Symbol,
+                    Token1Symbol = tokenUSDC.Symbol,
                     FeeRate = 0.5
                 }));
             
@@ -161,6 +165,8 @@ namespace AwakenServer.Price
                     Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3303"),
                     Token0Id = tokenCPU.Id,
                     Token1Id = tokenREAD.Id,
+                    Token0Symbol = tokenCPU.Symbol,
+                    Token1Symbol = tokenREAD.Symbol,
                     FeeRate = 0.03,
                 }));
             
@@ -173,6 +179,8 @@ namespace AwakenServer.Price
                     Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3304"),
                     Token0Id = tokenCPU.Id,
                     Token1Id = tokenWN1.Id,
+                    Token0Symbol = tokenCPU.Symbol,
+                    Token1Symbol = tokenWN1.Symbol,
                     FeeRate = 0.03,
                 }));
             
@@ -184,6 +192,8 @@ namespace AwakenServer.Price
                     Id = Guid.Parse("3D2504E0-4F89-41D3-9A0C-0305E82C3305"),
                     Token0Id = tokenWN1.Id,
                     Token1Id = tokenWN88.Id,
+                    Token0Symbol = tokenWN1.Symbol,
+                    Token1Symbol = tokenWN88.Symbol,
                     FeeRate = 0.03,
                 }));
 

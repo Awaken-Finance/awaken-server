@@ -106,5 +106,14 @@ namespace AwakenServer.Applications.GameOfTrust
         {
             return;
         }
+
+        public async Task<TokenPriceDataDto> GetTokenHistoryPriceDataAsync(GetTokenHistoryPriceInput input)
+        {
+            return new TokenPriceDataDto()
+            {
+                Symbol = input.Symbol,
+                PriceInUsd = 1
+            };
+        }
     }
 }

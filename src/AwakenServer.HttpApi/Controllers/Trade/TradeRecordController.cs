@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Asp.Versioning;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using Microsoft.AspNetCore.Mvc;

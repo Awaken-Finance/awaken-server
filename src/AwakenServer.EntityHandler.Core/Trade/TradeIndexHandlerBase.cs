@@ -18,9 +18,19 @@ namespace AwakenServer.EntityHandler.Trade
         protected TokenAppService TokenAppService => LazyServiceProvider.LazyGetRequiredService<TokenAppService>();
         public IAbpLazyServiceProvider LazyServiceProvider { get; set; }
         
-        protected async Task<Token> GetTokenAsync(Guid tokenId)
+        // protected async Task<Token> GetTokenAsync(Guid tokenId)
+        // {
+        //     var tokenDto = await TokenAppService.GetAsync(tokenId);
+        //     return ObjectMapper.Map<TokenDto, Token>(tokenDto);
+        // }
+        
+        protected async Task<Token> GetTokenAsync(string chainId, string symbol)
         {
-            var tokenDto = await TokenAppService.GetAsync(tokenId);
+            var tokenDto = await TokenAppService.GetAsync(new GetTokenInput()
+            {
+                ChainId = chainId,
+                Symbol = symbol
+            });
             return ObjectMapper.Map<TokenDto, Token>(tokenDto);
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AwakenServer.Activity;
 using AwakenServer.Applications.GameOfTrust;
 using AwakenServer.Chains;
 using AwakenServer.CMS;
@@ -142,6 +143,46 @@ namespace AwakenServer.Trade
                 };
             });
 
+            context.Services.Configure<ActivityOptions>(o =>
+            {
+                o.PricingTokens = new List<string>()
+                {
+                    "ELF",
+                    "USDT"
+                };
+                o.ActivityList = new List<Activity.Activity>();
+                o.ActivityList.Add(new Activity.Activity()
+                {
+                    ActivityId = 1,
+                    Type = "volume",
+                    BeginTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                    EndTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(3)),
+                    TradePairs = new List<string>()
+                    {
+                        "ETH_USDT",
+                        "BTC_USDT"
+                    },
+                    WhiteList = new List<string>()
+                    {
+                        "AAA"
+                    }
+                });
+                o.ActivityList.Add(new Activity.Activity()
+                {
+                    ActivityId = 2,
+                    Type = "tvl",
+                    BeginTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow),
+                    EndTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(3)),
+                    TradePairs = new List<string>()
+                    {
+                        "ETH_USDT",
+                        "BTC_USDT"
+                    },
+                });
+    
+            });
+
+            
             context.Services.Configure<CmsOptions>(o => { o.CmsAddress = "https://test-cms.awaken.finance/"; });
 
             context.Services.Configure<ContractsTokenOptions>(o =>
@@ -220,7 +261,9 @@ namespace AwakenServer.Trade
                     Id = Guid.Parse("3F2504E0-4F89-41D3-9A0C-0305E82C3301"),
                     Token0Id = tokenETH.Id,
                     Token1Id = tokenUSDT.Id,
-                    FeeRate = 0.0005
+                    FeeRate = 0.0005,
+                    Token0Symbol = tokenETH.Symbol,
+                    Token1Symbol = tokenUSDT.Symbol
                 }));
             environmentProvider.TradePairEthUsdtId = tradePairEthUsdt.Id;
             environmentProvider.TradePairEthUsdtAddress = tradePairEthUsdt.Address;
@@ -234,6 +277,8 @@ namespace AwakenServer.Trade
                     Token0Id = tokenBTC.Id,
                     Token1Id = tokenETH.Id,
                     FeeRate = 0.03,
+                    Token0Symbol = tokenBTC.Symbol,
+                    Token1Symbol = tokenETH.Symbol
                 }));
             environmentProvider.TradePairBtcEthId = tradePairBtcEth.Id;
             environmentProvider.TradePairBtcEthAddress = tradePairBtcEth.Address;
@@ -248,6 +293,8 @@ namespace AwakenServer.Trade
                     Token0Id = tokenBTC.Id,
                     Token1Id = tokenUSDT.Id,
                     FeeRate = 0.03,
+                    Token0Symbol = tokenBTC.Symbol,
+                    Token1Symbol = tokenUSDT.Symbol
                 }));
             environmentProvider.tradePairBtcUsdtId = tradePairBtcUsdt.Id;
             environmentProvider.tradePairBtcUsdtAddress = tradePairBtcUsdt.Address;

@@ -2,10 +2,11 @@ using System;
 
 namespace AwakenServer.Grains.Grain.Favorite;
 
+[GenerateSerializer]
 public class FavoriteGrainDto
 {
-    public string Id { get; set; }
-    public Guid TradePairId { get; set; }
-    public string Address { get; set; }
-    public long Timestamp { get; set; }
+    [Id(0)] public string Id { get; set; }
+    [Id(1)] public Guid TradePairId { get; set; }
+    [Id(2)] public string Address { get; set; }
+    [Id(3)] public long Timestamp { get; set; }
 }

@@ -68,7 +68,9 @@ namespace AwakenServer.Trade
                 Address = "0xABCDEFG",
                 FeeRate = 0.5,
                 Token0Id = TokenBtcId,
-                Token1Id = TokenUsdtId
+                Token1Id = TokenUsdtId,
+                Token0Symbol = TokenBtcSymbol,
+                Token1Symbol = TokenUsdtSymbol
             };
             var pair = await _tradePairTestHelper.CreateAsync(pairDto);
 
@@ -103,7 +105,9 @@ namespace AwakenServer.Trade
                 Address = "0xABCDEFG",
                 FeeRate = 0.5,
                 Token0Id = TokenBtcId,
-                Token1Id = TokenUsdtId
+                Token1Id = TokenUsdtId,
+                Token0Symbol = TokenBtcSymbol,
+                Token1Symbol = TokenUsdtSymbol
             };
             await _tradePairTestHelper.CreateAsync(pairDto);
 
@@ -134,7 +138,9 @@ namespace AwakenServer.Trade
                 Address = "0xABCDEFG",
                 FeeRate = 0.5,
                 Token0Id = TokenBtcId,
-                Token1Id = TokenUsdtId
+                Token1Id = TokenUsdtId,
+                Token0Symbol = TokenBtcSymbol,
+                Token1Symbol = TokenUsdtSymbol
             };
             var createdPair = await _tradePairTestHelper.CreateAsync(pairDto);
 
@@ -666,7 +672,7 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task UpdateTradePair_TVL_Test()
         {
-            await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenEthId, TokenUsdtId, 2);
+            await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenEthId, TokenUsdtId, 2, TokenEthSymbol);
             var tradePairIndex = await _tradePairIndexRepository.GetAsync(TradePairEthUsdtId);
             tradePairIndex.Price = 0;
             tradePairIndex.ValueLocked0 = 0;
@@ -711,7 +717,7 @@ namespace AwakenServer.Trade
         [Fact]
         public async Task UpdateTradePair_Token1Price_Test()
         {
-            await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenEthId, TokenUsdtId, 2);
+            await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenEthId, TokenUsdtId, 2, TokenEthSymbol);
             var tradePairIndex = await _tradePairIndexRepository.GetAsync(TradePairBtcEthId);
             tradePairIndex.Price = 2;
             tradePairIndex.ValueLocked0 = 100000;
@@ -742,7 +748,7 @@ namespace AwakenServer.Trade
 
         private async Task InitTradePairAsync()
         {
-            await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenEthId, TokenUsdtId, 2);
+            await _tokenPriceProvider.UpdatePriceAsync(ChainId, TokenEthId, TokenUsdtId, 2, TokenEthSymbol);
             var tradePairIndex = await _tradePairIndexRepository.GetAsync(TradePairEthUsdtId);
             tradePairIndex.Price = 2;
             tradePairIndex.ValueLocked0 = 100000;

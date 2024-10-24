@@ -1,9 +1,11 @@
 using System;
 using System.Threading.Tasks;
+using AElf.ExceptionHandler;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Tokens;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
 using Volo.Abp.EventBus.Distributed;
@@ -14,11 +16,11 @@ namespace AwakenServer.ContractEventHandler.Tokens;
 
 public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransientDependency
 {
-    private readonly INESTRepository<Token, Guid> _tokenIndexRepository;
+    private readonly INESTRepository<TokenEntity, Guid> _tokenIndexRepository;
     private readonly IObjectMapper _objectMapper;
     private readonly ILogger<NewTokenHandler> _logger;
     
-    public NewTokenHandler(INESTRepository<Token, Guid> tokenIndexRepository,
+    public NewTokenHandler(INESTRepository<TokenEntity, Guid> tokenIndexRepository,
         IObjectMapper objectMapper,
         ILogger<NewTokenHandler> logger)
     {
@@ -27,19 +29,12 @@ public class NewTokenHandler: IDistributedEventHandler<NewTokenEvent>,ITransient
         _logger = logger;
     }
     
-    public async Task HandleEventAsync(NewTokenEvent eventData)
+    [ExceptionHandler(typeof(Exception), LogOnly = true)]
+    public virtual async Task HandleEventAsync(NewTokenEvent eventData)
     {
-        try
-        {
-            await _tokenIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewTokenEvent, Token>(eventData));
-            _logger.LogDebug("Token info add success:{Id}-{Symbol}-{ChainId}, ImageUri:{ImageUri}", eventData.Id, eventData.Symbol,
+        await _tokenIndexRepository.AddOrUpdateAsync(_objectMapper.Map<NewTokenEvent, TokenEntity>(eventData));
+            Log.Debug("Token info add success:{Id}-{Symbol}-{ChainId}, ImageUri:{ImageUri}", eventData.Id, eventData.Symbol,
                 eventData.ChainId, eventData.ImageUri);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "{Id}-{Symbol}-{ChainId}", eventData.Id, eventData.Symbol,
-                eventData.ChainId);
-        }
     }
     
 }

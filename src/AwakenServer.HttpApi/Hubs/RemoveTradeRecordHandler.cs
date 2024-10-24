@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using AwakenServer.Trade.Dtos;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Distributed;
 
@@ -17,17 +17,16 @@ namespace AwakenServer.Hubs
         private readonly IHubContext<TradeHub> _hubContext;
         private readonly ITradeHubConnectionProvider _tradeHubConnectionProvider;
         private readonly ITradeHubGroupProvider _tradeHubGroupProvider;
-        private readonly ILogger<RemoveTradeRecordHandler> _logger;
+        private readonly ILogger _logger;
 
         public RemoveTradeRecordHandler(ITradeHubConnectionProvider tradeHubConnectionProvider,
             IHubContext<TradeHub> hubContext,
-            ITradeHubGroupProvider tradeHubGroupProvider,
-            ILogger<RemoveTradeRecordHandler> logger)
+            ITradeHubGroupProvider tradeHubGroupProvider)
         {
             _tradeHubConnectionProvider = tradeHubConnectionProvider;
             _hubContext = hubContext;
             _tradeHubGroupProvider = tradeHubGroupProvider;
-            _logger = logger;
+            _logger = Log.ForContext<RemoveTradeRecordHandler>();
         }
 
         public async Task Consume(ConsumeContext<RemovedIndexEvent<TradeRecordRemovedListResultDto>> eventData)
@@ -42,7 +41,7 @@ namespace AwakenServer.Hubs
                 var tradeRecordGroupName =
                     _tradeHubGroupProvider.GetRemovedTradeRecordGroupName(key[0], Guid.Parse(key[1]));
 
-                _logger.LogInformation(
+                _logger.Information(
                     "RemoveTradeRecordHandler,ReceiveRemovedTradeRecord: {tradeRecordGroupName}, {count}",
                     tradeRecordGroupName, keyValuePair.Value.ToList().Count);
                 await _hubContext.Clients.Group(tradeRecordGroupName)
@@ -64,7 +63,7 @@ namespace AwakenServer.Hubs
                         Guid.Parse(key[1]), key[2]);
                 if (connectionIds == null) continue;
 
-                _logger.LogInformation(
+                _logger.Information(
                     "RemoveTradeRecordHandler,ReceiveRemovedUserTradeRecord: {connectionId}, {count}", connectionIds,
                     keyValuePair.Value.ToList().Count);
 
