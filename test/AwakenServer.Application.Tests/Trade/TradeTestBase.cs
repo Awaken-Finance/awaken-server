@@ -19,10 +19,13 @@ namespace AwakenServer.Trade
         protected string TradePairBtcUsdtAddress { get; }
         protected Guid TokenUsdtId { get; }
         protected string TokenUsdtSymbol { get; }
+        protected int TokenUsdtDecimal { get; }
+
         protected Guid TokenEthId { get; }
         protected string TokenEthSymbol { get; }
         protected Guid TokenBtcId { get; }
         protected string TokenBtcSymbol { get; }
+        protected int TokenBtcDecimal { get; }
         
         protected ITradePairAppService TradePairAppService;
         protected ITokenAppService TokenAppService;
@@ -50,6 +53,8 @@ namespace AwakenServer.Trade
             TokenUsdtSymbol = environmentProvider.TokenUsdtSymbol;
             TokenBtcId = environmentProvider.TokenBtcId;
             TokenBtcSymbol = environmentProvider.TokenBtcSymbol;
+            TokenBtcDecimal = environmentProvider.TokenBtcDecimal;
+            TokenUsdtDecimal = environmentProvider.TokenUsdtDecimal;
         }
 
         protected async Task CheckTradePairAsync(Guid tradePairId, TradePairWithTokenDto tradePairWithToken)

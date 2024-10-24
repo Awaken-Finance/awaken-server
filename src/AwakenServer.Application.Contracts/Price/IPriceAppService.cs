@@ -12,6 +12,7 @@ namespace AwakenServer.Price
     public interface IPriceAppService : IApplicationService
     {
         Task<string> GetTokenPriceAsync(GetTokenPriceInput input);
+        Task<double> GetTokenPriceAsync(string symbol);
         Task<ListResultDto<TokenPriceDataDto>> GetTokenPriceListAsync(List<string> symbols);
         Task<ListResultDto<TokenPriceDataDto>> GetTokenHistoryPriceDataAsync(List<GetTokenHistoryPriceInput> inputs);
         Task<TokenPriceDataDto> GetTokenHistoryPriceDataAsync(GetTokenHistoryPriceInput input);

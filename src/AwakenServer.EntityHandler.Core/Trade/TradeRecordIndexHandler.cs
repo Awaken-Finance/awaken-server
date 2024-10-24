@@ -101,9 +101,7 @@ namespace AwakenServer.EntityHandler.Trade
                 var subRecordIndex = ObjectMapper.Map<MultiTradeRecordEto, TradeRecord>(eventData.Entity);
                 subRecordIndex.IsSubRecord = true;
                 subRecordIndex.TradePair = pair;
-                subRecordIndex.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(subRecordIndex);
                 subRecordIndex.TransactionFee = index.TransactionFee;
-                
                 subRecordIndex.Side = isSell ? TradeSide.Sell : TradeSide.Buy;
                 subRecordIndex.Token0Amount = isSell
                     ? record.AmountIn.ToDecimalsString(pair.Token0.Decimals)
@@ -111,11 +109,12 @@ namespace AwakenServer.EntityHandler.Trade
                 subRecordIndex.Token1Amount = isSell
                     ? record.AmountOut.ToDecimalsString(pair.Token1.Decimals)
                     : record.AmountIn.ToDecimalsString(pair.Token1.Decimals);
-                
                 subRecordIndex.Price = double.Parse(subRecordIndex.Token1Amount) / double.Parse(subRecordIndex.Token0Amount);
                 subRecordIndex.Id = Guid.NewGuid();
                 subRecordIndex.TotalFee =
                     record.TotalFee / Math.Pow(10, isSell ? pair.Token0.Decimals : pair.Token1.Decimals);
+                
+                subRecordIndex.TotalPriceInUsd = await GetHistoryPriceInUsdAsync(subRecordIndex);
                 
                 await _tradeRecordIndexRepository.AddOrUpdateAsync(subRecordIndex);
                 
