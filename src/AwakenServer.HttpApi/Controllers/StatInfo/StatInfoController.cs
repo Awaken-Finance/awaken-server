@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Asp.Versioning;
 using AwakenServer.StatInfo;
 using AwakenServer.StatInfo.Dtos;
 using AwakenServer.Trade;

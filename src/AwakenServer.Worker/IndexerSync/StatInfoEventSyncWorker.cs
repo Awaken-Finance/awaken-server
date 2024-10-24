@@ -20,9 +20,9 @@ public class StatInfoEventSyncWorker : AwakenServerWorkerBase
 
     public StatInfoEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory, 
         IOptionsMonitor<WorkerOptions> optionsMonitor, IGraphQLProvider graphQlProvider, IChainAppService chainAppService, 
-        ILogger<AwakenServerWorkerBase> logger, IOptions<ChainsInitOptions> chainsOption, ISyncStateProvider syncStateProvider, 
+        IOptions<ChainsInitOptions> chainsOption, ISyncStateProvider syncStateProvider, 
         StatInfoInternalAppService statInfoInternalAppService) : 
-        base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _statInfoInternalAppService = statInfoInternalAppService;
     }
@@ -39,7 +39,7 @@ public class StatInfoEventSyncWorker : AwakenServerWorkerBase
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
-        _logger.LogInformation("StatInfoEventSyncWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}, sync queryList count: {syncCount}", 
+        _logger.Information("StatInfoEventSyncWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}, sync queryList count: {syncCount}", 
             liquidityRecordList.Count, swapRecordList.Count, syncRecordList.Count);
         long blockHeight = -1;
         try
@@ -60,7 +60,7 @@ public class StatInfoEventSyncWorker : AwakenServerWorkerBase
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "StatInfo event fail.");
+            _logger.Error(e, "StatInfo event fail.");
         }
 
         return blockHeight;

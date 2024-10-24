@@ -23,9 +23,9 @@ public class StatInfoUpdateWorker : AwakenServerWorkerBase
     public StatInfoUpdateWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory, 
         IOptionsMonitor<WorkerOptions> optionsMonitor, IOptionsMonitor<StatInfoUpdateWorkerSettings> updateOptionsMonitor, 
         IGraphQLProvider graphQlProvider, IChainAppService chainAppService, 
-        ILogger<AwakenServerWorkerBase> logger, IOptions<ChainsInitOptions> chainsOption, ISyncStateProvider syncStateProvider, 
+        IOptions<ChainsInitOptions> chainsOption, ISyncStateProvider syncStateProvider, 
         StatInfoInternalAppService statInfoInternalAppService) : 
-        base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, logger, chainsOption, syncStateProvider)
+        base(timer, serviceScopeFactory, optionsMonitor, graphQlProvider, chainAppService, chainsOption, syncStateProvider)
     {
         _graphQlProvider = graphQlProvider;
         _statInfoInternalAppService = statInfoInternalAppService;
@@ -34,7 +34,7 @@ public class StatInfoUpdateWorker : AwakenServerWorkerBase
         {
             _options.DataVersion = newOptions.DataVersion;
             _options.ExecuteRefreshTvl = newOptions.ExecuteRefreshTvl;
-            _logger.LogInformation($"Data cleanup, options change: " +
+            _logger.Information($"Data cleanup, options change: " +
                                    $"DataVersion={_options.DataVersion}, " +
                                    $"ExecuteRefreshTvl={_options.ExecuteRefreshTvl}");
         });
