@@ -21,6 +21,7 @@ using AwakenServer.Grains.State.Favorite;
 using AwakenServer.Grains.State.MyPortfolio;
 using AwakenServer.Grains.State.Price;
 using AwakenServer.Grains.State.StatInfo;
+using AwakenServer.StatInfo.Etos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
@@ -71,5 +72,7 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
         CreateMap<JoinRecordState, JoinRecordGrainDto>().ReverseMap();
         CreateMap<RankingInfo, AwakenServer.Activity.RankingInfo>().ReverseMap();
         CreateMap<TradePairWithToken, TradePairWithTokenDto>();
+        CreateMap<PoolStatInfoGrainDto, PoolStatInfoEto>();
+        CreateMap<TokenStatInfoGrainDto, TokenStatInfoEto>();
     }
 }

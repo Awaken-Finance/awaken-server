@@ -126,7 +126,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         poolStatInfoGrainDtoResult.Data.LastUpdateTime = timestamp;
         poolStatInfoGrainDtoResult = await poolStatInfoGrain.AddOrUpdateAsync(poolStatInfoGrainDtoResult.Data);
         poolStatInfoGrainDtoResult.Data.Version = dataVersion;
-        await _distributedEventBus.PublishAsync(ObjectMapper.Map<PoolStatInfo, PoolStatInfoEto>(poolStatInfoGrainDtoResult.Data));
+        await _distributedEventBus.PublishAsync(ObjectMapper.Map<PoolStatInfoGrainDto, PoolStatInfoEto>(poolStatInfoGrainDtoResult.Data));
         
         await IncTokenTransactionCount(tradePair.ChainId, tradePair.Token0.Symbol, timestamp, dataVersion);
         await IncTokenTransactionCount(tradePair.ChainId, tradePair.Token1.Symbol, timestamp, dataVersion);
@@ -142,7 +142,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         tokenStatInfoGrainDtoResult.Data.TransactionCount++;
         tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.AddOrUpdateAsync(tokenStatInfoGrainDtoResult.Data);
         tokenStatInfoGrainDtoResult.Data.Version = dataVersion;
-        await _distributedEventBus.PublishAsync(ObjectMapper.Map<TokenStatInfo, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
+        await _distributedEventBus.PublishAsync(ObjectMapper.Map<TokenStatInfoGrainDto, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
     }
     
     public async Task<bool> CreateSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion)
@@ -231,7 +231,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         if (poolStatInfoGrainDtoResult.Success)
         {
             await _distributedEventBus.PublishAsync(
-                ObjectMapper.Map<PoolStatInfo, PoolStatInfoEto>(poolStatInfoGrainDtoResult.Data));
+                ObjectMapper.Map<PoolStatInfoGrainDto, PoolStatInfoEto>(poolStatInfoGrainDtoResult.Data));
         }
         
         var lpFeeAmount = swapRecordDto.TotalFee.ToDecimalsString(isSell ? tradePair.Token0.Decimals : tradePair.Token1.Decimals);
@@ -284,7 +284,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         tokenStatInfoGrainDtoResult.Data.LastUpdateTime = timestamp;
         tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.AddOrUpdateAsync(tokenStatInfoGrainDtoResult.Data);
         tokenStatInfoGrainDtoResult.Data.Version = dataVersion;
-        await _distributedEventBus.PublishAsync(ObjectMapper.Map<TokenStatInfo, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
+        await _distributedEventBus.PublishAsync(ObjectMapper.Map<TokenStatInfoGrainDto, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
         
         var tokenSnapshotEto = new StatInfoSnapshotEto
         {
@@ -340,7 +340,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         poolStateInfoGrainDtoResult.Data.Version = dataVersion;
         if (poolStateInfoGrainDtoResult.Success) {
             await _distributedEventBus.PublishAsync(
-            ObjectMapper.Map<PoolStatInfo, PoolStatInfoEto>(poolStateInfoGrainDtoResult.Data));
+            ObjectMapper.Map<PoolStatInfoGrainDto, PoolStatInfoEto>(poolStateInfoGrainDtoResult.Data));
             await _distributedEventBus.PublishAsync(
                 new StatInfoSnapshotEto()
                 {
@@ -415,7 +415,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         if (tokenStatInfoGrainDtoResult.Success)
         {
             await _distributedEventBus.PublishAsync(
-                ObjectMapper.Map<TokenStatInfo, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
+                ObjectMapper.Map<TokenStatInfoGrainDto, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
             await _distributedEventBus.PublishAsync(new StatInfoSnapshotEto()
             {
                 Version = dataVersion,
@@ -529,7 +529,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             if (tokenStatInfoGrainDtoResult.Success)
             {
                 await _distributedEventBus.PublishAsync(
-                    ObjectMapper.Map<TokenStatInfo, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
+                    ObjectMapper.Map<TokenStatInfoGrainDto, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
             }
         }
     }
@@ -568,7 +568,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             if (poolStatInfoGrainDtoResult.Success)
             {
                 await _distributedEventBus.PublishAsync(
-                    ObjectMapper.Map<PoolStatInfo, PoolStatInfoEto>(poolStatInfoGrainDtoResult.Data));
+                    ObjectMapper.Map<PoolStatInfoGrainDto, PoolStatInfoEto>(poolStatInfoGrainDtoResult.Data));
             }
         }
     }
@@ -601,7 +601,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             tokenStatInfoGrainDtoResult.Data.FollowPairAddress = pricingNodePair.Value.FromTradePairAddress;
             tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.AddOrUpdateAsync(tokenStatInfoGrainDtoResult.Data);
             tokenStatInfoGrainDtoResult.Data.Version = dataVersion;
-            await _distributedEventBus.PublishAsync(ObjectMapper.Map<TokenStatInfo, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
+            await _distributedEventBus.PublishAsync(ObjectMapper.Map<TokenStatInfoGrainDto, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
         }
     }
 

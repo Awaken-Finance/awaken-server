@@ -272,9 +272,9 @@ public class StatInfoInternalAppServiceTests : TradeTestBase
        token0StatInfoResult.Data.TransactionCount.ShouldBe(0);
        token0StatInfoResult.Data.LastUpdateTime.ShouldBe(4000);
        token0StatInfoResult.Data.Tvl.ShouldBe(1000);
-       token0StatInfoResult.Data.PriceInUsd.ShouldBe(0);
+       token0StatInfoResult.Data.PriceInUsd.ShouldBe(0.1);
        token0StatInfoResult.Data.PricePercentChange24h.ShouldBe(0);
-        
+       
        var token0StatInfoIndex = await _tokenStatInfoIndexRepository.GetAsync(q =>
            q.Term(i => i.Field(f => f.Symbol).Value("BTC")) &&
            q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.Value.DataVersion)));
@@ -282,7 +282,7 @@ public class StatInfoInternalAppServiceTests : TradeTestBase
        token0StatInfoIndex.TransactionCount.ShouldBe(0);
        token0StatInfoIndex.LastUpdateTime.ShouldBe(4000);
        token0StatInfoIndex.Tvl.ShouldBe(1000);
-       token0StatInfoIndex.PriceInUsd.ShouldBe(0);
+       token0StatInfoIndex.PriceInUsd.ShouldBe(0.1);
        token0StatInfoIndex.PricePercentChange24h.ShouldBe(0);
        
        // token1
@@ -294,7 +294,7 @@ public class StatInfoInternalAppServiceTests : TradeTestBase
        token1StatInfoResult.Data.TransactionCount.ShouldBe(0);
        token1StatInfoResult.Data.LastUpdateTime.ShouldBe(4000);
        token1StatInfoResult.Data.Tvl.ShouldBe(100);
-       token1StatInfoResult.Data.PriceInUsd.ShouldBe(0);
+       token1StatInfoResult.Data.PriceInUsd.ShouldBe(1);
        token1StatInfoResult.Data.PricePercentChange24h.ShouldBe(0);
        
        var token1StatInfoIndex = await _tokenStatInfoIndexRepository.GetAsync(q =>
@@ -304,7 +304,7 @@ public class StatInfoInternalAppServiceTests : TradeTestBase
        token1StatInfoIndex.Symbol.ShouldBe("USDT");
        token1StatInfoIndex.LastUpdateTime.ShouldBe(4000);
        token1StatInfoIndex.Tvl.ShouldBe(100);
-       token1StatInfoIndex.PriceInUsd.ShouldBe(0);
+       token1StatInfoIndex.PriceInUsd.ShouldBe(1);
        token1StatInfoIndex.PricePercentChange24h.ShouldBe(0);
        
        // global

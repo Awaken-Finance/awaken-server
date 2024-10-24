@@ -16,6 +16,10 @@ public class TokenStatInfoGrain : Grain<TokenStatInfoState>, ITokenStatInfoGrain
     public async Task<GrainResultDto<TokenStatInfoGrainDto>> AddOrUpdateAsync(TokenStatInfoGrainDto dto)
     {
         _objectMapper.Map(dto, State);
+        if (State.Id == Guid.Empty)
+        {
+            State.Id = Guid.NewGuid();
+        }
         await WriteStateAsync();
         return new GrainResultDto<TokenStatInfoGrainDto>
         {

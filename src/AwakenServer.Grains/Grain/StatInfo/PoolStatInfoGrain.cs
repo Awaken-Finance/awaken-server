@@ -16,6 +16,10 @@ public class PoolStatInfoGrain : Grain<PoolStatInfoState>, IPoolStatInfoGrain
     public async Task<GrainResultDto<PoolStatInfoGrainDto>> AddOrUpdateAsync(PoolStatInfoGrainDto grainDto)
     {
         _objectMapper.Map(grainDto, State);
+        if (State.Id == Guid.Empty)
+        {
+            State.Id = Guid.NewGuid();
+        }
         await WriteStateAsync();
         return new GrainResultDto<PoolStatInfoGrainDto>
         {

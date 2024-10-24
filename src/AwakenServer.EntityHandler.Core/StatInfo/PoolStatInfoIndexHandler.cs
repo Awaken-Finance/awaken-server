@@ -26,14 +26,14 @@ public class PoolStatInfoIndexHandler : TradeIndexHandlerBase, IDistributedEvent
     public async Task HandleEventAsync(PoolStatInfoEto eventData)
     {
         var poolStatInfoIndex = ObjectMapper.Map<PoolStatInfoEto, PoolStatInfoIndex>(eventData);
-        var existedIndex = await _repository.GetAsync(q =>
-            q.Term(i => i.Field(f => f.Version).Value(eventData.Version)) &&
-            q.Term(i => i.Field(f => f.PairAddress).Value(eventData.PairAddress)));
-        poolStatInfoIndex.Id = existedIndex switch
-        {
-            null => Guid.NewGuid(),
-            _ => existedIndex.Id
-        };
+        // var existedIndex = await _repository.GetAsync(q =>
+        //     q.Term(i => i.Field(f => f.Version).Value(eventData.Version)) &&
+        //     q.Term(i => i.Field(f => f.PairAddress).Value(eventData.PairAddress)));
+        // poolStatInfoIndex.Id = existedIndex switch
+        // {
+        //     null => Guid.NewGuid(),
+        //     _ => existedIndex.Id
+        // };
         poolStatInfoIndex.TradePair = await GetTradePariWithTokenAsync(poolStatInfoIndex.PairAddress);
         await _repository.AddOrUpdateAsync(poolStatInfoIndex);
     }
