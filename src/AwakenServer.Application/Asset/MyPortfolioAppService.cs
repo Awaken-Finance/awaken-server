@@ -279,6 +279,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                 Token0TotalFee = userToken0Fee,
                 Token1TotalFee = userToken1Fee
             };
+            
             var snapshotGrain = _clusterClient.GetGrain<IUserLiquiditySnapshotGrain>(
                 AddVersionToKey(GrainIdHelper.GenerateGrainId(userLiquidity.Address, tradePair.Id, currentLiquidityGrainResult.Data.LastUpdateTime.Date), dataVersion));
             var snapshotResult = await snapshotGrain.AddOrUpdateAsync(userLiquiditySnapshotGrainDto);
