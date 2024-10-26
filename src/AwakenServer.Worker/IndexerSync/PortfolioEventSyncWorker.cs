@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AwakenServer.Asset;
 using AwakenServer.Chains;
@@ -49,10 +50,20 @@ public class PortfolioEventSyncWorker : AwakenServerWorkerBase
         if (swapRecordList.Count >= _workerOptions.QueryOnceLimit)
         {
             maxBlockHeight = swapRecordList[_workerOptions.QueryOnceLimit - 1].BlockHeight;
+            _logger.Information($"PortfolioEventSyncWorker, swapLastHeight: {maxBlockHeight}");
         }
         var liquidityRecordList = await _graphQlProvider.GetLiquidRecordsAsync(chain.Id, startHeight, 
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
-        _logger.Information("portfolioWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
+        if (liquidityRecordList.Count >= _workerOptions.QueryOnceLimit)
+        {
+            var liquidityLastHeight = liquidityRecordList[_workerOptions.QueryOnceLimit-1].BlockHeight;
+            if (swapRecordList.Count > 0 && liquidityLastHeight < swapRecordList[swapRecordList.Count - 1].BlockHeight)
+            {
+                swapRecordList = swapRecordList.Where(s => s.BlockHeight <= liquidityLastHeight).ToList();
+            }
+            _logger.Information($"PortfolioEventSyncWorker, liquidityLastHeight: {liquidityLastHeight}");
+        }
+        _logger.Information("PortfolioEventSyncWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}", 
             liquidityRecordList.Count, swapRecordList.Count);
         long blockHeight = -1;
         var logCount = 0;
