@@ -44,3 +44,8 @@ public class DataCleanupWorkerSettings : WorkerSetting
     public string DataVersion { get; set; }
     public bool ExecuteDeletion { get; set; }
 }
+
+public class StatInfoUpdateWorkerSettings : WorkerSetting
+{
+    public bool ExecuteRefreshTvl { get; set; }
+}

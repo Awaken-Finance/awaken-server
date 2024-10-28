@@ -12,9 +12,13 @@ using AwakenServer.Grains.Grain.Favorite;
 using AwakenServer.Grains.Grain.MyPortfolio;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
+using AwakenServer.Grains.Grain.StatInfo;
 using AwakenServer.Grains.Grain.SwapTokenPath;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.State.Tokens;
+using AwakenServer.StatInfo.Dtos;
+using AwakenServer.StatInfo.Etos;
+using AwakenServer.StatInfo.Index;
 using AwakenServer.SwapTokenPath.Dtos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade;
@@ -149,6 +153,7 @@ namespace AwakenServer
             CreateMap<KLineEto, KLine>();
             CreateMap<Trade.Index.KLine, KLineDto>();
             CreateMap<KLineGrainDto, KLineEto>();
+            CreateMap<StatInfoSnapshotGrainDto, StatInfoSnapshotIndexEto>();
             CreateMap<NewTradeRecordEvent, TradeRecordDto>();
             CreateMap<Trade.Dtos.SwapRecord, Trade.SwapRecord>().ReverseMap();
             CreateMap<Trade.Dtos.SwapRecord, SwapRecordDto>();
@@ -168,6 +173,7 @@ namespace AwakenServer
             CreateMap<CurrentUserLiquidityIndex, CurrentUserLiquidityDto>();
             CreateMap<CurrentUserLiquidityGrainDto, CurrentUserLiquidityEto>();
             CreateMap<UserLiquiditySnapshotEto, UserLiquiditySnapshotIndex>();
+            CreateMap<StatInfoSnapshotIndexEto, StatInfoSnapshotIndex>();
             CreateMap<UserLiquiditySnapshotGrainDto, UserLiquiditySnapshotEto>();
             
             CreateMap<LimitOrderDto, LimitOrderIndexDto>()
@@ -182,6 +188,17 @@ namespace AwakenServer
             //Favorite
             CreateMapForFavorite();
 
+            CreateMap<StatInfoSnapshotEto,StatInfoSnapshotGrainDto>();
+            CreateMap<StatInfoSnapshotIndex, StatInfoPriceDto>();
+            CreateMap<StatInfoSnapshotIndex, StatInfoVolumeDto>();
+            CreateMap<StatInfoSnapshotIndex, StatInfoTvlDto>();
+            CreateMap<TransactionHistoryIndex, TransactionHistoryDto>();
+            CreateMap<PoolStatInfoIndex, PoolStatInfoDto>();
+            CreateMap<TokenStatInfoIndex, TokenStatInfoDto>();
+
+            CreateMap<TokenStatInfoEto, TokenStatInfoIndex>();
+            CreateMap<PoolStatInfoEto, PoolStatInfoIndex>();
+            CreateMap<TransactionHistoryEto, TransactionHistoryIndex>();
             CreateMap<RankingListSnapshotEto, RankingListSnapshotIndex>();
             CreateMap<UserActivityInfoEto, UserActivityInfoIndex>();
             CreateMap<JoinRecordEto, JoinRecordIndex>();

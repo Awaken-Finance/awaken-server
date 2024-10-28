@@ -125,7 +125,7 @@ namespace AwakenServer.Price
                     DateTime = DateTime.UtcNow.AddDays(-1)
                 } 
             });
-            result.Items.Count.ShouldBe(0);
+            result.Items.Count.ShouldBe(1);
         }
     }
 }

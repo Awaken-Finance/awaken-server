@@ -14,5 +14,9 @@ public enum WorkerBusinessType
     DataCleanup,
     NewVersionPortfolioEvent,
     NewSwapEvent,
+    StatInfoIndexEvent,
+    NewVersionStatInfoIndexEvent,
+    StatInfoUpdateEvent,
+    NewVersionStatInfoUpdateEvent,
     ActivityEvent
 }

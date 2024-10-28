@@ -6,6 +6,7 @@ using AwakenServer.Chains;
 using AwakenServer.CMS;
 using AwakenServer.Price;
 using AwakenServer.Provider;
+using AwakenServer.StatInfo;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Worker;
@@ -102,6 +103,29 @@ namespace AwakenServer.Trade
                     86400,
                     604800
                 };
+            });
+            
+            context.Services.Configure<StatInfoOptions>(o =>
+            {
+                o.Periods = new List<int>
+                {
+                    3600,
+                    21600,
+                    86400,
+                    604800
+                };
+                o.TypePeriodMapping = new Dictionary<string, long>()
+                {
+                    { "Day", 3600 },
+                    { "Week", 21600 },
+                    { "Month", 86400 },
+                    { "Year", 604800 }
+                };
+                o.StableCoinPriority = new List<string>()
+                {
+                    "USDT", "ELF"
+                };
+                o.DataVersion = "v1";
             });
 
             context.Services.Configure<MainCoinOptions>(o =>
@@ -216,6 +240,7 @@ namespace AwakenServer.Trade
             }));
             environmentProvider.TokenUsdtId = tokenUSDT.Id;
             environmentProvider.TokenUsdtSymbol = "USDT";
+            environmentProvider.TokenUsdtDecimal = tokenUSDT.Decimals;
 
             var tokenBTC = AsyncHelper.RunSync(async () => await tokenService.CreateAsync(new TokenCreateDto
             {
@@ -226,7 +251,8 @@ namespace AwakenServer.Trade
             }));
             environmentProvider.TokenBtcId = tokenBTC.Id;
             environmentProvider.TokenBtcSymbol = "BTC";
-
+            environmentProvider.TokenBtcDecimal = tokenBTC.Decimals;
+            
             var tradePairEthUsdt = AsyncHelper.RunSync(async () => await tradePairTestHelper.CreateAsync(
                 new TradePairCreateDto
                 {
