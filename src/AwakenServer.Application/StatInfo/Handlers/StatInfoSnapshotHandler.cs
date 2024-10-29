@@ -9,10 +9,10 @@ using AwakenServer.StatInfo.Etos;
 using AwakenServer.StatInfo.Index;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Etos;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using Orleans;
-using Serilog.Core;
+using Serilog;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
 using Volo.Abp.EventBus.Distributed;
@@ -20,12 +20,12 @@ using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.StatInfo.Handlers
 {
-    public class StatInfoSnapshotHandler : ILocalEventHandler<StatInfoSnapshotEto>, ITransientDependency
+    public class StatInfoSnapshotHandler : IDistributedEventHandler<StatInfoSnapshotEto>, ITransientDependency
     {
         private readonly IClusterClient _clusterClient;
         private readonly IObjectMapper _objectMapper;
         private readonly StatInfoOptions _statInfoOptions;
-        private readonly ILogger<StatInfoSnapshotHandler> _logger;
+        private readonly ILogger _logger;
         private readonly ITradePairAppService _tradePairAppService;
         private readonly IPriceAppService _priceAppService;
 
@@ -35,7 +35,6 @@ namespace AwakenServer.StatInfo.Handlers
             IObjectMapper objectMapper,
             IOptionsSnapshot<StatInfoOptions> statInfoPeriodOptions,
             IDistributedEventBus distributedEventBus,
-            ILogger<StatInfoSnapshotHandler> logger,
             ITradePairAppService tradePairAppService,
             IPriceAppService priceAppService)
         {
@@ -43,7 +42,7 @@ namespace AwakenServer.StatInfo.Handlers
             _objectMapper = objectMapper;
             _statInfoOptions = statInfoPeriodOptions.Value;
             _distributedEventBus = distributedEventBus;
-            _logger = logger;
+            _logger = Log.ForContext<StatInfoSnapshotHandler>();
             _tradePairAppService = tradePairAppService;
             _priceAppService = priceAppService;
         }
@@ -89,7 +88,7 @@ namespace AwakenServer.StatInfo.Handlers
                         await _tradePairAppService.GetTradePairAsync(eventData.ChainId, eventData.PairAddress);
                     if (tradePair == null)
                     {
-                        _logger.LogError(
+                        _logger.Error(
                             $"handle StatInfoSnapshotEto, chain: {eventData.ChainId}, get pair: {eventData.PairAddress} failed");
                         return;
                     }
@@ -104,6 +103,7 @@ namespace AwakenServer.StatInfo.Handlers
                 statInfoSnapshotGrainDto.Timestamp = periodTimestamp;
 
                 var result = await grain.AddOrUpdateAsync(statInfoSnapshotGrainDto);
+                _logger.Debug($"StatInfoSnapshotIndexEto: {JsonConvert.SerializeObject(result.Data)}");
                 if (result.Success)
                 {
                     await _distributedEventBus.PublishAsync(

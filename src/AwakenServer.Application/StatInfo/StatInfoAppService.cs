@@ -161,7 +161,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
     public async Task<TokenTvlDto> GetTokenTvlHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.Token, input);
-        var tokenDto = await GetTokenDto(input.Symbol);
+        var tokenDto = await GetTokenDto(input.Symbol, input.ChainId);
         return new TokenTvlDto()
         {
             Token = tokenDto,
@@ -195,7 +195,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
     public async Task<TokenPriceDto> GetTokenPriceHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.Token, input);
-        var tokenDto = await GetTokenDto(input.Symbol);
+        var tokenDto = await GetTokenDto(input.Symbol, input.ChainId);
         return new TokenPriceDto()
         {
             Token = tokenDto,
@@ -209,11 +209,12 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         return tradePair;
     }
     
-    public async Task<TokenDto> GetTokenDto(string symbol)
+    public async Task<TokenDto> GetTokenDto(string symbol, string chainId)
     {
         return await _tokenAppService.GetAsync(new GetTokenInput()
         {
-            Symbol = symbol
+            Symbol = symbol,
+            ChainId = chainId
         });
     }
     
@@ -230,7 +231,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
     public async Task<TokenVolumeDto> GetTokenVolumeHistoryAsync(GetStatHistoryInput input)
     {
         var list = await GetStatInfoSnapshotIndexes(StatType.Token, input);
-        var tokenDto = await GetTokenDto(input.Symbol);
+        var tokenDto = await GetTokenDto(input.Symbol, input.ChainId);
         var totalVolumeInUsd = list.Item2.Select(t => t.VolumeInUsd).Sum();
         return new TokenVolumeDto()
         {
@@ -290,7 +291,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
             var tokenStatInfoDto = _objectMapper.Map<TokenStatInfoIndex, TokenStatInfoDto>(tokenStatInfoIndex);
             tokenStatInfoDto.Volume24hInUsd = tokenStatInfoIndex.VolumeInUsd24h;
             tokenStatInfoDto.PairCount = await GetTokenPairCountAsync(tokenStatInfoIndex.Symbol);
-            tokenStatInfoDto.Token = await GetTokenDto(tokenStatInfoIndex.Symbol);
+            tokenStatInfoDto.Token = await GetTokenDto(tokenStatInfoIndex.Symbol, tokenStatInfoIndex.ChainId);
             tokenStatInfoDtoList.Add(tokenStatInfoDto);
         }
 

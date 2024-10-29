@@ -32,25 +32,24 @@ public class StatInfoUpdateWorker : AwakenServerWorkerBase
         _options = updateOptionsMonitor.CurrentValue;
         updateOptionsMonitor.OnChange((newOptions, _) =>
         {
-            _options.DataVersion = newOptions.DataVersion;
             _options.ExecuteRefreshTvl = newOptions.ExecuteRefreshTvl;
             _logger.Information($"Data cleanup, options change: " +
-                                   $"DataVersion={_options.DataVersion}, " +
+                                   $"DataVersion={_workerOptions.DataVersion}, " +
                                    $"ExecuteRefreshTvl={_options.ExecuteRefreshTvl}");
         });
     }
 
     public override async Task<long> SyncDataAsync(ChainDto chain, long startHeight)
     {
-        await _statInfoInternalAppService.UpdateTokenFollowPairAsync(chain.Name, _options.DataVersion);
+        await _statInfoInternalAppService.UpdateTokenFollowPairAsync(chain.Name, _workerOptions.DataVersion);
         if (_options.ExecuteRefreshTvl)
         {
-            await _statInfoInternalAppService.RefreshTvlAsync(chain.Name, _options.DataVersion);
-            await _statInfoInternalAppService.RefreshPoolStatInfoAsync(chain.Name, _options.DataVersion);
-            await _statInfoInternalAppService.RefreshTokenStatInfoAsync(chain.Name, _options.DataVersion);
+            await _statInfoInternalAppService.RefreshTvlAsync(chain.Name, _workerOptions.DataVersion);
+            await _statInfoInternalAppService.RefreshPoolStatInfoAsync(chain.Name, _workerOptions.DataVersion);
+            await _statInfoInternalAppService.RefreshTokenStatInfoAsync(chain.Name, _workerOptions.DataVersion);
         }
 
-        await _statInfoInternalAppService.ClearOldTransactionHistoryAsync(chain.Name, _options.DataVersion);
+        await _statInfoInternalAppService.ClearOldTransactionHistoryAsync(chain.Name, _workerOptions.DataVersion);
         return 0;
     }
 
