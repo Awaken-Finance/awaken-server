@@ -602,7 +602,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             UpdatePricingNode(tradePair, tradePair.Token0.Symbol, tradePair.Token1.Symbol, pricingNodeMap);
             UpdatePricingNode(tradePair, tradePair.Token1.Symbol, tradePair.Token0.Symbol, pricingNodeMap);
         }
-
+        _logger.Debug($"UpdateTokenFollowPairAsync, pricingNodeMap: {JsonConvert.SerializeObject(pricingNodeMap)}");
         foreach (var pricingNodePair in pricingNodeMap)
         {
             var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(
@@ -617,7 +617,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             tokenStatInfoGrainDtoResult.Data.FollowPairAddress = pricingNodePair.Value.FromTradePairAddress;
             tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.AddOrUpdateAsync(tokenStatInfoGrainDtoResult.Data);
             tokenStatInfoGrainDtoResult.Data.Version = dataVersion;
-            _logger.Information($"TokenStatInfoEto: {JsonConvert.SerializeObject(tokenStatInfoGrainDtoResult.Data)}");
+            _logger.Debug($"UpdateTokenFollowPairAsync, TokenStatInfoEto: {JsonConvert.SerializeObject(tokenStatInfoGrainDtoResult.Data)}");
             await _distributedEventBus.PublishAsync(ObjectMapper.Map<TokenStatInfoGrainDto, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
         }
     }
