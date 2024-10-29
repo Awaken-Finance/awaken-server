@@ -437,6 +437,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
             limit:DataSize,
             sortExp: k => k.Tvl, 
             sortType: SortOrder.Descending);
+        
         var poolStatInfoDtoList = new List<PoolStatInfoDto>();
         foreach (var poolStatInfoIndex in list.Item2)
         {

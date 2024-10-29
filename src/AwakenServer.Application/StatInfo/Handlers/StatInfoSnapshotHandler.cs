@@ -47,26 +47,26 @@ namespace AwakenServer.StatInfo.Handlers
             _priceAppService = priceAppService;
         }
 
-        private string GetGrainId(int period, StatInfoSnapshotEto eventData)
+        private string GetGrainId(int period, StatInfoSnapshotEto eventData, long snapshotTime)
         {
             switch (eventData.StatType)
             {
                 //all
                 case 0:
                 {
-                    return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, period, eventData.Version);
+                    return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, period, snapshotTime, eventData.Version);
                 }
                 //token
                 case 1:
                 {
                     return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, eventData.Symbol,
-                        period, eventData.Version);
+                        period, snapshotTime, eventData.Version);
                 }
                 //pool
                 case 2:
                 {
                     return GrainIdHelper.GenerateGrainId(eventData.ChainId, eventData.StatType, eventData.PairAddress,
-                        period, eventData.Version);
+                        period, snapshotTime, eventData.Version);
                 }
             }
 
@@ -78,7 +78,7 @@ namespace AwakenServer.StatInfo.Handlers
             foreach (var period in _statInfoOptions.Periods)
             {
                 var periodTimestamp = StatInfoHelper.GetSnapshotTimestamp(period, eventData.Timestamp);
-                var id = GetGrainId(period, eventData);
+                var id = GetGrainId(period, eventData, periodTimestamp);
                 var grain = _clusterClient.GetGrain<IStatInfoSnapshotGrain>(id);
 
                 var priceInUsd = eventData.PriceInUsd;
@@ -103,7 +103,7 @@ namespace AwakenServer.StatInfo.Handlers
                 statInfoSnapshotGrainDto.Timestamp = periodTimestamp;
 
                 var result = await grain.AddOrUpdateAsync(statInfoSnapshotGrainDto);
-                _logger.Debug($"StatInfoSnapshotIndexEto: {JsonConvert.SerializeObject(result.Data)}");
+                _logger.Debug($"StatInfoSnapshotIndexEto: {JsonConvert.SerializeObject(result.Data)}, Grain Id: {id}");
                 if (result.Success)
                 {
                     await _distributedEventBus.PublishAsync(
