@@ -59,7 +59,7 @@ public class AwakenServerEntityHandlerModule : AbpModule
         Configure<WorkerOptions>(configuration.GetSection("WorkerSettings"));
         Configure<TradeRecordRevertWorkerSettings>(configuration.GetSection("WorkerSettings:Workers:TransactionRevert"));
         Configure<DataCleanupWorkerSettings>(configuration.GetSection("WorkerSettings:Workers:DataCleanup"));
-        Configure<StatInfoUpdateWorkerSettings>(configuration.GetSection("WorkerSettings:Workers:StatInfoUpdate"));
+        Configure<StatInfoUpdateWorkerSettings>(configuration.GetSection("WorkerSettings:Workers:StatInfoUpdateEvent"));
         
         context.Services.AddMassTransit(x =>
         {

@@ -33,7 +33,7 @@ public class StatInfoUpdateWorker : AwakenServerWorkerBase
         updateOptionsMonitor.OnChange((newOptions, _) =>
         {
             _options.ExecuteRefreshTvl = newOptions.ExecuteRefreshTvl;
-            _logger.Information($"Data cleanup, options change: " +
+            _logger.Information($"StatInfoUpdateWorker, options change: " +
                                    $"DataVersion={_workerOptions.DataVersion}, " +
                                    $"ExecuteRefreshTvl={_options.ExecuteRefreshTvl}");
         });
