@@ -23,6 +23,7 @@ using ITokenPriceProvider = AwakenServer.Trade.ITokenPriceProvider;
 using SwapRecord = AwakenServer.Trade.SwapRecord;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using Serilog;
+using Volo.Abp.EventBus.Local;
 
 namespace AwakenServer.StatInfo;
 
@@ -33,6 +34,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
     private readonly ITradePairAppService _tradePairAppService;
     private readonly IClusterClient _clusterClient;
     private readonly IDistributedEventBus _distributedEventBus;
+    private readonly ILocalEventBus _localEventBus;
     private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
     private readonly INESTRepository<TokenStatInfoIndex, Guid> _tokenStatInfoIndexRepository;
     private readonly INESTRepository<PoolStatInfoIndex, Guid> _poolStatInfoIndexRepository;
@@ -55,7 +57,8 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         INESTRepository<StatInfoSnapshotIndex, Guid> statInfoSnapshotIndexRepository, 
         ITokenPriceProvider tokenPriceProvider, IPriceAppService priceAppService, 
         IDistributedCache<string> syncedTransactionIdCache, 
-        IOptionsSnapshot<StatInfoOptions> statInfoOptions)
+        IOptionsSnapshot<StatInfoOptions> statInfoOptions,
+        ILocalEventBus localEventBus)
     {
         _tradePairAppService = tradePairAppService;
         _clusterClient = clusterClient;
@@ -70,6 +73,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         _syncedTransactionIdCache = syncedTransactionIdCache;
         _statInfoOptions = statInfoOptions;
         _logger = Log.ForContext<StatInfoInternalAppService>();
+        _localEventBus = localEventBus;
     }
 
     private string AddVersionToKey(string baseKey, string version)
@@ -117,7 +121,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         
         await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
         {
-            AbsoluteExpiration = DateTimeOffset.UtcNow.AddDays(7)
+            AbsoluteExpiration = DateTimeOffset.UtcNow.AddYears(1)
         });
         return true;
     }
@@ -170,7 +174,10 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
                 await SyncSingleSwapRecordAsync(swapRecordDto, dataVersion);
             }
         }
-        await _syncedTransactionIdCache.SetAsync(key, "1");
+        await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
+        {
+            AbsoluteExpiration = DateTimeOffset.UtcNow.AddYears(1)
+        });
         return true;
     }
 
@@ -254,7 +261,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             LpFeeInUsd = Double.Parse(lpFeeAmount) * (isSell ? token0Price : token1Price)
         };
         _logger.Debug($"SyncSingleSwapRecordAsync, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
-        await _distributedEventBus.PublishAsync(snapshotEto);
+        await _localEventBus.PublishAsync(snapshotEto);
 
         // token volume
         await UpdateTokenVolumeAsync(swapRecordDto.ChainId, tradePair.Token0.Symbol, 
@@ -272,7 +279,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             VolumeInUsd = transactionHistory.ValueInUsd,
         };
         _logger.Debug($"SyncSingleSwapRecordAsync, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
-        await _distributedEventBus.PublishAsync(globalSnapshotEto);
+        await _localEventBus.PublishAsync(globalSnapshotEto);
     }
     
     private async Task UpdateTokenVolumeAsync(string chainId, string symbol, double volumeInUsd, long timestamp, string dataVersion)
@@ -306,7 +313,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             Version = dataVersion
         };
         _logger.Debug($"UpdateTokenVolumeAsync, snapshotEto: {JsonConvert.SerializeObject(tokenSnapshotEto)}");
-        await _distributedEventBus.PublishAsync(tokenSnapshotEto);
+        await _localEventBus.PublishAsync(tokenSnapshotEto);
     }
 
     public async Task<bool> CreateSyncRecordAsync(SyncRecordDto syncRecordDto, string dataVersion)
@@ -363,7 +370,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
                 Timestamp = syncRecordDto.Timestamp
             };
             _logger.Debug($"CreateSyncRecordAsync, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
-            await _distributedEventBus.PublishAsync(snapshotEto);
+            await _localEventBus.PublishAsync(snapshotEto);
         }
 
         // token tvl/priceInUsd
@@ -386,9 +393,12 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             Timestamp = syncRecordDto.Timestamp
         };
         _logger.Debug($"CreateSyncRecordAsync, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
-        await _distributedEventBus.PublishAsync(globalSnapshotEto);
+        await _localEventBus.PublishAsync(globalSnapshotEto);
         
-        await _syncedTransactionIdCache.SetAsync(key, "1");
+        await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
+        {
+            AbsoluteExpiration = DateTimeOffset.UtcNow.AddYears(1)
+        });
         return true;
     }
 
@@ -440,7 +450,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
                 Timestamp = syncRecordDto.Timestamp
             };
             _logger.Debug($"UpdateTokenTvlAndPriceAsync, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
-            await _distributedEventBus.PublishAsync(snapshotEto);
+            await _localEventBus.PublishAsync(snapshotEto);
         }
     }
 
@@ -490,7 +500,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             Timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds()
         };
         _logger.Debug($"RefreshTvlAsync, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
-        await _distributedEventBus.PublishAsync(globalSnapshotEto);
+        await _localEventBus.PublishAsync(globalSnapshotEto);
     }
     
     public async Task RefreshTokenStatInfoAsync(string chainId, string dataVersion)
@@ -602,7 +612,6 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             UpdatePricingNode(tradePair, tradePair.Token0.Symbol, tradePair.Token1.Symbol, pricingNodeMap);
             UpdatePricingNode(tradePair, tradePair.Token1.Symbol, tradePair.Token0.Symbol, pricingNodeMap);
         }
-        _logger.Debug($"UpdateTokenFollowPairAsync, pricingNodeMap: {JsonConvert.SerializeObject(pricingNodeMap)}");
         foreach (var pricingNodePair in pricingNodeMap)
         {
             var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(

@@ -20,7 +20,7 @@ using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.StatInfo.Handlers
 {
-    public class StatInfoSnapshotHandler : IDistributedEventHandler<StatInfoSnapshotEto>, ITransientDependency
+    public class StatInfoSnapshotHandler : ILocalEventHandler<StatInfoSnapshotEto>, ITransientDependency
     {
         private readonly IClusterClient _clusterClient;
         private readonly IObjectMapper _objectMapper;

@@ -39,8 +39,8 @@ public class StatInfoEventSyncWorker : AwakenServerWorkerBase
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
-        _logger.Information("StatInfoEventSyncWorker: liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}, sync queryList count: {syncCount}", 
-            liquidityRecordList.Count, swapRecordList.Count, syncRecordList.Count);
+        _logger.Information("StatInfoEventSyncWorker: chain: {chainName}, liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}, sync queryList count: {syncCount}", 
+            chain.Name, liquidityRecordList.Count, swapRecordList.Count, syncRecordList.Count);
         long blockHeight = -1;
         try
         {
