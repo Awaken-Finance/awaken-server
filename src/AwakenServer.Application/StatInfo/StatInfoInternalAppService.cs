@@ -260,7 +260,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             VolumeInUsd = transactionHistory.ValueInUsd,
             LpFeeInUsd = Double.Parse(lpFeeAmount) * (isSell ? token0Price : token1Price)
         };
-        _logger.Debug($"SyncSingleSwapRecordAsync, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
+        _logger.Debug($"SyncSingleSwapRecordAsync, txn: {swapRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
         await _localEventBus.PublishAsync(snapshotEto);
 
         // token volume
@@ -278,7 +278,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             Timestamp = swapRecordDto.Timestamp,
             VolumeInUsd = transactionHistory.ValueInUsd,
         };
-        _logger.Debug($"SyncSingleSwapRecordAsync, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
+        _logger.Debug($"SyncSingleSwapRecordAsync, txn: {swapRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
         await _localEventBus.PublishAsync(globalSnapshotEto);
     }
     
@@ -318,7 +318,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
 
     public async Task<bool> CreateSyncRecordAsync(SyncRecordDto syncRecordDto, string dataVersion)
     {
-        var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{nameof(syncRecordDto)}:{syncRecordDto.TransactionHash}", dataVersion);
+        var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{nameof(syncRecordDto)}:{syncRecordDto.TransactionHash}:{syncRecordDto.PairAddress}", dataVersion);
         var existed = await _syncedTransactionIdCache.GetAsync(key);
         if (!existed.IsNullOrWhiteSpace())
         {
@@ -369,7 +369,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
                 Tvl = poolStateInfoGrainDtoResult.Data.Tvl,
                 Timestamp = syncRecordDto.Timestamp
             };
-            _logger.Debug($"CreateSyncRecordAsync, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
+            _logger.Debug($"CreateSyncRecordAsync, txn: {syncRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
             await _localEventBus.PublishAsync(snapshotEto);
         }
 
@@ -392,7 +392,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             Tvl = globalGrainDtoResult.Data.Tvl,
             Timestamp = syncRecordDto.Timestamp
         };
-        _logger.Debug($"CreateSyncRecordAsync, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
+        _logger.Debug($"CreateSyncRecordAsync, txn: {syncRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
         await _localEventBus.PublishAsync(globalSnapshotEto);
         
         await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
@@ -449,7 +449,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
                 PriceInUsd = tokenStatInfoGrainDtoResult.Data.PriceInUsd,
                 Timestamp = syncRecordDto.Timestamp
             };
-            _logger.Debug($"UpdateTokenTvlAndPriceAsync, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
+            _logger.Debug($"UpdateTokenTvlAndPriceAsync, txn: {syncRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
             await _localEventBus.PublishAsync(snapshotEto);
         }
     }
@@ -499,7 +499,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             Tvl = globalGrainDtoResult.Data.Tvl,
             Timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds()
         };
-        _logger.Debug($"RefreshTvlAsync, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
+        _logger.Debug($"RefreshTvlAsync, chain: {chainId}, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
         await _localEventBus.PublishAsync(globalSnapshotEto);
     }
     

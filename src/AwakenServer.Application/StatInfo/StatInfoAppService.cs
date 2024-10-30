@@ -93,10 +93,18 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         
         if (statType == StatType.Token)
         {
+            if (string.IsNullOrEmpty(input.Symbol))
+            {
+                return new Tuple<long, List<StatInfoSnapshotIndex>>(0, new List<StatInfoSnapshotIndex>());
+            }
             mustQuery.Add(q => q.Term(i => i.Field(f => f.Symbol).Value(input.Symbol)));
         }
         else if (statType == StatType.Pool)
         {
+            if (string.IsNullOrEmpty(input.PairAddress))
+            {
+                return new Tuple<long, List<StatInfoSnapshotIndex>>(0, new List<StatInfoSnapshotIndex>());
+            }
             mustQuery.Add(q => q.Term(i => i.Field(f => f.PairAddress).Value(input.PairAddress)));
         }
         
