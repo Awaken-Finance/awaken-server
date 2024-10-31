@@ -470,11 +470,25 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Version).Value(_statInfoOptions.DataVersion)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.TransactionType).Value(input.TransactionType)));
         
+        if (!string.IsNullOrEmpty(input.PairAddress))
+        {
+            mustQuery.Add(q => q.Term(i => i.Field(f => f.TradePair.Address).Value(input.PairAddress)));
+        }
+        
+        if (!string.IsNullOrEmpty(input.Symbol))
+        {
+            mustQuery.Add(q => q.Bool(i => i.Should(
+                s => s.Wildcard(w =>
+                    w.Field(f => f.TradePair.Token0.Symbol).Value($"*{input.Symbol.ToUpper()}*")),
+                s => s.Wildcard(w =>
+                    w.Field(f => f.TradePair.Token1.Symbol).Value($"*{input.Symbol.ToUpper()}*")))));
+        }
+        
         QueryContainer Filter(QueryContainerDescriptor<TransactionHistoryIndex> f) => f.Bool(b => b.Must(mustQuery));
         var list = await _transactionHistoryIndexRepository.GetListAsync(Filter,
             limit:DataSize,
             sortExp: k => k.Timestamp,
-            sortType: SortOrder.Ascending);
+            sortType: SortOrder.Descending);
         var transactionHistoryDtoList = new List<TransactionHistoryDto>();
         foreach (var transactionHistoryIndex in list.Item2)
         {

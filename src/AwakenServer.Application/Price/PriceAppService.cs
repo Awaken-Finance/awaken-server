@@ -32,14 +32,15 @@ namespace AwakenServer.Price
         private readonly IDistributedCache<TokenPricingMap> _tokenPricingMapCache;
         private readonly ILogger _logger;
         private readonly IAbpDistributedLock _distributedLock;
-        
+        private readonly IDistributedCache<string> _priceExceptionCache;
         public PriceAppService(IDistributedCache<PriceDto> priceCache,
             IDistributedCache<PriceDto> internalPriceCache,
             ITokenPriceProvider tokenPriceProvider,
             IOptionsSnapshot<TokenPriceOptions> options,
             INESTRepository<IndexTradePair, Guid> tradePairIndexRepository,
             IDistributedCache<TokenPricingMap> tokenPricingMap,
-            IAbpDistributedLock distributedLock)
+            IAbpDistributedLock distributedLock,
+            IDistributedCache<string> priceExceptionCache)
         {
             _priceCache = priceCache;
             _tokenPriceProvider = tokenPriceProvider;
@@ -49,6 +50,7 @@ namespace AwakenServer.Price
             _tokenPricingMapCache = tokenPricingMap;
             _internalPriceCache = internalPriceCache;
             _distributedLock = distributedLock;
+            _priceExceptionCache = priceExceptionCache;
         }
 
         public async Task<string> GetTokenPriceAsync(GetTokenPriceInput input)
@@ -135,11 +137,31 @@ namespace AwakenServer.Price
             return result;
         }
 
-        private bool IsNeedFetchPrice(PriceDto priceDto)
+        private async Task<bool> IsNeedFetchPriceAsync(string symbol, PriceDto priceDto)
         {
+            var exceptionKey = $"{PriceOptions.PriceExceptionCachePrefix}:{symbol}";
+            var existed = await _priceExceptionCache.GetAsync(exceptionKey);
+            if (!existed.IsNullOrWhiteSpace())
+            {
+                return false;
+            }
+            
             return priceDto.PriceInUsd == 0 || 
                    priceDto.PriceInUsd == PriceOptions.DefaultPriceValue ||
                    priceDto.PriceUpdateTime.AddSeconds(_tokenPriceOptions.Value.PriceExpirationTimeSeconds) <= DateTime.UtcNow;
+        }
+        
+        private async Task<bool> IsHistoryDataNeedFetchPriceAsync(string symbol, PriceDto priceDto)
+        {
+            var exceptionKey = $"{PriceOptions.PriceExceptionCachePrefix}:{symbol}";
+            var existed = await _priceExceptionCache.GetAsync(exceptionKey);
+            if (!existed.IsNullOrWhiteSpace())
+            {
+                return false;
+            }
+            
+            return priceDto.PriceInUsd == 0 || 
+                   priceDto.PriceInUsd == PriceOptions.DefaultPriceValue;
         }
         
         
@@ -147,8 +169,8 @@ namespace AwakenServer.Price
         {
             var key = $"{PriceOptions.PriceCachePrefix}:{symbol}";
             var price = await _priceCache.GetOrAddAsync(key, async () => new PriceDto());
-                    
-            if (IsNeedFetchPrice(price))
+            
+            if (await IsNeedFetchPriceAsync(symbol, price))
             {
                 try
                 {
@@ -165,6 +187,11 @@ namespace AwakenServer.Price
                 }
                 catch (Exception e)
                 {
+                    var exceptionKey = $"{PriceOptions.PriceExceptionCachePrefix}:{symbol}";
+                    _priceExceptionCache.Set(exceptionKey, "1", new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddMinutes(PriceOptions.ExceptionCacheMinutes)
+                    });
                     _logger.Error(e, $"Get token price symbol: {symbol} failed.");
                 }
                 
@@ -211,18 +238,50 @@ namespace AwakenServer.Price
 
             var key = $"{PriceOptions.PriceHistoryCachePrefix}:{input.Symbol}:{time}";
             var price = await _priceCache.GetOrAddAsync(key, async () => new PriceDto());
-                    
-            if (IsNeedFetchPrice(price))
+            var historySymbol = $"{input.Symbol}-{time}";
+            
+            if (await IsHistoryDataNeedFetchPriceAsync(historySymbol, price))
             {
-                price.PriceInUsd = await GetHistoryPriceAsync(input.Symbol, time);
-                price.PriceUpdateTime = DateTime.UtcNow;
-                await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                try
                 {
-                    AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                });
+                    price.PriceInUsd = await GetHistoryPriceAsync(input.Symbol, time);
+                    price.PriceUpdateTime = DateTime.UtcNow;
+                    await _priceCache.SetAsync(key, price, new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+                    });
+                }
+                catch (Exception e)
+                {
+                    var exceptionKey = $"{PriceOptions.PriceExceptionCachePrefix}:{historySymbol}";
+                    _priceExceptionCache.Set(exceptionKey, "1", new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpiration = DateTimeOffset.UtcNow.AddMinutes(PriceOptions.ExceptionCacheMinutes)
+                    });
+                    _logger.Error(e, $"Get history token price symbol: {historySymbol} failed.");
+                }
             }
-                    
-            _logger.Information($"Get history token price symbol: {input.Symbol}, time: {time}, return price: {price.PriceInUsd}");
+
+            if (price.PriceInUsd == 0 || price.PriceInUsd == PriceOptions.DefaultPriceValue)
+            {
+                var toleranceDay = 0;
+                var beforeTime = input.DateTime;
+                while (toleranceDay < PriceOptions.HistoryPriceToleranceDays)
+                {
+                    toleranceDay++;
+                    beforeTime = beforeTime.AddDays(-1);
+                    var beforeKey = $"{PriceOptions.PriceHistoryCachePrefix}:{input.Symbol}:{beforeTime.ToString("dd-MM-yyyy")}";
+                    var beforePrice = await _priceCache.GetOrAddAsync(beforeKey, async () => new PriceDto());
+                    if (beforePrice.PriceInUsd > 0)
+                    {
+                        price = beforePrice;
+                        break;
+                    }
+                    _logger.Information($"Get history token price look before, toleranceDay: {toleranceDay}, beforeTime: {beforeTime}, key: {beforeKey}");
+                }
+            }
+            
+            _logger.Information($"Get history token price symbol: {input.Symbol}, time: {input.DateTime}, priceTime: {price.PriceUpdateTime}, return price: {price.PriceInUsd}");
             
             return new TokenPriceDataDto
             {
