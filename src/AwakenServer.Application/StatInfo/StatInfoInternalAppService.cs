@@ -183,6 +183,11 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
 
     private async Task SyncSingleSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion)
     {
+        if (string.IsNullOrEmpty(swapRecordDto.PairAddress))
+        {
+            return;
+        }
+        
         // insert transaction
         var tradePair = await GetTradePairAsync(swapRecordDto.ChainId, swapRecordDto.PairAddress);
         if (tradePair == null)
@@ -260,7 +265,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             VolumeInUsd = transactionHistory.ValueInUsd,
             LpFeeInUsd = Double.Parse(lpFeeAmount) * (isSell ? token0Price : token1Price)
         };
-        _logger.Debug($"SyncSingleSwapRecordAsync, txn: {swapRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
+        _logger.Debug($"SyncSingleSwapRecordAsync, txn: {swapRecordDto.TransactionHash}, swapDtoPairAddress: {swapRecordDto.PairAddress}, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
         await _localEventBus.PublishAsync(snapshotEto);
 
         // token volume
