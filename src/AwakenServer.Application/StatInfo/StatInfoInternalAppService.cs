@@ -8,8 +8,10 @@ using AwakenServer.Price;
 using AwakenServer.Price.Dtos;
 using AwakenServer.StatInfo.Etos;
 using AwakenServer.StatInfo.Index;
+using AwakenServer.Tokens;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
+using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using Nest;
@@ -24,6 +26,8 @@ using SwapRecord = AwakenServer.Trade.SwapRecord;
 using TradePair = AwakenServer.Trade.Index.TradePair;
 using Serilog;
 using Volo.Abp.EventBus.Local;
+using LiquidityRecord = AwakenServer.Trade.LiquidityRecord;
+using Token = AwakenServer.Tokens.Token;
 
 namespace AwakenServer.StatInfo;
 
@@ -45,6 +49,8 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
     private readonly IDistributedCache<string> _syncedTransactionIdCache;
     private readonly IOptionsSnapshot<StatInfoOptions> _statInfoOptions;
     private readonly ILogger _logger;
+    private readonly ITokenAppService _tokenAppService;
+
 
 
     public StatInfoInternalAppService(ITradePairAppService tradePairAppService, 
@@ -58,7 +64,8 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         ITokenPriceProvider tokenPriceProvider, IPriceAppService priceAppService, 
         IDistributedCache<string> syncedTransactionIdCache, 
         IOptionsSnapshot<StatInfoOptions> statInfoOptions,
-        ILocalEventBus localEventBus)
+        ILocalEventBus localEventBus,
+        ITokenAppService tokenAppService)
     {
         _tradePairAppService = tradePairAppService;
         _clusterClient = clusterClient;
@@ -74,6 +81,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         _statInfoOptions = statInfoOptions;
         _logger = Log.ForContext<StatInfoInternalAppService>();
         _localEventBus = localEventBus;
+        _tokenAppService = tokenAppService;
     }
 
     private string AddVersionToKey(string baseKey, string version)
@@ -181,10 +189,67 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         return true;
     }
 
+    private async Task SyncSingleLimitSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion)
+    {
+        var token0 = await _tokenAppService.GetAsync(new GetTokenInput
+        {
+            ChainId = swapRecordDto.ChainId,
+            Symbol = swapRecordDto.SymbolIn
+        });
+        var token1 = await _tokenAppService.GetAsync(new GetTokenInput
+        {
+            ChainId = swapRecordDto.ChainId,
+            Symbol = swapRecordDto.SymbolOut
+        });
+        var transactionHistory = new TransactionHistoryEto()
+        {
+            TradePair = new TradePair()
+            {
+                Token0 = ObjectMapper.Map<TokenDto, Token>(token0),
+                Token1 = ObjectMapper.Map<TokenDto, Token>(token1),
+                ChainId = swapRecordDto.ChainId
+            },
+            TransactionType = TransactionType.Trade,
+            TransactionHash = swapRecordDto.TransactionHash,
+            Timestamp = swapRecordDto.Timestamp,
+            ChainId = swapRecordDto.ChainId,
+            Side = TradeSide.Swap
+        };
+        transactionHistory.Token0Amount = swapRecordDto.AmountIn.ToDecimalsString(token0.Decimals);
+        transactionHistory.Token1Amount = swapRecordDto.AmountOut.ToDecimalsString(token1.Decimals);
+        var token0Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(
+            swapRecordDto.ChainId, token0.Symbol);
+        var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(
+            swapRecordDto.ChainId, token1.Symbol);
+        transactionHistory.ValueInUsd = token0Price > 0 ? token0Price * Double.Parse(transactionHistory.Token0Amount)
+                : token1Price * Double.Parse(transactionHistory.Token1Amount);
+        transactionHistory.Version = dataVersion;
+        await _distributedEventBus.PublishAsync(transactionHistory);
+
+        // token volume
+        await UpdateTokenVolumeAsync(swapRecordDto.ChainId, token0.Symbol, 
+            transactionHistory.ValueInUsd, swapRecordDto.Timestamp, dataVersion);
+        await UpdateTokenVolumeAsync(swapRecordDto.ChainId, token1.Symbol, 
+            Double.Parse(transactionHistory.Token1Amount) * token1Price, swapRecordDto.Timestamp, dataVersion);
+        
+        // global volume
+        var globalSnapshotEto = new StatInfoSnapshotEto
+        {
+            ChainId = swapRecordDto.ChainId,
+            Version = dataVersion,
+            StatType = 0,
+            Timestamp = swapRecordDto.Timestamp,
+            VolumeInUsd = transactionHistory.ValueInUsd,
+        };
+        _logger.Debug($"SyncSingleLimitSwapRecordAsync, txn: {swapRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
+        await _localEventBus.PublishAsync(globalSnapshotEto);
+    }
+    
     private async Task SyncSingleSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion)
     {
-        if (string.IsNullOrEmpty(swapRecordDto.PairAddress))
+        if (swapRecordDto.IsLimitOrder)
         {
+            await SyncSingleLimitSwapRecordAsync(swapRecordDto, dataVersion);
             return;
         }
         
@@ -687,6 +752,11 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
 
     private async Task<TradePair> GetTradePairAsync(string chainName, string address)
     {
+        if (string.IsNullOrEmpty(address))
+        {
+            return null;
+        }
+        
         var mustQuery = new List<Func<QueryContainerDescriptor<TradePair>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainName)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(address)));
