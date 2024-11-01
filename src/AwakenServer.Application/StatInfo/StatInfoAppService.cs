@@ -54,7 +54,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         _transactionHistoryIndexRepository = transactionHistoryIndexRepository;
     }
     
-    public async Task<Tuple<long,List<StatInfoSnapshotIndex>>> GetLatestPeriodStatInfoSnapshotIndexAsync(StatType statType, long period, GetStatHistoryInput input, long timestampMax)
+    public async Task<StatInfoSnapshotIndex> GetLatestPeriodStatInfoSnapshotIndexAsync(StatType statType, long period, GetStatHistoryInput input, long timestampMax)
     {
         var mustQuery = new List<Func<QueryContainerDescriptor<StatInfoSnapshotIndex>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Period).Value(period)));
@@ -78,7 +78,11 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
             f.Bool(b => b.Must(mustQuery));
         var list = await _statInfoSnapshotIndexRepository.GetListAsync(Filter, 
             sortExp:k=>k.Timestamp, sortType:SortOrder.Descending, skip:0, limit: 1);
-        return list;
+        if (list.Item2.Count >= 1)
+        {
+            return list.Item2[0];
+        }
+        return null;
     }
     
     private async Task<Tuple<long,List<StatInfoSnapshotIndex>>> GetStatInfoSnapshotIndexes(StatType statType, GetStatHistoryInput input)
@@ -149,12 +153,46 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
         QueryContainer Filter(QueryContainerDescriptor<StatInfoSnapshotIndex> f) => f.Bool(b => b.Must(mustQuery));
         var list = await _statInfoSnapshotIndexRepository.GetListAsync(Filter, sortExp: k => k.Timestamp);
         
-        if (list.Item2.Count == 0)
+        return await CheckAndFillSnapshot(statType, input, list, period, timestampMin, timestampMax);
+    }
+
+    public async Task<Tuple<long, List<StatInfoSnapshotIndex>>> CheckAndFillSnapshot(StatType statType, GetStatHistoryInput input, Tuple<long,List<StatInfoSnapshotIndex>> list, int period, long timestampMin, long timestampMax)
+    {
+        var snapshotFullCount = (timestampMax - timestampMin) / period / 1000;
+        if (list.Item2.Count >= snapshotFullCount)
         {
-            return await GetLatestPeriodStatInfoSnapshotIndexAsync(statType, period, input, timestampMax);
+            return list;
         }
-        
-        return list;
+
+        var latestSnapshot = await GetLatestPeriodStatInfoSnapshotIndexAsync(statType, period, input, timestampMin);
+        var curSnapshotTime = StatInfoHelper.GetSnapshotTimestamp(period, timestampMin);
+        for (int i = 0; i < snapshotFullCount; i++)
+        {
+            curSnapshotTime += (period * 1000);
+            var snapshotIndex = list.Item2.FirstOrDefault(t => t.Timestamp == curSnapshotTime);
+            if (snapshotIndex == null && latestSnapshot != null)
+            {
+                list.Item2.Add(new StatInfoSnapshotIndex
+                {
+                    ChainId = latestSnapshot.ChainId,
+                    Id = Guid.NewGuid(),
+                    StatType = latestSnapshot.StatType,
+                    PairAddress = latestSnapshot.PairAddress,
+                    Symbol = latestSnapshot.Symbol,
+                    Period = latestSnapshot.Period,
+                    Timestamp = curSnapshotTime,
+                    Price = latestSnapshot.PriceInUsd,
+                    PriceInUsd = latestSnapshot.PriceInUsd,
+                    Tvl = latestSnapshot.Tvl
+                });
+            }
+            else
+            {
+                latestSnapshot = snapshotIndex;
+            }
+        }
+
+        return new Tuple<long, List<StatInfoSnapshotIndex>>(list.Item1, list.Item2.OrderBy(stat => stat.Timestamp).ToList());
     }
     
     public async Task<ListResultDto<StatInfoTvlDto>> GetTvlHistoryAsync(GetStatHistoryInput input)

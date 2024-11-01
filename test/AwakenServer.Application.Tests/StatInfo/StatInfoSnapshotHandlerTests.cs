@@ -164,8 +164,10 @@ namespace AwakenServer.StatInfo
                 PairAddress = TradePairBtcEthAddress,
                 BaseTimestamp = timestamp
             });
-            volResult.Items.Count.ShouldBe(1);
+            volResult.Items.Count.ShouldBe(3);
             volResult.Items[0].VolumeInUsd.ShouldBe(1);
+            volResult.Items[1].VolumeInUsd.ShouldBe(0);
+            volResult.Items[2].VolumeInUsd.ShouldBe(0);
             
             await _eventBus.PublishAsync(new StatInfoSnapshotEto
             {
@@ -193,9 +195,10 @@ namespace AwakenServer.StatInfo
                 PairAddress = TradePairBtcEthAddress,
                 BaseTimestamp = timestamp
             });
-            result.Items.Count.ShouldBe(2);
+            result.Items.Count.ShouldBe(3);
             result.Items[0].PriceInUsd.ShouldBe(10);
-            result.Items[1].PriceInUsd.ShouldBe(15);
+            result.Items[1].PriceInUsd.ShouldBe(10);
+            result.Items[2].PriceInUsd.ShouldBe(15);
             
             volResult = await _statInfoAppService.GetPoolVolumeHistoryAsync(new GetStatHistoryInput()
             {
@@ -205,9 +208,10 @@ namespace AwakenServer.StatInfo
                 BaseTimestamp = timestamp
             });
             volResult.TotalVolumeInUsd.ShouldBe(3);
-            volResult.Items.Count.ShouldBe(2);
+            volResult.Items.Count.ShouldBe(3);
             volResult.Items[0].VolumeInUsd.ShouldBe(1);
-            volResult.Items[1].VolumeInUsd.ShouldBe(2);
+            volResult.Items[1].VolumeInUsd.ShouldBe(0);
+            volResult.Items[2].VolumeInUsd.ShouldBe(2);
             
             result = await _statInfoAppService.GetPoolPriceHistoryAsync(new GetStatHistoryInput()
             {
@@ -571,6 +575,81 @@ namespace AwakenServer.StatInfo
             });
             txnList.Items.Count.ShouldBe(1);
             txnList.Items[0].TransactionId.ShouldBe("6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37");
+        }
+        
+        
+        [Fact]
+        public async Task FillSnapshotTest()
+        {
+            var baseTime = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow);
+            
+            var result = await _statInfoAppService.GetTokenPriceHistoryAsync(new GetStatHistoryInput()
+            {
+                ChainId = ChainId,
+                PeriodType = 2,
+                BaseTimestamp = baseTime,
+                Symbol = "ELF"
+            });
+            
+            result.Items.Count.ShouldBe(0);
+            
+            await _eventBus.PublishAsync(new StatInfoSnapshotEto
+            {
+                Version = _statInfoOptions.Value.DataVersion,
+                ChainId = ChainId,
+                StatType = 1,
+                PriceInUsd = 12,
+                Symbol = "ELF",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-14)),
+            });
+
+            result = await _statInfoAppService.GetTokenPriceHistoryAsync(new GetStatHistoryInput()
+            {
+                ChainId = ChainId,
+                PeriodType = 2,
+                BaseTimestamp = baseTime,
+                Symbol = "ELF"
+            });
+            
+            result.Items.Count.ShouldBe(28);
+            for (int i = 0; i < result.Items.Count; i++)
+            {
+                result.Items[i].Timestamp.ShouldBe(StatInfoHelper.GetSnapshotTimestamp(21600, baseTime) - (27-i) * 21600000);
+                result.Items[i].PriceInUsd.ShouldBe(12);
+            }
+            
+            
+            await _eventBus.PublishAsync(new StatInfoSnapshotEto
+            {
+                Version = _statInfoOptions.Value.DataVersion,
+                ChainId = ChainId,
+                StatType = 1,
+                PriceInUsd = 15,
+                Symbol = "ELF",
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1)),
+            });
+            
+            result = await _statInfoAppService.GetTokenPriceHistoryAsync(new GetStatHistoryInput()
+            {
+                ChainId = ChainId,
+                PeriodType = 2,
+                BaseTimestamp = baseTime,
+                Symbol = "ELF"
+            });
+            
+            result.Items.Count.ShouldBe(28);
+            for (int i = 0; i < result.Items.Count; i++)
+            {
+                result.Items[i].Timestamp.ShouldBe(StatInfoHelper.GetSnapshotTimestamp(21600, baseTime) - (27-i) * 21600000);
+                if (i < 23)
+                {
+                    result.Items[i].PriceInUsd.ShouldBe(12);
+                }
+                else
+                {
+                    result.Items[i].PriceInUsd.ShouldBe(15);
+                }
+            }
         }
     }
 }
