@@ -567,7 +567,8 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         {
             StatType = 0,
             Tvl = globalGrainDtoResult.Data.Tvl,
-            Timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds()
+            Timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            Version = dataVersion
         };
         _logger.Debug($"RefreshTvlAsync, chain: {chainId}, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
         await _localEventBus.PublishAsync(globalSnapshotEto);
