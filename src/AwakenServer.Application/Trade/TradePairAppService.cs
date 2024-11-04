@@ -15,6 +15,7 @@ using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Route;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Provider;
+using AwakenServer.Route;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
@@ -59,7 +60,7 @@ namespace AwakenServer.Trade
         private readonly IRevertProvider _revertProvider;
         private readonly IAElfClientProvider _blockchainClientProvider;
         private readonly ContractsTokenOptions _contractsTokenOptions;
-
+        private readonly IBestRoutesAppService _bestRoutesAppService;
         
         private const string ASC = "asc";
         private const string ASCEND = "ascend";
@@ -93,7 +94,8 @@ namespace AwakenServer.Trade
             IObjectMapper objectMapper,
             IRevertProvider revertProvider,
             IAElfClientProvider blockchainClientProvider,
-            IOptions<ContractsTokenOptions> contractsTokenOptions)
+            IOptions<ContractsTokenOptions> contractsTokenOptions,
+            IBestRoutesAppService bestRoutesAppService)
         {
             _tradePairInfoIndex = tradePairInfoIndex;
             _tokenPriceProvider = tokenPriceProvider;
@@ -114,7 +116,7 @@ namespace AwakenServer.Trade
             _revertProvider = revertProvider;
             _blockchainClientProvider = blockchainClientProvider;
             _contractsTokenOptions = contractsTokenOptions.Value;
-
+            _bestRoutesAppService = bestRoutesAppService;
         }
         
 
@@ -503,9 +505,7 @@ namespace AwakenServer.Trade
             var clearCountResultDto = await grain.ResetCacheAsync();
             _logger.Information($"clear swap path cache, token path grain: {grain.GetPrimaryKeyString()}, count: {clearCountResultDto.Data}");
             
-            var routeGrain = _clusterClient.GetGrain<IRouteGrain>(chain.Id);
-            var clearRouteCountResultDto = await routeGrain.ResetCacheAsync();
-            _logger.Information($"clear route cache, route grain: {routeGrain.GetPrimaryKeyString()}, count: {clearRouteCountResultDto.Data}");
+            await _bestRoutesAppService.ClearRoutesCacheAsync(chain.Id);
             
             var token0 = await _tokenAppService.GetAsync(new GetTokenInput
             {

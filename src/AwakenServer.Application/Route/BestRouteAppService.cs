@@ -9,15 +9,18 @@ using AutoMapper;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Route;
+using AwakenServer.Price;
 using AwakenServer.Route.Dtos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
+using Microsoft.Extensions.Caching.Distributed;
 using Nest;
 using Orleans;
 using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
+using Volo.Abp.Caching;
 using Volo.Abp.ObjectMapping;
 using PercentRouteDto = AwakenServer.Route.Dtos.PercentRouteDto;
 using Token = Nest.Token;
@@ -32,6 +35,8 @@ namespace AwakenServer.Route
         private readonly IObjectMapper _objectMapper;
         private readonly ILogger _logger;
         private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
+        private readonly IDistributedCache<List<string>> _routeGrainIdsCache;
+        
         public int MaxDepth { get; set; } = 3;
         public int MinSplits { get; set; } = 1;
         public int DistributionPercent { get; set; } = 5;
@@ -40,14 +45,21 @@ namespace AwakenServer.Route
         public BestRoutesAppService(
             IClusterClient clusterClient,
             IObjectMapper objectMapper,
-            INESTRepository<TradePair, Guid> tradePairIndexRepository)
+            INESTRepository<TradePair, Guid> tradePairIndexRepository,
+            IDistributedCache<List<string>> routeGrainIdsCache)
         {
             _logger = Log.ForContext<BestRoutesAppService>();
             _clusterClient = clusterClient;
             _objectMapper = objectMapper;
             _tradePairIndexRepository = tradePairIndexRepository;
+            _routeGrainIdsCache = routeGrainIdsCache;
         }
 
+        private string GenRouteGrainId(string chainId, string symbolBegin, string symbolEnd, int maxDepth)
+        {
+            return $"{chainId}/{symbolBegin}/{symbolEnd}/{maxDepth}";
+        }
+        
         private async Task<List<TradePairWithToken>> GetListAsync(string chainId)
         {
             var mustQuery = new List<Func<QueryContainerDescriptor<TradePair>, QueryContainer>>();
@@ -58,10 +70,25 @@ namespace AwakenServer.Route
             return _objectMapper.Map<List<TradePair>, List<TradePairWithToken>>(list.Item2);
         }
 
+        public virtual async Task ClearRoutesCacheAsync(string chainId)
+        {
+            var grainIdsCache = await _routeGrainIdsCache.GetAsync(chainId);
+            if (grainIdsCache != null)
+            {
+                foreach (var grainId in grainIdsCache)
+                {
+                    var grain = _clusterClient.GetGrain<IRouteGrain>(grainId);
+                    var resetResult = await grain.ResetCacheAsync();
+                    _logger.Information($"clear route cache, chain: {chainId}, route grain: {grainId}, count: {resetResult.Data}");
+                }
+            }
+        }
+        
         public async Task<List<SwapRoute>> GetRoutesAsync(string chainId, RouteType routeType, string symbolIn,
             string symbolOut, int maxDepth)
         {
-            var grain = _clusterClient.GetGrain<IRouteGrain>(chainId);
+            var grainId = GenRouteGrainId(chainId, symbolIn, symbolOut, maxDepth);
+            var grain = _clusterClient.GetGrain<IRouteGrain>(grainId);
 
             var cachedResult = await grain.GetRoutesAsync(new GetRoutesGrainDto()
             {
@@ -98,8 +125,19 @@ namespace AwakenServer.Route
                 return new List<SwapRoute>();
             }
 
+            var routeGrainIdCache = await _routeGrainIdsCache.GetAsync(chainId);
+            if (routeGrainIdCache == null)
+            {
+                routeGrainIdCache = new List<string>();
+            }
+            routeGrainIdCache.Add(grainId);
+            await _routeGrainIdsCache.SetAsync(chainId, routeGrainIdCache, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+            });
+            
             _logger.Information(
-                $"get route done, start: {symbolIn}, end:{symbolOut}, maxDepth:{maxDepth}, routes count: {result.Data.Routes.Count}");
+                $"get route done, start: {symbolIn}, end:{symbolOut}, maxDepth:{maxDepth}, routes count: {result.Data.Routes.Count}, grain id cache: {String.Join(", ", routeGrainIdCache)}");
             return result.Data.Routes;
         }
 

@@ -181,7 +181,7 @@ public class StatInfoAppService : ApplicationService, IStatInfoAppService
                     Symbol = latestSnapshot.Symbol,
                     Period = latestSnapshot.Period,
                     Timestamp = curSnapshotTime,
-                    Price = latestSnapshot.PriceInUsd,
+                    Price = latestSnapshot.Price,
                     PriceInUsd = latestSnapshot.PriceInUsd,
                     Tvl = latestSnapshot.Tvl
                 });
