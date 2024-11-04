@@ -500,12 +500,6 @@ namespace AwakenServer.Trade
             }
             
             // await _revertProvider.CheckOrAddUnconfirmedTransaction(currentConfirmedHeight, EventType.TradePairEvent, pair.ChainId, pair.BlockHeight, pair.TransactionHash);
-
-            var grain = _clusterClient.GetGrain<ITokenPathGrain>(chain.Id);
-            var clearCountResultDto = await grain.ResetCacheAsync();
-            _logger.Information($"clear swap path cache, token path grain: {grain.GetPrimaryKeyString()}, count: {clearCountResultDto.Data}");
-            
-            await _bestRoutesAppService.ClearRoutesCacheAsync(chain.Id);
             
             var token0 = await _tokenAppService.GetAsync(new GetTokenInput
             {
@@ -551,6 +545,13 @@ namespace AwakenServer.Trade
                                    "token1:{token1}", pair.Id, chain.Id, pair.Token0Symbol, pair.Token1Symbol);
 
             await CreateTradePairIndexAsync(pair, token0, token1, chain);
+            
+            var grain = _clusterClient.GetGrain<ITokenPathGrain>(chain.Id);
+            var clearCountResultDto = await grain.ResetCacheAsync();
+            _logger.Information($"clear swap path cache, token path grain: {grain.GetPrimaryKeyString()}, count: {clearCountResultDto.Data}");
+            
+            await _bestRoutesAppService.ResetRoutesCacheAsync(chain.Id);
+            
             return true;
         }
 

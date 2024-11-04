@@ -7,5 +7,5 @@ namespace AwakenServer.Route;
 public interface IBestRoutesAppService
 {
     Task<BestRoutesDto> GetBestRoutesAsync(GetBestRoutesInput input);
-    Task ClearRoutesCacheAsync(string chainId);
+    Task ResetRoutesCacheAsync(string chainId);
 }

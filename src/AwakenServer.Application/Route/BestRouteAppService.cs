@@ -70,7 +70,7 @@ namespace AwakenServer.Route
             return _objectMapper.Map<List<TradePair>, List<TradePairWithToken>>(list.Item2);
         }
 
-        public virtual async Task ClearRoutesCacheAsync(string chainId)
+        public virtual async Task ResetRoutesCacheAsync(string chainId)
         {
             var grainIdsCache = await _routeGrainIdsCache.GetAsync(chainId);
             if (grainIdsCache != null)
@@ -80,11 +80,16 @@ namespace AwakenServer.Route
                     var grain = _clusterClient.GetGrain<IRouteGrain>(grainId);
                     var resetResult = await grain.ResetCacheAsync();
                     _logger.Information($"clear route cache, chain: {chainId}, route grain: {grainId}, count: {resetResult.Data}");
+                    var searchRequest = grainId.Split('/');
+                    if (searchRequest.Length == 4)
+                    {
+                        await GetRoutesAsync(searchRequest[0], searchRequest[1], searchRequest[2], int.Parse(searchRequest[3]));
+                    }
                 }
             }
         }
         
-        public async Task<List<SwapRoute>> GetRoutesAsync(string chainId, RouteType routeType, string symbolIn,
+        public async Task<List<SwapRoute>> GetRoutesAsync(string chainId, string symbolIn,
             string symbolOut, int maxDepth)
         {
             var grainId = GenRouteGrainId(chainId, symbolIn, symbolOut, maxDepth);
@@ -321,7 +326,7 @@ namespace AwakenServer.Route
         public virtual async Task<BestRoutesDto> GetBestRoutesAsync(GetBestRoutesInput input)
         {
             var swapRoutes =
-                await GetRoutesAsync(input.ChainId, input.RouteType, input.SymbolIn, input.SymbolOut, MaxDepth);
+                await GetRoutesAsync(input.ChainId, input.SymbolIn, input.SymbolOut, MaxDepth);
             
             _logger.Information(
                 $"Get best routes, all routes count: {swapRoutes.Count}");
