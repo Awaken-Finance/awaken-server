@@ -12,6 +12,7 @@ using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Grains.Grain.Price.TradePair;
 
+[KeepAlive]
 public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 {
     private readonly IObjectMapper _objectMapper;

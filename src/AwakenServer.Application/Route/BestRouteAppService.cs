@@ -135,7 +135,12 @@ namespace AwakenServer.Route
             {
                 routeGrainIdCache = new List<string>();
             }
-            routeGrainIdCache.Add(grainId);
+
+            if (!routeGrainIdCache.Contains(grainId))
+            {
+                routeGrainIdCache.Add(grainId);
+            }
+            
             await _routeGrainIdsCache.SetAsync(chainId, routeGrainIdCache, new DistributedCacheEntryOptions
             {
                 AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)

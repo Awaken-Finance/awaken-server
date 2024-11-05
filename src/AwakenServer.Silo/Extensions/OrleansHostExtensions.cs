@@ -107,11 +107,9 @@ public static class OrleansHostExtensions
                     var grainType = id.Type.ToString();
                     if (grainIdPrefix.TryGetValue(grainType, out var prefix))
                     {
-                        Log.Debug($"KeyGenerator, grainType: {grainType}, prefix: {prefix}");
                         return $"{prefix}+{id.Key}";
                     }
 
-                    Log.Debug($"KeyGenerator, grainType: {grainType}, id: {id}");
                     return id.ToString();
                 };
                 op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);
@@ -147,10 +145,8 @@ public static class OrleansHostExtensions
                     var grainType = id.Type.ToString();
                     if (grainIdPrefix.TryGetValue(grainType, out var prefix))
                     {
-                        Log.Debug($"KeyGenerator, grainType: {grainType}, prefix: {prefix}");
                         return $"{prefix}+{id.Key}";
                     }
-                    Log.Debug($"KeyGenerator, grainType: {grainType}, id: {id}");
                     return id.ToString();
                 };
                 op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);
