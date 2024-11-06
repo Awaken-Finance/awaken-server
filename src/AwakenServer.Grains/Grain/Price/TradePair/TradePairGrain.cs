@@ -35,6 +35,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
     {
         await ReadStateAsync();
         await LoadLatestSnapshots();
+        _logger.Information($"TradePairGrain OnActivateAsync, pair address: {State.Address}");
         await base.OnActivateAsync(cancellationToken);
     }
 

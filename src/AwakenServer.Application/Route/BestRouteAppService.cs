@@ -368,7 +368,7 @@ namespace AwakenServer.Route
             var routeMap = new ConcurrentDictionary<string, SwapRoute>();
             var tradePairMap = new ConcurrentDictionary<Guid, TradePairReserve>();
 
-            var mapTasks = crossFeeRateRoutes.Select(async crossFeeRateRoute =>
+            foreach (var crossFeeRateRoute in crossFeeRateRoutes)
             {
                 routeMap[crossFeeRateRoute.FullPathStr] = crossFeeRateRoute;
                 foreach (var tradePair in crossFeeRateRoute.TradePairs)
@@ -377,31 +377,30 @@ namespace AwakenServer.Route
                     {
                         continue;
                     }
-                    
-                    var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
-                    var pairResult = await tradePairGrain.GetAsync();
-                    if (!pairResult.Success)
-                    {
-                        _logger.Error($"GetReservesAsync failed. Can not find trade pair: {tradePair.Id}, result: {pairResult.Success}, {pairResult.Data}, {pairResult.Message}");
-                        continue;
-                    }
-
-                    var token0Reserve = (long)Math.Floor(pairResult.Data.ValueLocked0 * Math.Pow(10, pairResult.Data.Token0.Decimals));
-                    var token1Reserve = (long)Math.Floor(pairResult.Data.ValueLocked1 * Math.Pow(10, pairResult.Data.Token1.Decimals));
-                    tradePairMap[tradePair.Id] = new TradePairReserve()
-                    {
-                        FeeRate = pairResult.Data.FeeRate,
-                        Token0Symbol = pairResult.Data.Token0.Symbol,
-                        Token1Symbol = pairResult.Data.Token1.Symbol,
-                        Token0Reserve = token0Reserve,
-                        Token1Reserve = token1Reserve
-                    };
+                    tradePairMap[tradePair.Id] = new TradePairReserve(){};
                 }
+            }
+            
+            var mapTasks = tradePairMap.Select(async tradePair =>
+            {
+                var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Key));
+                var pairResult = await tradePairGrain.GetAsync();
+                if (!pairResult.Success)
+                {
+                    _logger.Error($"GetReservesAsync failed. Can not find trade pair: {tradePair.Key}, result: {pairResult.Success}, {pairResult.Data}, {pairResult.Message}");
+                }
+
+                var token0Reserve = (long)Math.Floor(pairResult.Data.ValueLocked0 * Math.Pow(10, pairResult.Data.Token0.Decimals));
+                var token1Reserve = (long)Math.Floor(pairResult.Data.ValueLocked1 * Math.Pow(10, pairResult.Data.Token1.Decimals));
+                tradePair.Value.FeeRate = pairResult.Data.FeeRate;
+                tradePair.Value.Token0Symbol = pairResult.Data.Token0.Symbol;
+                tradePair.Value.Token1Symbol = pairResult.Data.Token1.Symbol;
+                tradePair.Value.Token0Reserve = token0Reserve;
+                tradePair.Value.Token1Reserve = token1Reserve;
             }).ToList();
 
             await Task.WhenAll(mapTasks);
-
-
+            
             _logger.Information(
                 $"Get best routes, all cross(or not) rate routes count: {crossFeeRateRoutes.Count}");
             
