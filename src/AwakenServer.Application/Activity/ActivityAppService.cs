@@ -23,6 +23,7 @@ using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using Nest;
+using Newtonsoft.Json;
 using Orleans;
 using Serilog;
 using Volo.Abp;
@@ -47,13 +48,11 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
     private readonly IDistributedCache<string> _syncedTransactionIdCache;
     protected readonly IGraphQLProvider _graphQlProvider;
-
-
-
+    
     private IClusterClient _clusterClient;
     private IDistributedEventBus _distributedEventBus;
+    private ActivityOptions _activityOptions;
     private readonly ILogger _logger;
-    private readonly ActivityOptions _activityOptions;
     private readonly PortfolioOptions _portfolioOptions;
 
     private readonly ITokenAppService _tokenAppService;
@@ -67,7 +66,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     private const double LimitLabsFeeRate = 0.0005;
 
     public ActivityAppService(
-        IOptionsSnapshot<ActivityOptions> activityOptions,
+        IOptionsMonitor<ActivityOptions> activityOptionsMonitor,
         IClusterClient clusterClient,
         IPriceAppService priceAppService,
         ITokenAppService tokenAppService,
@@ -82,7 +81,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         IDistributedCache<string> syncedTransactionIdCache)
     {
         _logger = Log.ForContext<ActivityAppService>();
-        _activityOptions = activityOptions.Value;
+        _activityOptions = activityOptionsMonitor.CurrentValue;
         _clusterClient = clusterClient;
         _tokenAppService = tokenAppService;
         _priceAppService = priceAppService;
@@ -96,6 +95,12 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         _rankingListSnapshotRepository = rankingListSnapshotRepository;
         _syncedTransactionIdCache = syncedTransactionIdCache;
         _graphQlProvider = graphQlProvider;
+        
+        activityOptionsMonitor.OnChange((newOptions, _) =>
+        {
+            _activityOptions = newOptions;
+            _logger.Information($"ActivityOptions is change to: {JsonConvert.SerializeObject(_activityOptions)}");
+        });
     }
 
     private string AddVersionToKey(string baseKey, string version)
