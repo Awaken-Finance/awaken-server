@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using AElf.OpenTelemetry;
 using AutoResponseWrapper;
 using AwakenServer.AetherLinkApi;
 using AwakenServer.EntityFrameworkCore;
@@ -50,7 +51,8 @@ namespace AwakenServer
         typeof(AbpAspNetCoreSerilogModule),
         typeof(AbpSwashbuckleModule),
         typeof (AbpEventBusRabbitMqModule),
-        typeof(AwakenServerAetherLinkApiModule)
+        typeof(AwakenServerAetherLinkApiModule),
+        typeof(OpenTelemetryModule)
     )]
     public class AwakenServerHttpApiHostModule : AbpModule
     {

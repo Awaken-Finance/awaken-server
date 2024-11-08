@@ -1,5 +1,6 @@
 using System;
 using AElf.Indexing.Elasticsearch.Options;
+using AElf.OpenTelemetry;
 using AwakenServer.Chains;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.AetherLinkApi;
@@ -41,7 +42,8 @@ namespace AwakenServer.EntityHandler;
     typeof(AwakenServerEntityHandlerCoreModule),
     typeof(AbpEventBusRabbitMqModule),
     typeof(AwakenServerWorkerModule),
-    typeof(AwakenServerAetherLinkApiModule)
+    typeof(AwakenServerAetherLinkApiModule),
+    typeof(OpenTelemetryModule)
 )]
 public class AwakenServerEntityHandlerModule : AbpModule
 {

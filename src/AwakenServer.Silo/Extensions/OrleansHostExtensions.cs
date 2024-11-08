@@ -32,6 +32,7 @@ public static class OrleansHostExtensions
             throw new ArgumentNullException(nameof(configSection), "The OrleansServer node is missing");
         return hostBuilder.UseOrleans((context,siloBuilder) =>
         {
+            siloBuilder.AddActivityPropagation();
             //Configure OrleansSnapshot
             configSection = context.Configuration.GetSection("Orleans");
             Log.Warning("==Orleans.IsRunningInKubernetes={0}", configSection.GetValue<bool>("IsRunningInKubernetes"));
