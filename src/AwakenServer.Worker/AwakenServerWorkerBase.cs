@@ -7,6 +7,7 @@ using AwakenServer.Common;
 using AwakenServer.Provider;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
@@ -103,8 +104,7 @@ public abstract class AwakenServerWorkerBase : AsyncPeriodicBackgroundWorkerBase
             }
             
             _logger.Information(
-                "The workerSetting of Worker {BusinessType} has changed to Period = {Period} ms, OpenSwitch = {OpenSwitch}, ResetBlockHeightFlag = {ResetBlockHeightFlag}, ResetBlockHeight = {ResetBlockHeight}",
-                _businessType, timer.Period, workerSetting.OpenSwitch, workerSetting.ResetBlockHeightFlag, workerSetting.ResetBlockHeight);
+                $"The workerSetting of Worker {_businessType} has changed to {JsonConvert.SerializeObject(_workerOptions)}");
         });
     }
     

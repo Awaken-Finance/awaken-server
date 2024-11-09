@@ -8,11 +8,14 @@ using AwakenServer.Price;
 using AwakenServer.Price.Dtos;
 using AwakenServer.StatInfo.Etos;
 using AwakenServer.StatInfo.Index;
+using AwakenServer.Tokens;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
+using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using Nest;
+using Newtonsoft.Json;
 using Orleans;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
@@ -21,6 +24,10 @@ using Volo.Abp.EventBus.Distributed;
 using ITokenPriceProvider = AwakenServer.Trade.ITokenPriceProvider;
 using SwapRecord = AwakenServer.Trade.SwapRecord;
 using TradePair = AwakenServer.Trade.Index.TradePair;
+using Serilog;
+using Volo.Abp.EventBus.Local;
+using LiquidityRecord = AwakenServer.Trade.LiquidityRecord;
+using Token = AwakenServer.Tokens.Token;
 
 namespace AwakenServer.StatInfo;
 
@@ -31,6 +38,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
     private readonly ITradePairAppService _tradePairAppService;
     private readonly IClusterClient _clusterClient;
     private readonly IDistributedEventBus _distributedEventBus;
+    private readonly ILocalEventBus _localEventBus;
     private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
     private readonly INESTRepository<TokenStatInfoIndex, Guid> _tokenStatInfoIndexRepository;
     private readonly INESTRepository<PoolStatInfoIndex, Guid> _poolStatInfoIndexRepository;
@@ -40,6 +48,10 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
     private readonly IPriceAppService _priceAppService;
     private readonly IDistributedCache<string> _syncedTransactionIdCache;
     private readonly IOptionsSnapshot<StatInfoOptions> _statInfoOptions;
+    private readonly ILogger _logger;
+    private readonly ITokenAppService _tokenAppService;
+
+
 
     public StatInfoInternalAppService(ITradePairAppService tradePairAppService, 
         IClusterClient clusterClient, 
@@ -51,7 +63,9 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         INESTRepository<StatInfoSnapshotIndex, Guid> statInfoSnapshotIndexRepository, 
         ITokenPriceProvider tokenPriceProvider, IPriceAppService priceAppService, 
         IDistributedCache<string> syncedTransactionIdCache, 
-        IOptionsSnapshot<StatInfoOptions> statInfoOptions)
+        IOptionsSnapshot<StatInfoOptions> statInfoOptions,
+        ILocalEventBus localEventBus,
+        ITokenAppService tokenAppService)
     {
         _tradePairAppService = tradePairAppService;
         _clusterClient = clusterClient;
@@ -65,6 +79,9 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         _priceAppService = priceAppService;
         _syncedTransactionIdCache = syncedTransactionIdCache;
         _statInfoOptions = statInfoOptions;
+        _logger = Log.ForContext<StatInfoInternalAppService>();
+        _localEventBus = localEventBus;
+        _tokenAppService = tokenAppService;
     }
 
     private string AddVersionToKey(string baseKey, string version)
@@ -104,6 +121,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         var priceTuple = await _tokenPriceProvider.GetUSDPriceAsync(liquidityRecordDto.ChainId, tradePair.Id, tradePair.Token0.Symbol, tradePair.Token1.Symbol);
         transactionHistory.ValueInUsd = priceTuple.Item1 * Double.Parse(transactionHistory.Token0Amount) +
                                         priceTuple.Item2 * Double.Parse(transactionHistory.Token1Amount);
+        _logger.Information($"CreateLiquidityRecordAsync, TransactionHistoryEto: {JsonConvert.SerializeObject(transactionHistory)}");
         await _distributedEventBus.PublishAsync(transactionHistory);
         
         // transaction count
@@ -111,7 +129,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         
         await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
         {
-            AbsoluteExpiration = DateTimeOffset.UtcNow.AddDays(7)
+            AbsoluteExpiration = DateTimeOffset.UtcNow.AddYears(1)
         });
         return true;
     }
@@ -126,6 +144,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         poolStatInfoGrainDtoResult.Data.LastUpdateTime = timestamp;
         poolStatInfoGrainDtoResult = await poolStatInfoGrain.AddOrUpdateAsync(poolStatInfoGrainDtoResult.Data);
         poolStatInfoGrainDtoResult.Data.Version = dataVersion;
+        _logger.Information($"IncTransactionCount, PoolStatInfoEto: {JsonConvert.SerializeObject(poolStatInfoGrainDtoResult.Data)}");
         await _distributedEventBus.PublishAsync(ObjectMapper.Map<PoolStatInfoGrainDto, PoolStatInfoEto>(poolStatInfoGrainDtoResult.Data));
         
         await IncTokenTransactionCount(tradePair.ChainId, tradePair.Token0.Symbol, timestamp, dataVersion);
@@ -142,6 +161,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         tokenStatInfoGrainDtoResult.Data.TransactionCount++;
         tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.AddOrUpdateAsync(tokenStatInfoGrainDtoResult.Data);
         tokenStatInfoGrainDtoResult.Data.Version = dataVersion;
+        _logger.Information($"IncTokenTransactionCount, TokenStatInfoEto: {JsonConvert.SerializeObject(tokenStatInfoGrainDtoResult.Data)}");
         await _distributedEventBus.PublishAsync(ObjectMapper.Map<TokenStatInfoGrainDto, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
     }
     
@@ -162,12 +182,77 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
                 await SyncSingleSwapRecordAsync(swapRecordDto, dataVersion);
             }
         }
-        await _syncedTransactionIdCache.SetAsync(key, "1");
+        await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
+        {
+            AbsoluteExpiration = DateTimeOffset.UtcNow.AddYears(1)
+        });
         return true;
     }
 
+    private async Task SyncSingleLimitSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion)
+    {
+        var token0 = await _tokenAppService.GetAsync(new GetTokenInput
+        {
+            ChainId = swapRecordDto.ChainId,
+            Symbol = swapRecordDto.SymbolIn
+        });
+        var token1 = await _tokenAppService.GetAsync(new GetTokenInput
+        {
+            ChainId = swapRecordDto.ChainId,
+            Symbol = swapRecordDto.SymbolOut
+        });
+        var transactionHistory = new TransactionHistoryEto()
+        {
+            TradePair = new TradePair()
+            {
+                Token0 = ObjectMapper.Map<TokenDto, Token>(token0),
+                Token1 = ObjectMapper.Map<TokenDto, Token>(token1),
+                ChainId = swapRecordDto.ChainId
+            },
+            TransactionType = TransactionType.Trade,
+            TransactionHash = swapRecordDto.TransactionHash,
+            Timestamp = swapRecordDto.Timestamp,
+            ChainId = swapRecordDto.ChainId,
+            Side = TradeSide.Swap
+        };
+        transactionHistory.Token0Amount = swapRecordDto.AmountIn.ToDecimalsString(token0.Decimals);
+        transactionHistory.Token1Amount = swapRecordDto.AmountOut.ToDecimalsString(token1.Decimals);
+        var token0Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(
+            swapRecordDto.ChainId, token0.Symbol);
+        var token1Price = await _tokenPriceProvider.GetTokenUSDPriceAsync(
+            swapRecordDto.ChainId, token1.Symbol);
+        transactionHistory.ValueInUsd = token0Price > 0 ? token0Price * Double.Parse(transactionHistory.Token0Amount)
+                : token1Price * Double.Parse(transactionHistory.Token1Amount);
+        transactionHistory.Version = dataVersion;
+        await _distributedEventBus.PublishAsync(transactionHistory);
+
+        // token volume
+        await UpdateTokenVolumeAsync(swapRecordDto.ChainId, token0.Symbol, 
+            transactionHistory.ValueInUsd, swapRecordDto.Timestamp, dataVersion);
+        await UpdateTokenVolumeAsync(swapRecordDto.ChainId, token1.Symbol, 
+            Double.Parse(transactionHistory.Token1Amount) * token1Price, swapRecordDto.Timestamp, dataVersion);
+        
+        // global volume
+        var globalSnapshotEto = new StatInfoSnapshotEto
+        {
+            ChainId = swapRecordDto.ChainId,
+            Version = dataVersion,
+            StatType = 0,
+            Timestamp = swapRecordDto.Timestamp,
+            VolumeInUsd = transactionHistory.ValueInUsd,
+        };
+        _logger.Debug($"SyncSingleLimitSwapRecordAsync, txn: {swapRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
+        await _localEventBus.PublishAsync(globalSnapshotEto);
+    }
+    
     private async Task SyncSingleSwapRecordAsync(SwapRecordDto swapRecordDto, string dataVersion)
     {
+        if (swapRecordDto.IsLimitOrder)
+        {
+            await SyncSingleLimitSwapRecordAsync(swapRecordDto, dataVersion);
+            return;
+        }
+        
         // insert transaction
         var tradePair = await GetTradePairAsync(swapRecordDto.ChainId, swapRecordDto.PairAddress);
         if (tradePair == null)
@@ -245,7 +330,8 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             VolumeInUsd = transactionHistory.ValueInUsd,
             LpFeeInUsd = Double.Parse(lpFeeAmount) * (isSell ? token0Price : token1Price)
         };
-        await _distributedEventBus.PublishAsync(snapshotEto);
+        _logger.Debug($"SyncSingleSwapRecordAsync, txn: {swapRecordDto.TransactionHash}, swapDtoPairAddress: {swapRecordDto.PairAddress}, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
+        await _localEventBus.PublishAsync(snapshotEto);
 
         // token volume
         await UpdateTokenVolumeAsync(swapRecordDto.ChainId, tradePair.Token0.Symbol, 
@@ -262,7 +348,8 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             Timestamp = swapRecordDto.Timestamp,
             VolumeInUsd = transactionHistory.ValueInUsd,
         };
-        await _distributedEventBus.PublishAsync(globalSnapshotEto);
+        _logger.Debug($"SyncSingleSwapRecordAsync, txn: {swapRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
+        await _localEventBus.PublishAsync(globalSnapshotEto);
     }
     
     private async Task UpdateTokenVolumeAsync(string chainId, string symbol, double volumeInUsd, long timestamp, string dataVersion)
@@ -295,12 +382,13 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             ChainId = chainId,
             Version = dataVersion
         };
-        await _distributedEventBus.PublishAsync(tokenSnapshotEto);
+        _logger.Debug($"UpdateTokenVolumeAsync, snapshotEto: {JsonConvert.SerializeObject(tokenSnapshotEto)}");
+        await _localEventBus.PublishAsync(tokenSnapshotEto);
     }
 
     public async Task<bool> CreateSyncRecordAsync(SyncRecordDto syncRecordDto, string dataVersion)
     {
-        var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{nameof(syncRecordDto)}:{syncRecordDto.TransactionHash}", dataVersion);
+        var key = AddVersionToKey($"{SyncedTransactionCachePrefix}:{nameof(syncRecordDto)}:{syncRecordDto.TransactionHash}:{syncRecordDto.PairAddress}", dataVersion);
         var existed = await _syncedTransactionIdCache.GetAsync(key);
         if (!existed.IsNullOrWhiteSpace())
         {
@@ -341,17 +429,18 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         if (poolStateInfoGrainDtoResult.Success) {
             await _distributedEventBus.PublishAsync(
             ObjectMapper.Map<PoolStatInfoGrainDto, PoolStatInfoEto>(poolStateInfoGrainDtoResult.Data));
-            await _distributedEventBus.PublishAsync(
-                new StatInfoSnapshotEto()
-                {
-                    Version = dataVersion,
-                    ChainId = syncRecordDto.ChainId,
-                    StatType = 2,
-                    PairAddress = syncRecordDto.PairAddress,
-                    Price = poolStateInfoGrainDtoResult.Data.Price,
-                    Tvl = poolStateInfoGrainDtoResult.Data.Tvl,
-                    Timestamp = syncRecordDto.Timestamp
-                });
+            var snapshotEto = new StatInfoSnapshotEto()
+            {
+                Version = dataVersion,
+                ChainId = syncRecordDto.ChainId,
+                StatType = 2,
+                PairAddress = syncRecordDto.PairAddress,
+                Price = poolStateInfoGrainDtoResult.Data.Price,
+                Tvl = poolStateInfoGrainDtoResult.Data.Tvl,
+                Timestamp = syncRecordDto.Timestamp
+            };
+            _logger.Debug($"CreateSyncRecordAsync, txn: {syncRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
+            await _localEventBus.PublishAsync(snapshotEto);
         }
 
         // token tvl/priceInUsd
@@ -373,9 +462,13 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             Tvl = globalGrainDtoResult.Data.Tvl,
             Timestamp = syncRecordDto.Timestamp
         };
-        await _distributedEventBus.PublishAsync(globalSnapshotEto);
+        _logger.Debug($"CreateSyncRecordAsync, txn: {syncRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
+        await _localEventBus.PublishAsync(globalSnapshotEto);
         
-        await _syncedTransactionIdCache.SetAsync(key, "1");
+        await _syncedTransactionIdCache.SetAsync(key, "1", new DistributedCacheEntryOptions
+        {
+            AbsoluteExpiration = DateTimeOffset.UtcNow.AddYears(1)
+        });
         return true;
     }
 
@@ -416,7 +509,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         {
             await _distributedEventBus.PublishAsync(
                 ObjectMapper.Map<TokenStatInfoGrainDto, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
-            await _distributedEventBus.PublishAsync(new StatInfoSnapshotEto()
+            var snapshotEto = new StatInfoSnapshotEto()
             {
                 Version = dataVersion,
                 ChainId = syncRecordDto.ChainId,
@@ -425,7 +518,9 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
                 Tvl = tokenStatInfoGrainDtoResult.Data.Tvl,
                 PriceInUsd = tokenStatInfoGrainDtoResult.Data.PriceInUsd,
                 Timestamp = syncRecordDto.Timestamp
-            });
+            };
+            _logger.Debug($"UpdateTokenTvlAndPriceAsync, txn: {syncRecordDto.TransactionHash}, snapshotEto: {JsonConvert.SerializeObject(snapshotEto)}");
+            await _localEventBus.PublishAsync(snapshotEto);
         }
     }
 
@@ -472,9 +567,11 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
         {
             StatType = 0,
             Tvl = globalGrainDtoResult.Data.Tvl,
-            Timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds()
+            Timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            Version = dataVersion
         };
-        await _distributedEventBus.PublishAsync(globalSnapshotEto);
+        _logger.Debug($"RefreshTvlAsync, chain: {chainId}, snapshotEto: {JsonConvert.SerializeObject(globalSnapshotEto)}");
+        await _localEventBus.PublishAsync(globalSnapshotEto);
     }
     
     public async Task RefreshTokenStatInfoAsync(string chainId, string dataVersion)
@@ -586,7 +683,6 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             UpdatePricingNode(tradePair, tradePair.Token0.Symbol, tradePair.Token1.Symbol, pricingNodeMap);
             UpdatePricingNode(tradePair, tradePair.Token1.Symbol, tradePair.Token0.Symbol, pricingNodeMap);
         }
-
         foreach (var pricingNodePair in pricingNodeMap)
         {
             var tokenStatInfoGrain = _clusterClient.GetGrain<ITokenStatInfoGrain>(
@@ -601,6 +697,7 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
             tokenStatInfoGrainDtoResult.Data.FollowPairAddress = pricingNodePair.Value.FromTradePairAddress;
             tokenStatInfoGrainDtoResult = await tokenStatInfoGrain.AddOrUpdateAsync(tokenStatInfoGrainDtoResult.Data);
             tokenStatInfoGrainDtoResult.Data.Version = dataVersion;
+            _logger.Debug($"UpdateTokenFollowPairAsync, TokenStatInfoEto: {JsonConvert.SerializeObject(tokenStatInfoGrainDtoResult.Data)}");
             await _distributedEventBus.PublishAsync(ObjectMapper.Map<TokenStatInfoGrainDto, TokenStatInfoEto>(tokenStatInfoGrainDtoResult.Data));
         }
     }
@@ -656,6 +753,11 @@ public class StatInfoInternalAppService : ApplicationService, IStatInfoInternalA
 
     private async Task<TradePair> GetTradePairAsync(string chainName, string address)
     {
+        if (string.IsNullOrEmpty(address))
+        {
+            return null;
+        }
+        
         var mustQuery = new List<Func<QueryContainerDescriptor<TradePair>, QueryContainer>>();
         mustQuery.Add(q => q.Term(i => i.Field(f => f.ChainId).Value(chainName)));
         mustQuery.Add(q => q.Term(i => i.Field(f => f.Address).Value(address)));

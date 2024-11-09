@@ -69,11 +69,16 @@ namespace AwakenServer.Price
             result.Items.Count.ShouldBe(1);
             result.Items[0].PriceInUsd.ShouldBe(1.3m);
             
-            // get price update cache
+            // get price update cache no request to api in 3 minutes
+            result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "TESTCACHE" });
+            result.Items.Count.ShouldBe(1);
+            result.Items[0].PriceInUsd.ShouldBe(1.3m);
+            
+            Thread.Sleep(180001);
+            
             result = await _priceAppService.GetTokenPriceListAsync(new List<string> { "TESTCACHE" });
             result.Items.Count.ShouldBe(1);
             result.Items[0].PriceInUsd.ShouldBe(3.3m);
-            
         }
         
         

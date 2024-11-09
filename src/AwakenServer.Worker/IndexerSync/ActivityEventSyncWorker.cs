@@ -8,6 +8,7 @@ using AwakenServer.Trade;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using Serilog;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Caching;
@@ -26,7 +27,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
     private readonly Random _random = new Random();
     private TimeSpan _nextLpSnapshotExecutionTime;
     private bool _firstExecution = true;
-    private readonly ActivityOptions _activityOptions;
+    private ActivityOptions _activityOptions;
 
     private const string VolumeActivityType = "volume";
     private const string TvlActivityType = "tvl";
@@ -36,7 +37,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         ITradeRecordAppService tradeRecordAppService,
         IOptionsMonitor<WorkerOptions> optionsMonitor,
         IGraphQLProvider graphQlProvider,
-        IOptionsSnapshot<ActivityOptions> activityOptions,
+        IOptionsMonitor<ActivityOptions> activityOptionsMonitor,
         IChainAppService chainAppService,
         IOptions<ChainsInitOptions> chainsOption,
         ISyncStateProvider syncStateProvider,
@@ -47,7 +48,12 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
         _graphQlProvider = graphQlProvider;
         _tradeRecordAppService = tradeRecordAppService;
         _activityAppService = activityAppService;
-        _activityOptions = activityOptions.Value;
+        _activityOptions = activityOptionsMonitor.CurrentValue;
+        activityOptionsMonitor.OnChange((newOptions, _) =>
+        {
+            _activityOptions = newOptions;
+            _logger.Information($"ActivityOptions is change to: {JsonConvert.SerializeObject(_activityOptions)}");
+        });
     }
 
     private void SetNextExecutionTime(DateTime lastExecuteTime)

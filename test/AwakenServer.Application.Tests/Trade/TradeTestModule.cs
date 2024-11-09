@@ -114,7 +114,7 @@ namespace AwakenServer.Trade
                     86400,
                     604800
                 };
-                o.TypePeriodMapping = new Dictionary<string, long>()
+                o.TypePeriodMapping = new Dictionary<string, int>()
                 {
                     { "Day", 3600 },
                     { "Week", 21600 },

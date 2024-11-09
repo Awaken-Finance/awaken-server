@@ -1,3 +1,5 @@
+namespace AwakenServer.Worker.IndexerReSync;
+
 using System;
 using System.Threading.Tasks;
 using AwakenServer.Chains;
@@ -10,15 +12,13 @@ using Microsoft.Extensions.Options;
 using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.Threading;
 
-namespace AwakenServer.Worker.IndexerSync;
-
-public class StatInfoEventSyncWorker : AwakenServerWorkerBase
+public class StatInfoEventReSyncWorker : AwakenServerWorkerBase
 {
-    protected override WorkerBusinessType _businessType => WorkerBusinessType.StatInfoIndexEvent;
+    protected override WorkerBusinessType _businessType => WorkerBusinessType.NewVersionStatInfoIndexEvent;
  
     private readonly IStatInfoInternalAppService _statInfoInternalAppService;
 
-    public StatInfoEventSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory, 
+    public StatInfoEventReSyncWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory, 
         IOptionsMonitor<WorkerOptions> optionsMonitor, IGraphQLProvider graphQlProvider, IChainAppService chainAppService, 
         IOptions<ChainsInitOptions> chainsOption, ISyncStateProvider syncStateProvider, 
         StatInfoInternalAppService statInfoInternalAppService) : 
@@ -39,7 +39,7 @@ public class StatInfoEventSyncWorker : AwakenServerWorkerBase
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
         var swapRecordList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 
             maxBlockHeight, 0, _workerOptions.QueryOnceLimit);
-        _logger.Information("StatInfoEventSyncWorker: chain: {chainName}, liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}, sync queryList count: {syncCount}", 
+        _logger.Information("StatInfoEventReSyncWorker: chain: {chainName}, liquidity queryList count: {liquidityCount}, swap queryList count: {swapCount}, sync queryList count: {syncCount}", 
             chain.Name, liquidityRecordList.Count, swapRecordList.Count, syncRecordList.Count);
         long blockHeight = -1;
         try
@@ -60,7 +60,7 @@ public class StatInfoEventSyncWorker : AwakenServerWorkerBase
         }
         catch (Exception e)
         {
-            _logger.Error(e, "StatInfo event fail.");
+            _logger.Error(e, "New Version StatInfo event fail.");
         }
 
         return blockHeight;

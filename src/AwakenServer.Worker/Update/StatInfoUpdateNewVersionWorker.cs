@@ -12,15 +12,15 @@ using Volo.Abp.Threading;
 
 namespace AwakenServer.Worker;
 
-public class StatInfoUpdateWorker : AwakenServerWorkerBase
+public class StatInfoUpdateNewVersionWorker : AwakenServerWorkerBase
 {
-    protected override WorkerBusinessType _businessType => WorkerBusinessType.StatInfoUpdateEvent;
+    protected override WorkerBusinessType _businessType => WorkerBusinessType.NewVersionStatInfoUpdateEvent;
  
     protected readonly IGraphQLProvider _graphQlProvider;
     private readonly IStatInfoInternalAppService _statInfoInternalAppService;
     private readonly StatInfoUpdateWorkerSettings _options;
 
-    public StatInfoUpdateWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory, 
+    public StatInfoUpdateNewVersionWorker(AbpAsyncTimer timer, IServiceScopeFactory serviceScopeFactory, 
         IOptionsMonitor<WorkerOptions> optionsMonitor, IOptionsMonitor<StatInfoUpdateWorkerSettings> updateOptionsMonitor, 
         IGraphQLProvider graphQlProvider, IChainAppService chainAppService, 
         IOptions<ChainsInitOptions> chainsOption, ISyncStateProvider syncStateProvider, 
@@ -33,7 +33,7 @@ public class StatInfoUpdateWorker : AwakenServerWorkerBase
         updateOptionsMonitor.OnChange((newOptions, _) =>
         {
             _options.ExecuteRefreshTvl = newOptions.ExecuteRefreshTvl;
-            _logger.Information($"StatInfoUpdateWorker, options change: " +
+            _logger.Information($"StatInfoUpdateNewVersionWorker, options change: " +
                                    $"DataVersion={_workerOptions.DataVersion}, " +
                                    $"ExecuteRefreshTvl={_options.ExecuteRefreshTvl}");
         });
