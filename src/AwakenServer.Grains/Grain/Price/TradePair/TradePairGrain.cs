@@ -32,7 +32,6 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         );
     }
 
-    [AggregateExecutionTime]
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         await ReadStateAsync();
@@ -41,7 +40,6 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
         await base.OnActivateAsync(cancellationToken);
     }
 
-    [AggregateExecutionTime]
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         await WriteStateAsync();
