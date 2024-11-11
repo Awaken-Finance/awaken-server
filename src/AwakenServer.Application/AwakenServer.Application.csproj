@@ -11,6 +11,7 @@
     <ProjectReference Include="..\AwakenServer.Domain\AwakenServer.Domain.csproj" />
     <ProjectReference Include="..\AwakenServer.Application.Contracts\AwakenServer.Application.Contracts.csproj" />
     <ProjectReference Include="..\AwakenServer.Grains\AwakenServer.Grains.csproj" />
+    <ProjectReference Include="..\AwakenServer.Signature\AwakenServer.Signature.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -8,6 +8,7 @@ using AwakenServer.ContractEventHandler.Application;
 using AwakenServer.Grains;
 using AwakenServer.Price;
 using AwakenServer.Provider;
+using AwakenServer.Signature;
 using AwakenServer.StatInfo;
 using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,8 @@ namespace AwakenServer
         typeof(AwakenServerApplicationContractsModule),
         typeof(AwakenServerGrainsModule),
         typeof(AbpTenantManagementApplicationModule),
-        typeof(AbpSettingManagementApplicationModule)
+        typeof(AbpSettingManagementApplicationModule),
+        typeof(AwakenServerSignatureModule)
     )]
     public class AwakenServerApplicationModule : AbpModule
     {

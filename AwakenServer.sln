@@ -51,7 +51,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.Grains.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.CoinGeckoApi", "src\AwakenServer.CoinGeckoApi\AwakenServer.CoinGeckoApi.csproj", "{C1CFF7C0-6611-400F-BCE7-DF35097660A1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.AetherLinkApi", "src/AwakenServer.AetherLinkApi/AwakenServer.AetherLinkApi.csproj", "{7b95d336-cb69-4df6-8aa3-30893d2215be}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.AetherLinkApi", "src\AwakenServer.AetherLinkApi\AwakenServer.AetherLinkApi.csproj", "{7B95D336-CB69-4DF6-8AA3-30893D2215BE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.Signature", "src\AwakenServer.Signature\AwakenServer.Signature.csproj", "{EC87414A-45DA-4FEB-9A25-874C5A852B91}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
