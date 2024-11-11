@@ -17,6 +17,7 @@
         <PackageReference Include="GraphQL.Client.Serializer.Newtonsoft" Version="5.1.0" />
         <PackageReference Include="GraphQL.Client" Version="5.1.0" />
         <PackageReference Include="AetherlinkPriceServer" Version="1.0.4" />
+        <PackageReference Include="AElf.OpenTelemetry" Version="8.2.1" />
     </ItemGroup>
 
     <ItemGroup>
