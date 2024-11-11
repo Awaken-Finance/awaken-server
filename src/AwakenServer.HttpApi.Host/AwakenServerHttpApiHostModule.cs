@@ -5,9 +5,11 @@ using System.Linq;
 using AElf.OpenTelemetry;
 using AutoResponseWrapper;
 using AwakenServer.AetherLinkApi;
+using AwakenServer.Chains;
 using AwakenServer.EntityFrameworkCore;
 using AwakenServer.Grains;
 using AwakenServer.MultiTenancy;
+using AwakenServer.Provider;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors;
@@ -71,9 +73,12 @@ namespace AwakenServer
             ConfigureRedis(context, configuration, hostingEnvironment);
             ConfigureCors(context, configuration);
             ConfigureSwaggerServices(context, configuration);
-
+            
+            Configure<ChainsInitOptions>(configuration.GetSection("ChainsInit"));
+            
             context.Services.AddAutoResponseWrapper();
             context.Services.AddSingleton<CorsConfigurationUpdater>();
+            context.Services.AddSingleton<DataPreheatingProvider>();
         }
 
         private void ConfigureCache(IConfiguration configuration)
@@ -257,6 +262,8 @@ namespace AwakenServer
             app.UseAbpSerilogEnrichers();
             app.UseUnitOfWork();
             app.UseConfiguredEndpoints();
+
+            context.ServiceProvider.GetRequiredService<DataPreheatingProvider>();
         }
     }
 }
