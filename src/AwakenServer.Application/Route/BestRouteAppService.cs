@@ -9,15 +9,18 @@ using AutoMapper;
 using AwakenServer.Grains;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Route;
+using AwakenServer.Price;
 using AwakenServer.Route.Dtos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
+using Microsoft.Extensions.Caching.Distributed;
 using Nest;
 using Orleans;
 using Serilog;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
+using Volo.Abp.Caching;
 using Volo.Abp.ObjectMapping;
 using PercentRouteDto = AwakenServer.Route.Dtos.PercentRouteDto;
 using Token = Nest.Token;
@@ -32,6 +35,8 @@ namespace AwakenServer.Route
         private readonly IObjectMapper _objectMapper;
         private readonly ILogger _logger;
         private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
+        private readonly IDistributedCache<List<string>> _routeGrainIdsCache;
+        
         public int MaxDepth { get; set; } = 3;
         public int MinSplits { get; set; } = 1;
         public int DistributionPercent { get; set; } = 5;
@@ -40,14 +45,21 @@ namespace AwakenServer.Route
         public BestRoutesAppService(
             IClusterClient clusterClient,
             IObjectMapper objectMapper,
-            INESTRepository<TradePair, Guid> tradePairIndexRepository)
+            INESTRepository<TradePair, Guid> tradePairIndexRepository,
+            IDistributedCache<List<string>> routeGrainIdsCache)
         {
             _logger = Log.ForContext<BestRoutesAppService>();
             _clusterClient = clusterClient;
             _objectMapper = objectMapper;
             _tradePairIndexRepository = tradePairIndexRepository;
+            _routeGrainIdsCache = routeGrainIdsCache;
         }
 
+        private string GenRouteGrainId(string chainId, string symbolBegin, string symbolEnd, int maxDepth)
+        {
+            return $"{chainId}/{symbolBegin}/{symbolEnd}/{maxDepth}";
+        }
+        
         private async Task<List<TradePairWithToken>> GetListAsync(string chainId)
         {
             var mustQuery = new List<Func<QueryContainerDescriptor<TradePair>, QueryContainer>>();
@@ -58,10 +70,30 @@ namespace AwakenServer.Route
             return _objectMapper.Map<List<TradePair>, List<TradePairWithToken>>(list.Item2);
         }
 
-        public async Task<List<SwapRoute>> GetRoutesAsync(string chainId, RouteType routeType, string symbolIn,
+        public virtual async Task ResetRoutesCacheAsync(string chainId)
+        {
+            var grainIdsCache = await _routeGrainIdsCache.GetAsync(chainId);
+            if (grainIdsCache != null)
+            {
+                foreach (var grainId in grainIdsCache)
+                {
+                    var grain = _clusterClient.GetGrain<IRouteGrain>(grainId);
+                    var resetResult = await grain.ResetCacheAsync();
+                    _logger.Information($"clear route cache, chain: {chainId}, route grain: {grainId}, count: {resetResult.Data}");
+                    var searchRequest = grainId.Split('/');
+                    if (searchRequest.Length == 4)
+                    {
+                        await GetRoutesAsync(searchRequest[0], searchRequest[1], searchRequest[2], int.Parse(searchRequest[3]));
+                    }
+                }
+            }
+        }
+        
+        public async Task<List<SwapRoute>> GetRoutesAsync(string chainId, string symbolIn,
             string symbolOut, int maxDepth)
         {
-            var grain = _clusterClient.GetGrain<IRouteGrain>(chainId);
+            var grainId = GenRouteGrainId(chainId, symbolIn, symbolOut, maxDepth);
+            var grain = _clusterClient.GetGrain<IRouteGrain>(grainId);
 
             var cachedResult = await grain.GetRoutesAsync(new GetRoutesGrainDto()
             {
@@ -98,8 +130,24 @@ namespace AwakenServer.Route
                 return new List<SwapRoute>();
             }
 
+            var routeGrainIdCache = await _routeGrainIdsCache.GetAsync(chainId);
+            if (routeGrainIdCache == null)
+            {
+                routeGrainIdCache = new List<string>();
+            }
+
+            if (!routeGrainIdCache.Contains(grainId))
+            {
+                routeGrainIdCache.Add(grainId);
+            }
+            
+            await _routeGrainIdsCache.SetAsync(chainId, routeGrainIdCache, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+            });
+            
             _logger.Information(
-                $"get route done, start: {symbolIn}, end:{symbolOut}, maxDepth:{maxDepth}, routes count: {result.Data.Routes.Count}");
+                $"get route done, start: {symbolIn}, end:{symbolOut}, maxDepth:{maxDepth}, routes count: {result.Data.Routes.Count}, grain id cache: {String.Join(", ", routeGrainIdCache)}");
             return result.Data.Routes;
         }
 
@@ -283,7 +331,7 @@ namespace AwakenServer.Route
         public virtual async Task<BestRoutesDto> GetBestRoutesAsync(GetBestRoutesInput input)
         {
             var swapRoutes =
-                await GetRoutesAsync(input.ChainId, input.RouteType, input.SymbolIn, input.SymbolOut, MaxDepth);
+                await GetRoutesAsync(input.ChainId, input.SymbolIn, input.SymbolOut, MaxDepth);
             
             _logger.Information(
                 $"Get best routes, all routes count: {swapRoutes.Count}");
@@ -320,7 +368,7 @@ namespace AwakenServer.Route
             var routeMap = new ConcurrentDictionary<string, SwapRoute>();
             var tradePairMap = new ConcurrentDictionary<Guid, TradePairReserve>();
 
-            var mapTasks = crossFeeRateRoutes.Select(async crossFeeRateRoute =>
+            foreach (var crossFeeRateRoute in crossFeeRateRoutes)
             {
                 routeMap[crossFeeRateRoute.FullPathStr] = crossFeeRateRoute;
                 foreach (var tradePair in crossFeeRateRoute.TradePairs)
@@ -329,31 +377,30 @@ namespace AwakenServer.Route
                     {
                         continue;
                     }
-                    
-                    var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Id));
-                    var pairResult = await tradePairGrain.GetAsync();
-                    if (!pairResult.Success)
-                    {
-                        _logger.Error($"GetReservesAsync failed. Can not find trade pair: {tradePair.Id}, result: {pairResult.Success}, {pairResult.Data}, {pairResult.Message}");
-                        continue;
-                    }
-
-                    var token0Reserve = (long)Math.Floor(pairResult.Data.ValueLocked0 * Math.Pow(10, pairResult.Data.Token0.Decimals));
-                    var token1Reserve = (long)Math.Floor(pairResult.Data.ValueLocked1 * Math.Pow(10, pairResult.Data.Token1.Decimals));
-                    tradePairMap[tradePair.Id] = new TradePairReserve()
-                    {
-                        FeeRate = pairResult.Data.FeeRate,
-                        Token0Symbol = pairResult.Data.Token0.Symbol,
-                        Token1Symbol = pairResult.Data.Token1.Symbol,
-                        Token0Reserve = token0Reserve,
-                        Token1Reserve = token1Reserve
-                    };
+                    tradePairMap[tradePair.Id] = new TradePairReserve(){};
                 }
+            }
+            
+            var mapTasks = tradePairMap.Select(async tradePair =>
+            {
+                var tradePairGrain = _clusterClient.GetGrain<ITradePairGrain>(GrainIdHelper.GenerateGrainId(tradePair.Key));
+                var pairResult = await tradePairGrain.GetAsync();
+                if (!pairResult.Success)
+                {
+                    _logger.Error($"GetReservesAsync failed. Can not find trade pair: {tradePair.Key}, result: {pairResult.Success}, {pairResult.Data}, {pairResult.Message}");
+                }
+
+                var token0Reserve = (long)Math.Floor(pairResult.Data.ValueLocked0 * Math.Pow(10, pairResult.Data.Token0.Decimals));
+                var token1Reserve = (long)Math.Floor(pairResult.Data.ValueLocked1 * Math.Pow(10, pairResult.Data.Token1.Decimals));
+                tradePair.Value.FeeRate = pairResult.Data.FeeRate;
+                tradePair.Value.Token0Symbol = pairResult.Data.Token0.Symbol;
+                tradePair.Value.Token1Symbol = pairResult.Data.Token1.Symbol;
+                tradePair.Value.Token0Reserve = token0Reserve;
+                tradePair.Value.Token1Reserve = token1Reserve;
             }).ToList();
 
             await Task.WhenAll(mapTasks);
-
-
+            
             _logger.Information(
                 $"Get best routes, all cross(or not) rate routes count: {crossFeeRateRoutes.Count}");
             

@@ -14,6 +14,9 @@ public class PriceOptions
     public const decimal DefaultPriceValue = -1;
     public const string UsdtPricePair = "usdt-usd";
     public const int CacheLockTimeoutSeconds = 3;
+    public const string PriceExceptionCachePrefix = "PriceException";
+    public const int ExceptionCacheMinutes = 3;
+    public const int HistoryPriceToleranceDays = 30;
 }
 
 public class TokenPriceOptions

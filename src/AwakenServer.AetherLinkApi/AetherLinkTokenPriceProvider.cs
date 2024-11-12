@@ -28,7 +28,7 @@ public class AetherLinkTokenPriceProvider : ITokenPriceProvider
 
     
     
-    [ExceptionHandler(typeof(Exception), Message = "GetPrice Error", LogOnly = true)]
+    [ExceptionHandler(typeof(Exception), Message = "GetAetherLinkPrice Error", LogOnly = true)]
     public virtual async Task<decimal> GetPriceAsync(string pair)
     {
         var result = (await _priceServerProvider.GetAggregatedTokenPriceAsync(new()
@@ -43,7 +43,7 @@ public class AetherLinkTokenPriceProvider : ITokenPriceProvider
         return (decimal) (result.Price / Math.Pow(10, (double) result.Decimal));
     }
 
-    [ExceptionHandler(typeof(Exception), Message = "GetHistoryPrice Error", ReturnDefault = ReturnDefault.Default)]
+    [ExceptionHandler(typeof(Exception), Message = "GetAetherLinkHistoryPrice Error", LogOnly = true)]
     public virtual async Task<decimal> GetHistoryPriceAsync(string pair, string dateTime)
     {
         var date = DateTime.ParseExact(dateTime, "dd-MM-yyyy", CultureInfo.InvariantCulture).ToString("yyyyMMdd");

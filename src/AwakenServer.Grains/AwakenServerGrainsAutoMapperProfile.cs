@@ -11,6 +11,7 @@ using AwakenServer.Grains.Grain.Favorite;
 using AwakenServer.Grains.Grain.MyPortfolio;
 using AwakenServer.Grains.Grain.Price.TradePair;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
+using AwakenServer.Grains.Grain.StatInfo;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.State.Activity;
 using AwakenServer.Grains.State.Chain;
@@ -19,6 +20,8 @@ using AwakenServer.Grains.State.Trade;
 using AwakenServer.Grains.State.Favorite;
 using AwakenServer.Grains.State.MyPortfolio;
 using AwakenServer.Grains.State.Price;
+using AwakenServer.Grains.State.StatInfo;
+using AwakenServer.StatInfo.Etos;
 using AwakenServer.Tokens;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Etos;
@@ -59,11 +62,17 @@ public class AwakenServerGrainsAutoMapperProfile : Profile
         CreateMap<CurrentTradePairState, CurrentTradePairGrainDto>().ReverseMap();
         CreateMap<CurrentUserLiquidityState, CurrentUserLiquidityGrainDto>().ReverseMap();
         CreateMap<UserLiquiditySnapshotState, UserLiquiditySnapshotGrainDto>().ReverseMap();
+        CreateMap<StatInfoSnapshotState, StatInfoSnapshotGrainDto>().ReverseMap();
+        CreateMap<GlobalStatInfoState, GlobalStatInfoGrainDto>().ReverseMap();
+        CreateMap<PoolStatInfoState, PoolStatInfoGrainDto>().ReverseMap();
+        CreateMap<TokenStatInfoState, TokenStatInfoGrainDto>().ReverseMap();
         CreateMap<UserActivityState, UserActivityGrainDto>().ReverseMap();
         CreateMap<ActivityRankingSnapshotState, ActivityRankingSnapshotGrainDto>().ReverseMap();
         CreateMap<CurrentActivityRankingState, ActivityRankingSnapshotGrainDto>().ReverseMap();
         CreateMap<JoinRecordState, JoinRecordGrainDto>().ReverseMap();
         CreateMap<RankingInfo, AwakenServer.Activity.RankingInfo>().ReverseMap();
         CreateMap<TradePairWithToken, TradePairWithTokenDto>();
+        CreateMap<PoolStatInfoGrainDto, PoolStatInfoEto>();
+        CreateMap<TokenStatInfoGrainDto, TokenStatInfoEto>();
     }
 }

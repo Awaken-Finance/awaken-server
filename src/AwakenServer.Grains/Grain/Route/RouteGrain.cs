@@ -21,6 +21,7 @@ public class RawRoute
     public List<string> tokens { get; set; } = new();
 }
 
+[KeepAlive]
 public class RouteGrain : Grain<RouteState>, IRouteGrain
 {
     private readonly IObjectMapper _objectMapper;

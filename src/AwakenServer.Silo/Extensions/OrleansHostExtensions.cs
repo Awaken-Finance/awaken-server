@@ -32,6 +32,7 @@ public static class OrleansHostExtensions
             throw new ArgumentNullException(nameof(configSection), "The OrleansServer node is missing");
         return hostBuilder.UseOrleans((context,siloBuilder) =>
         {
+            siloBuilder.AddActivityPropagation();
             //Configure OrleansSnapshot
             configSection = context.Configuration.GetSection("Orleans");
             Log.Warning("==Orleans.IsRunningInKubernetes={0}", configSection.GetValue<bool>("IsRunningInKubernetes"));
@@ -107,11 +108,9 @@ public static class OrleansHostExtensions
                     var grainType = id.Type.ToString();
                     if (grainIdPrefix.TryGetValue(grainType, out var prefix))
                     {
-                        Log.Debug($"KeyGenerator, grainType: {grainType}, prefix: {prefix}");
                         return $"{prefix}+{id.Key}";
                     }
 
-                    Log.Debug($"KeyGenerator, grainType: {grainType}, id: {id}");
                     return id.ToString();
                 };
                 op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);
@@ -147,10 +146,8 @@ public static class OrleansHostExtensions
                     var grainType = id.Type.ToString();
                     if (grainIdPrefix.TryGetValue(grainType, out var prefix))
                     {
-                        Log.Debug($"KeyGenerator, grainType: {grainType}, prefix: {prefix}");
                         return $"{prefix}+{id.Key}";
                     }
-                    Log.Debug($"KeyGenerator, grainType: {grainType}, id: {id}");
                     return id.ToString();
                 };
                 op.CreateShardKeyForCosmos = configSection.GetValue<bool>("CreateShardKeyForMongoDB", false);

@@ -14,6 +14,7 @@ public static class OrleansHostExtensions
     {
         return hostBuilder.UseOrleansClient((context, clientBuilder) =>
         {
+            clientBuilder.AddActivityPropagation();
             var configSection = context.Configuration.GetSection("Orleans");
             if (configSection == null)
                 throw new ArgumentNullException(nameof(configSection), "The Orleans config node is missing");

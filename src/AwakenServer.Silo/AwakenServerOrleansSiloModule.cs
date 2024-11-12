@@ -1,3 +1,4 @@
+using AElf.OpenTelemetry;
 using AwakenServer.AetherLinkApi;
 using AwakenServer.CoinGeckoApi;
 using AwakenServer.Grains;
@@ -11,7 +12,8 @@ namespace AwakenServer.Silo;
 [DependsOn(typeof(AbpAutofacModule),
     typeof(AbpAspNetCoreSerilogModule),
     typeof(AwakenServerGrainsModule),
-    typeof(AwakenServerAetherLinkApiModule)
+    typeof(AwakenServerAetherLinkApiModule),
+    typeof(OpenTelemetryModule)
 )]
 public class AwakenServerServerOrleansSiloModule : AbpModule
 {

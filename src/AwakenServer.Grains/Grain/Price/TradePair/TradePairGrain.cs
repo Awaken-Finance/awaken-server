@@ -1,4 +1,5 @@
 using System.Reflection;
+using AElf.OpenTelemetry.ExecutionTime;
 using AwakenServer.Grains.Grain.Price.TradeRecord;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.State.Trade;
@@ -12,6 +13,7 @@ using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.Grains.Grain.Price.TradePair;
 
+[KeepAlive]
 public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
 {
     private readonly IObjectMapper _objectMapper;
@@ -34,6 +36,7 @@ public class TradePairGrain : Grain<TradePairState>, ITradePairGrain
     {
         await ReadStateAsync();
         await LoadLatestSnapshots();
+        _logger.Information($"TradePairGrain OnActivateAsync, pair address: {State.Address}");
         await base.OnActivateAsync(cancellationToken);
     }
 

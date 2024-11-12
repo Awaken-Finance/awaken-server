@@ -131,7 +131,7 @@ public class AssetAppService : ApplicationService, IAssetAppService
                     continue;
                 }
 
-                _logger.Information("get balance,token:{token},balance:{balance}", nftSymbol, balanceOutput.Balance);
+                _logger.Information("AddNftTokenInfoAsync, get balance, token:{token}, balance:{balance}", nftSymbol, balanceOutput.Balance);
                 if (balanceOutput != null)
                 {
                     var userTokenInfo = new UserTokenInfo()
