@@ -13,12 +13,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver.Linq;
 using Nest;
+using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.ObjectMapping;
 
 namespace AwakenServer.StatInfo;
 
+[RemoteService(IsEnabled = false)]
 public class StatInfoAppService : ApplicationService, IStatInfoAppService
 {
     private readonly INESTRepository<StatInfoSnapshotIndex, Guid> _statInfoSnapshotIndexRepository;
