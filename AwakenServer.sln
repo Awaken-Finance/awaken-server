@@ -55,6 +55,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.AetherLinkApi"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.Signature", "src\AwakenServer.Signature\AwakenServer.Signature.csproj", "{EC87414A-45DA-4FEB-9A25-874C5A852B91}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwakenServer.Signature.Tests", "test\AwakenServer.Signature.Tests\AwakenServer.Signature.Tests.csproj", "{88D0EED3-08BE-48CD-9E31-FC4F3D77FAC2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -149,6 +151,10 @@ Global
 		{C1CFF7C0-6611-400F-BCE7-DF35097660A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C1CFF7C0-6611-400F-BCE7-DF35097660A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C1CFF7C0-6611-400F-BCE7-DF35097660A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88D0EED3-08BE-48CD-9E31-FC4F3D77FAC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {88D0EED3-08BE-48CD-9E31-FC4F3D77FAC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {88D0EED3-08BE-48CD-9E31-FC4F3D77FAC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {88D0EED3-08BE-48CD-9E31-FC4F3D77FAC2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -176,6 +182,7 @@ Global
 		{948AA2E5-0B95-4454-AD66-B9D7F6A0966A} = {CA9AC87F-097E-4F15-8393-4BC07735A5B0}
 		{4B6CC556-431A-4008-9E6A-C3FAE5CCE373} = {04DBDB01-70F4-4E06-B468-8F87850B22BE}
 		{C1CFF7C0-6611-400F-BCE7-DF35097660A1} = {CA9AC87F-097E-4F15-8393-4BC07735A5B0}
+		{88D0EED3-08BE-48CD-9E31-FC4F3D77FAC2} = {04DBDB01-70F4-4E06-B468-8F87850B22BE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {28315BFD-90E7-4E14-A2EA-F3D23AF4126F}
