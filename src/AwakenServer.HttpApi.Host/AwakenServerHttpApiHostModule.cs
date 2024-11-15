@@ -50,12 +50,22 @@ namespace AwakenServer
         typeof(AwakenServerEntityFrameworkCoreModule),
         typeof(AbpAspNetCoreSerilogModule),
         typeof(AbpSwashbuckleModule),
-        typeof (AbpEventBusRabbitMqModule),
-        typeof(AwakenServerAetherLinkApiModule),
-        typeof(OpenTelemetryModule)
+        typeof(AbpEventBusRabbitMqModule),
+        typeof(AwakenServerAetherLinkApiModule)
     )]
     public class AwakenServerHttpApiHostModule : AbpModule
     {
+        public override void PreConfigureServices(ServiceConfigurationContext context)
+        {
+            var configuration = context.Services.GetConfiguration();
+            bool isTelemetryEnabled = configuration.GetValue<bool>("OpenTelemetry:Enabled");
+
+            if (isTelemetryEnabled)
+            {
+                context.Services.AddAssemblyOf<OpenTelemetryModule>();
+            }
+        }
+        
         public override void ConfigureServices(ServiceConfigurationContext context)
         {
             var configuration = context.Services.GetConfiguration();

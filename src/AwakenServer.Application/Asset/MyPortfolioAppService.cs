@@ -389,6 +389,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             .OrderByDescending(u => double.Parse(u.Value.ValueInUsd))
             .ToList();
         
+        _logger.Information($"sortedPositionDistributions: {JsonConvert.SerializeObject(sortedPositionDistributions)}");
+        
         for (int i = 0; i < sortedPositionDistributions.Count; i++)
         {
             var tokenInfoPair = sortedPositionDistributions[i];
@@ -410,7 +412,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
                     ValueInUsd = tokenInfoPair.Value.ValueInUsd
                 });
             }
-            else
+            else if(result.Count > 0)
             {
                 var sumValueInUsd = double.Parse(result[result.Count - 1].ValueInUsd) + double.Parse(tokenInfoPair.Value.ValueInUsd);
                 var sumPercent = double.Parse(result[result.Count - 1].ValuePercent) + double.Parse(tokenInfoPair.Value.ValuePercent);
@@ -421,7 +423,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         
         // Ensure the sum of all ValuePercent is exactly 100%
         double finalTotalPercent = result.Sum(r => double.Parse(r.ValuePercent));
-        if (finalTotalPercent != 100.00)
+        if (finalTotalPercent != 100.00 && result.Count > 0)
         {
             double difference = 100.00 - finalTotalPercent;
             result[result.Count - 1].ValuePercent = (double.Parse(result[result.Count - 1].ValuePercent) + difference).ToString("F2");
@@ -526,6 +528,8 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
             var currentToken1Fee = double.Parse(tokenFeeDictionary[pair.Token1.Symbol].ValueInUsd) + token1CumulativeFee;
             tokenFeeDictionary[pair.Token1.Symbol].ValueInUsd = currentToken1Fee.ToString();
         }
+        
+        _logger.Information($"GetUserPortfolioAsync, address: {input.Address}");
         
         return new UserPortfolioDto()
         {
