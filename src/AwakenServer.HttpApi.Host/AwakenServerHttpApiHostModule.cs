@@ -56,6 +56,17 @@ namespace AwakenServer
     )]
     public class AwakenServerHttpApiHostModule : AbpModule
     {
+        public override void PreConfigureServices(ServiceConfigurationContext context)
+        {
+            var configuration = context.Services.GetConfiguration();
+            bool isTelemetryEnabled = configuration.GetValue<bool>("OpenTelemetry:Enabled");
+
+            if (!isTelemetryEnabled)
+            {
+                context.Services.RemoveAll(descriptor => descriptor.ServiceType == typeof(OpenTelemetryModule));
+            }
+        }
+        
         public override void ConfigureServices(ServiceConfigurationContext context)
         {
             var configuration = context.Services.GetConfiguration();
