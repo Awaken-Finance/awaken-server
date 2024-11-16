@@ -9,6 +9,7 @@ using AwakenServer.Grains;
 using AwakenServer.Price;
 using AwakenServer.Provider;
 using AwakenServer.Signature;
+using AwakenServer.Signature.Options;
 using AwakenServer.StatInfo;
 using AwakenServer.Trade;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,7 +63,8 @@ namespace AwakenServer
             Configure<TokenPriceOptions>(configuration.GetSection("TokenPriceOptions"));
             Configure<PortfolioOptions>(configuration.GetSection("PortfolioOptions"));
             Configure<ActivityOptions>(configuration.GetSection("ActivityOptions"));
-
+            Configure<SignatureServerOptions>(configuration.GetSection("SignatureServerOptions"));
+            
             context.Services.AddTransient<IBlockchainClientProvider, AElfClientProvider>();
             context.Services.AddTransient<IAElfClientProvider, AElfClientProvider>();
             context.Services.AddSingleton<IBlockchainClientFactory<AElfClient>, AElfClientFactory>();
