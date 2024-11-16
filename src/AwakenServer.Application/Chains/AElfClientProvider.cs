@@ -7,6 +7,7 @@ using AElf.Client.MultiToken;
 using AElf.Client.Service;
 using AElf.ExceptionHandler;
 using AElf.Types;
+using AwakenServer.Signature.Provider;
 using AwakenServer.Tokens;
 using Google.Protobuf;
 using Serilog;
@@ -27,14 +28,18 @@ namespace AwakenServer.Chains
     {
         private readonly IBlockchainClientFactory<AElfClient> _blockchainClientFactory;
         private readonly ILogger _logger;
+        private readonly ISignatureProvider _signatureProvider;
+
         private const string FTImageUriKey = "__ft_image_uri";
         private const string NFTImageUriKey = "__nft_image_uri";
         private const string NFTImageUrlKey = "__nft_image_url";
 
-        public AElfClientProvider(IBlockchainClientFactory<AElfClient> blockchainClientFactory)
+        public AElfClientProvider(IBlockchainClientFactory<AElfClient> blockchainClientFactory,
+            ISignatureProvider signatureProvider)
         {
             _blockchainClientFactory = blockchainClientFactory;
             _logger = Log.ForContext<AElfClientProvider>();
+            _signatureProvider = signatureProvider;
         }
 
         public string ChainType { get; } = "AElf";

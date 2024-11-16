@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using AwakenServer.Silo;
 using AwakenServer.Silo.Extensions;
-using CAServer;
+using AwakenServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

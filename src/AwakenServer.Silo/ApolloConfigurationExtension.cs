@@ -3,7 +3,7 @@ using Com.Ctrip.Framework.Apollo.Logging;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
-namespace CAServer;
+namespace AwakenServer;
 
 public static class ApolloConfigurationExtension
 {
