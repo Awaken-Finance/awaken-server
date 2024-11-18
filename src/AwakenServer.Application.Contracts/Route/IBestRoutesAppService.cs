@@ -8,4 +8,5 @@ public interface IBestRoutesAppService
 {
     Task<BestRoutesDto> GetBestRoutesAsync(GetBestRoutesInput input);
     Task ResetRoutesCacheAsync(string chainId);
+    Task<int> UpdateGrainIdsCacheKeyAsync(string chainId);
 }

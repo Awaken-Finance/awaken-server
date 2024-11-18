@@ -7,12 +7,15 @@ using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.Tests;
+using AwakenServer.Price;
 using AwakenServer.Route.Dtos;
 using AwakenServer.SwapTokenPath;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
+using Microsoft.Extensions.Caching.Distributed;
 using Org.BouncyCastle.Crypto.Prng.Drbg;
 using Shouldly;
+using Volo.Abp.Caching;
 using Volo.Abp.EventBus.Local;
 using Volo.Abp.Threading;
 using Volo.Abp.Validation;
@@ -26,6 +29,8 @@ namespace AwakenServer.Route
         private readonly IBestRoutesAppService _bestRoutesAppService;
         private readonly ITradePairAppService _tradePairAppService;
         private readonly TradePairTestHelper _tradePairTestHelper;
+        private readonly IDistributedCache<List<string>> _routeGrainIdsCache;
+        
         protected Guid TradePairEthUsdtFee2Id { get; }
         protected string TradePairEthUsdtFee2Address { get; }
         protected Guid TradePairBtcUsdtFee2Id { get; }
@@ -36,6 +41,7 @@ namespace AwakenServer.Route
             _bestRoutesAppService = GetRequiredService<IBestRoutesAppService>();
             _tradePairAppService = GetRequiredService<ITradePairAppService>();
             _tradePairTestHelper = GetRequiredService<TradePairTestHelper>();
+            _routeGrainIdsCache = GetRequiredService<IDistributedCache<List<string>>>();
             
             var tradePairEthUsdtFee2 = AsyncHelper.RunSync(async () => await _tradePairTestHelper.CreateAsync(
                 new TradePairCreateDto
@@ -146,6 +152,33 @@ namespace AwakenServer.Route
             result.Routes[0].AmountIn.ShouldBe("7621837271");
             result.Routes[1].AmountIn.ShouldBe("7625902385");
             result.Routes[2].AmountIn.ShouldBe("7741803687");
+        }
+        
+        
+        [Fact]
+        public async Task UpdateGrainIdsCacheTest()
+        {
+            var grainIds = new List<string>()
+            {
+                "11",
+                "22"
+            };
+            await _routeGrainIdsCache.SetAsync(ChainId, grainIds, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
+            });
+            
+            var result = await _bestRoutesAppService.UpdateGrainIdsCacheKeyAsync(ChainId);
+            result.ShouldBe(2);
+
+            var oldCache = await _routeGrainIdsCache.GetAsync(ChainId);
+            oldCache.ShouldBeNull();
+            
+            var newCache = await _routeGrainIdsCache.GetAsync($"RouteGrainIds:{ChainId}");
+            newCache.Count.ShouldBe(2);
+            
+            result = await _bestRoutesAppService.UpdateGrainIdsCacheKeyAsync(ChainId);
+            result.ShouldBe(0);
         }
     }
 }
