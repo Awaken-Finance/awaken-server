@@ -34,6 +34,7 @@ namespace AwakenServer.Worker
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<ActivityEventSyncWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<StatInfoEventReSyncWorker>());
             backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<StatInfoUpdateNewVersionWorker>());
+            backgroundWorkerManger.AddAsync(context.ServiceProvider.GetService<CacheDataMoveWorker>());
         }
     }
 }
