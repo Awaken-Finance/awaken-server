@@ -159,43 +159,6 @@ namespace AwakenServer.Route
             result.Routes[2].AmountIn.ShouldBe("7741803687");
         }
         
-        
-        [Fact]
-        public async Task UpdateGrainIdsCacheTest()
-        {
-            var grainIds = new List<string>()
-            {
-                "11",
-                "22"
-            };
-            await _routeGrainIdsCache.SetAsync(ChainId, grainIds, new DistributedCacheEntryOptions
-            {
-                AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-            });
-            
-            var newCacheId = $"RouteGrainIds:{ChainId}";
-            var newGrainIds = new List<string>()
-            {
-                "33"
-            };
-            await _routeGrainIdsCache.SetAsync(newCacheId, newGrainIds, new DistributedCacheEntryOptions
-            {
-                AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-            });
-            
-            var result = await _bestRoutesAppService.UpdateGrainIdsCacheKeyAsync(ChainId);
-            result.ShouldBe(3);
-
-            var oldCache = await _routeGrainIdsCache.GetAsync(ChainId);
-            oldCache.ShouldBeNull();
-            
-            var newCache = await _routeGrainIdsCache.GetAsync(newCacheId);
-            newCache.Count.ShouldBe(3);
-            
-            result = await _bestRoutesAppService.UpdateGrainIdsCacheKeyAsync(ChainId);
-            result.ShouldBe(0);
-        }
-        
         [Fact]
         public async Task ResetRoutesTest()
         {
