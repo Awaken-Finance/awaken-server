@@ -71,38 +71,6 @@ namespace AwakenServer.Route
             var list = await _tradePairIndexRepository.GetListAsync(Filter);
             return _objectMapper.Map<List<TradePair>, List<TradePairWithToken>>(list.Item2);
         }
-
-        public virtual async Task<int> UpdateGrainIdsCacheKeyAsync(string chainId)
-        {
-            var oldCacheKey = chainId;
-            var grainIdsCache = await _routeGrainIdsCache.GetAsync(oldCacheKey);
-            if (grainIdsCache != null)
-            {
-                var newCacheKey = $"{RouteGrainIdsCachePrefix}:{chainId}";
-                var newCache = await _routeGrainIdsCache.GetAsync(newCacheKey);
-                if (newCache != null)
-                {
-                    foreach (var grainId in newCache)
-                    {
-                        if (!grainIdsCache.Contains(grainId))
-                        {
-                            grainIdsCache.Add(grainId);
-                        }
-                    }
-                }
-                await _routeGrainIdsCache.SetAsync(newCacheKey, grainIdsCache, new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
-                });
-                
-                // remove old
-                await _routeGrainIdsCache.RemoveAsync(oldCacheKey);
-                _logger.Information($"UpdateGrainIdsCacheKeyAsync, oldKey: {oldCacheKey}, newKey: {newCacheKey}, data: {JsonConvert.SerializeObject(grainIdsCache)}");
-                return grainIdsCache.Count;
-            }
-
-            return 0;
-        }
         
         public virtual async Task ResetRoutesCacheAsync(string chainId)
         {
