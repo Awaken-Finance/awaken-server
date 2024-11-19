@@ -17,4 +17,6 @@ public interface IMyPortfolioAppService
     Task<bool> CleanupUserLiquidityDataAsync(string dataVersion, bool executeDeletion);
     Task<bool> CleanupUserLiquiditySnapshotsDataAsync(string dataVersion, bool executeDeletion);
     Task<CurrentUserLiquidityDto> GetCurrentUserLiquidityAsync(GetCurrentUserLiquidityDto input);
+    List<TokenPortfolioInfoDto> MergeAndProcess(Dictionary<string, TokenPortfolioInfoDto> rawList, int showCount,
+        double total);
 }

@@ -379,7 +379,7 @@ public class MyPortfolioAppService : ApplicationService, IMyPortfolioAppService
         return result;
     }
     
-    private List<TokenPortfolioInfoDto> MergeAndProcess(Dictionary<string, TokenPortfolioInfoDto> rawList, int showCount, double total)
+    public List<TokenPortfolioInfoDto> MergeAndProcess(Dictionary<string, TokenPortfolioInfoDto> rawList, int showCount, double total)
     {
         showCount = showCount >= 1 ? showCount - 1 : 0;
         var result = new List<TokenPortfolioInfoDto>();
