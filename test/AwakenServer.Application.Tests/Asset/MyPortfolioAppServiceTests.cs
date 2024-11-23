@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains;
@@ -621,6 +622,34 @@ public class MyPortfolioAppServiceTests : TradeTestBase
     }
     
     [Fact]
+    public async Task GetIdleTokensAsyncTest()
+    {
+        await PrepareTradePairData();
+        await PrepareUserData();
+        
+        _graphQlProvider.AddUserToken(new UserTokenDto
+        {
+            ChainId = "tDVV",
+            Address = "0x123456789",
+            Symbol = "USDT",
+            Balance = NumberFormatter.WithDecimals(1, 6)
+        });
+
+        var result = await _assetAppService.GetIdleTokensAsync(new GetIdleTokensDto()
+        {
+            Address = "0x123456789",
+            ChainId = "tDVV"
+        });
+        result.IdleTokens.Count.ShouldBe(5);
+        result.IdleTokens[0].TokenDto.Symbol.ShouldBe("USDT");
+        result.IdleTokens[0].TokenDto.Decimals.ShouldBe(6);
+        result.IdleTokens[0].Percent.ShouldBe("100.00");
+        result.IdleTokens[1].TokenDto.Symbol.ShouldBe("BNB");
+        result.IdleTokens[1].TokenDto.Decimals.ShouldBe(8);
+        result.IdleTokens[1].Percent.ShouldBe("0.00");
+    }
+    
+    [Fact]
     public async Task MergeListTest()
     {
         var result = _myPortfolioAppService.MergeAndProcess(new Dictionary<string, TokenPortfolioInfoDto>
@@ -652,5 +681,32 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         result.Count.ShouldBe(2);
         result[0].ValuePercent.ShouldBe("40.00");
         result[1].ValuePercent.ShouldBe("60.00");
+    }
+    
+    [Fact]
+    public async Task GetAllUserAddressesAsyncTest()
+    {
+        await PrepareUserData();
+        
+        var result = await _myPortfolioAppService.GetAllUserAddressesAsync("v1");
+        result.Count.ShouldBe(1);
+        result[0].ShouldBe("0x123456789");
+    }
+    
+    [Fact]
+    public async Task CleanupUserLiquidityDataTest()
+    {
+        await PrepareUserData();
+        
+        var result = await _myPortfolioAppService.CleanupUserLiquidityDataAsync("v1", true);
+        result.ShouldBe(true);
+        
+        result = await _myPortfolioAppService.CleanupUserLiquiditySnapshotsDataAsync("v1", true);
+        result.ShouldBe(true);
+        
+        Thread.Sleep(1000);
+        
+        var userResult = await _myPortfolioAppService.GetAllUserAddressesAsync("v1");
+        userResult.Count.ShouldBe(0);
     }
 }

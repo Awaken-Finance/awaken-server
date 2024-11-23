@@ -219,6 +219,36 @@ namespace AwakenServer.Trade
             record.Items[0].Token1Amount.ShouldBe("90");
             record.Items[0].TradePair.Token0.Symbol.ShouldBe(TokenUsdtSymbol);
             record.Items[0].TradePair.Token1.Symbol.ShouldBe(TokenBtcSymbol);
+
+            var subRecords = await _tradeRecordAppService.GetListWithSubRecordsAsync(new GetTradeRecordsInput()
+            {
+                ChainId = "tDVV",
+                TradePairId = TradePairEthUsdtId,
+                Address = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TokenSymbol = "usdt",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                TimestampMin = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(-1)),
+                TimestampMax = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(1)),
+                Side = (int)TradeSide.Buy,
+                Sorting = "timestamp asc"
+            });
+            subRecords.Items.Count.ShouldBe(1);
+            subRecords.Items[0].TradePair.Id.ShouldBe(TradePairEthUsdtId);
+            
+            subRecords = await _tradeRecordAppService.GetListWithSubRecordsAsync(new GetTradeRecordsInput()
+            {
+                ChainId = "tDVV",
+                TradePairId = TradePairBtcEthId,
+                Address = "TV2aRV4W5oSJzxrkBvj8XmJKkMCiEQnAvLmtM9BqLTN3beXm2",
+                TokenSymbol = "eth",
+                TransactionHash = "6622966a928185655d691565d6128835e7d1ccdf1dd3b5f277c5f2a5b2802d37",
+                TimestampMin = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(-1)),
+                TimestampMax = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddHours(1)),
+                Side = (int)TradeSide.Buy
+            });
+            subRecords.Items.Count.ShouldBe(1);
+            subRecords.Items[0].TradePair.Id.ShouldBe(TradePairBtcEthId);
+            
             
             var pair1 = await _tradePairIndexRepository.GetAsync(TradePairEthUsdtId);
             pair1.Volume24h.ShouldBe(10);
@@ -1309,7 +1339,6 @@ namespace AwakenServer.Trade
 
             await _tradeRecordAppService.RevertTradeRecordAsync(ChainId);
         }
-        
         
     }
 }

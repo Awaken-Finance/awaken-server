@@ -9,21 +9,13 @@ namespace AwakenServer.Trade
 {
     public interface ITradeRecordAppService : IApplicationService
     {
-        
         Task<PagedResultDto<TradeRecordIndexDto>> GetListAsync(GetTradeRecordsInput input);
         Task<PagedResultDto<TradeRecordIndexDto>> GetListWithSubRecordsAsync(GetTradeRecordsInput input);
-        
         Task CreateAsync(TradeRecordCreateDto input);
-
-
         Task<bool> CreateAsync(SwapRecordDto dto);
-        
-        Task<bool> FillKLineIndexAsync(SwapRecordDto dto);
         Task RevertTradeRecordAsync(string chainId);
-
         Task<int> GetUserTradeAddressCountAsync(string chainId, Guid tradePairId, DateTime? minDateTime = null,
             DateTime? maxDateTime = null);
-
         Task DoRevertAsync(string chainId, List<string> needDeletedTradeRecords);
     }
 }
