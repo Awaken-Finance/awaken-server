@@ -16,6 +16,7 @@ using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
 using Microsoft.Extensions.Caching.Distributed;
 using Nest;
+using Newtonsoft.Json;
 using Orleans;
 using Serilog;
 using Volo.Abp;
@@ -36,6 +37,7 @@ namespace AwakenServer.Route
         private readonly ILogger _logger;
         private readonly INESTRepository<TradePair, Guid> _tradePairIndexRepository;
         private readonly IDistributedCache<List<string>> _routeGrainIdsCache;
+        private const string RouteGrainIdsCachePrefix = "RouteGrainIds";
         
         public int MaxDepth { get; set; } = 3;
         public int MinSplits { get; set; } = 1;
@@ -69,17 +71,18 @@ namespace AwakenServer.Route
             var list = await _tradePairIndexRepository.GetListAsync(Filter);
             return _objectMapper.Map<List<TradePair>, List<TradePairWithToken>>(list.Item2);
         }
-
+        
         public virtual async Task ResetRoutesCacheAsync(string chainId)
         {
-            var grainIdsCache = await _routeGrainIdsCache.GetAsync(chainId);
+            var cacheKey = $"{RouteGrainIdsCachePrefix}:{chainId}";
+            var grainIdsCache = await _routeGrainIdsCache.GetAsync(cacheKey);
             if (grainIdsCache != null)
             {
                 foreach (var grainId in grainIdsCache)
                 {
                     var grain = _clusterClient.GetGrain<IRouteGrain>(grainId);
                     var resetResult = await grain.ResetCacheAsync();
-                    _logger.Information($"clear route cache, chain: {chainId}, route grain: {grainId}, count: {resetResult.Data}");
+                    _logger.Information($"clear route cache, cacheKey: {cacheKey}, chain: {chainId}, route grain: {grainId}, count: {resetResult.Data}");
                     var searchRequest = grainId.Split('/');
                     if (searchRequest.Length == 4)
                     {
@@ -130,7 +133,8 @@ namespace AwakenServer.Route
                 return new List<SwapRoute>();
             }
 
-            var routeGrainIdCache = await _routeGrainIdsCache.GetAsync(chainId);
+            var cacheKey = $"{RouteGrainIdsCachePrefix}:{chainId}";
+            var routeGrainIdCache = await _routeGrainIdsCache.GetAsync(cacheKey);
             if (routeGrainIdCache == null)
             {
                 routeGrainIdCache = new List<string>();
@@ -141,7 +145,7 @@ namespace AwakenServer.Route
                 routeGrainIdCache.Add(grainId);
             }
             
-            await _routeGrainIdsCache.SetAsync(chainId, routeGrainIdCache, new DistributedCacheEntryOptions
+            await _routeGrainIdsCache.SetAsync(cacheKey, routeGrainIdCache, new DistributedCacheEntryOptions
             {
                 AbsoluteExpiration = DateTimeOffset.UtcNow.AddSeconds(PriceOptions.PriceSuperLongExpirationTime)
             });

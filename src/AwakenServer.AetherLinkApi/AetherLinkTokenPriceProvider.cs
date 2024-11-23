@@ -15,14 +15,11 @@ namespace AwakenServer.Grains.Grain.Tokens.TokenPrice;
 public class AetherLinkTokenPriceProvider : ITokenPriceProvider
 {
     private readonly IPriceServerProvider _priceServerProvider;
-    private readonly IOptionsSnapshot<AetherLinkOptions> _aetherLinkOptions;
     private readonly ILogger _logger;
     
-    public AetherLinkTokenPriceProvider(IPriceServerProvider priceServerProvider,
-        IOptionsSnapshot<AetherLinkOptions> options)
+    public AetherLinkTokenPriceProvider(IPriceServerProvider priceServerProvider)
     {
         _priceServerProvider = priceServerProvider;
-        _aetherLinkOptions = options;
         _logger = Log.ForContext<AetherLinkTokenPriceProvider>();
     }
 

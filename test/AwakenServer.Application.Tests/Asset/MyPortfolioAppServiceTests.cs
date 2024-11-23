@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AElf.Indexing.Elasticsearch;
 using AwakenServer.Grains;
@@ -7,6 +9,7 @@ using AwakenServer.Grains.Grain.Trade;
 using AwakenServer.Grains.Tests;
 using AwakenServer.Price;
 using AwakenServer.Provider;
+using AwakenServer.Tokens;
 using AwakenServer.Trade;
 using AwakenServer.Trade.Dtos;
 using AwakenServer.Trade.Index;
@@ -126,6 +129,48 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             BlockHeight = 100
         };
         var syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
+        syncResult.ShouldBeTrue();
+        
+        inputMint = new LiquidityRecordDto()
+        {
+            ChainId = ChainName,
+            Pair = TradePairEthUsdtAddress,
+            Address = "0x123456789",
+            Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1)),
+            Token0Amount = 100,
+            Token0 = "ETH",
+            Token1Amount = 1000,
+            Token1 = "USDT",
+            LpTokenAmount = 50000,
+            Type = LiquidityType.Mint,
+            TransactionHash = "0x2",
+            Channel = "TestChanel",
+            Sender = "0x123456789",
+            To = "0x123456789",
+            BlockHeight = 101
+        };
+        syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
+        syncResult.ShouldBeTrue();
+        
+        inputMint = new LiquidityRecordDto()
+        {
+            ChainId = ChainName,
+            Pair = TradePairBtcEthAddress,
+            Address = "0x123456789",
+            Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1)),
+            Token0Amount = 100,
+            Token0 = "BTC",
+            Token1Amount = 1000,
+            Token1 = "ETH",
+            LpTokenAmount = 50000,
+            Type = LiquidityType.Mint,
+            TransactionHash = "0x3",
+            Channel = "TestChanel",
+            Sender = "0x123456789",
+            To = "0x123456789",
+            BlockHeight = 102
+        };
+        syncResult = await _myPortfolioAppService.SyncLiquidityRecordAsync(inputMint, _portfolioOptions.Value.DataVersion);
         syncResult.ShouldBeTrue();
         
         var swapRecordDto = new SwapRecordDto
@@ -482,7 +527,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             ChainId = ChainName,
             Address = UserAddress,
         });
-        result.Items.Count.ShouldBe(1);
+        result.Items.Count.ShouldBe(3);
         result.Items[0].LpTokenAmount.ShouldBe("0.0005");
         result.Items[0].Position.ValueInUsd.ShouldBe("0.05");
         result.Items[0].Position.Token0Amount.ShouldBe("0.005");
@@ -524,7 +569,7 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             ChainId = ChainName,
             Address = UserAddress,
         });
-        result.Items.Count.ShouldBe(1);
+        result.Items.Count.ShouldBe(3);
         result.Items[0].EstimatedAPR[0].Type.ShouldBe(EstimatedAprType.Week);
         result.Items[0].EstimatedAPR[0].Percent.ShouldBe("5400.00");
         result.Items[0].EstimatedAPR[1].Type.ShouldBe(EstimatedAprType.Month);
@@ -540,11 +585,12 @@ public class MyPortfolioAppServiceTests : TradeTestBase
         {
             ChainId = ChainName,
             Address = UserAddress,
+            ShowCount = 2
         });
-        result.TradePairPositionDistributions.Count.ShouldBe(1);
+        result.TradePairPositionDistributions.Count.ShouldBe(2);
         result.TradePairPositionDistributions[0].ValueInUsd.ShouldBe("0.05");
         result.TradePairPositionDistributions[0].ValuePercent.ShouldBe("100.00");
-        result.TradePairFeeDistributions.Count.ShouldBe(1);
+        result.TradePairFeeDistributions.Count.ShouldBe(2);
         result.TradePairFeeDistributions[0].ValueInUsd.ShouldBe("0.0075");
         result.TradePairFeeDistributions[0].ValuePercent.ShouldBe("100.00");
         result.TokenPositionDistributions.Count.ShouldBe(2);
@@ -573,5 +619,94 @@ public class MyPortfolioAppServiceTests : TradeTestBase
             ChainId = "tDVV"
         });
         result.ValueInUsd.ShouldBe("1.05");
+    }
+    
+    [Fact]
+    public async Task GetIdleTokensAsyncTest()
+    {
+        await PrepareTradePairData();
+        await PrepareUserData();
+        
+        _graphQlProvider.AddUserToken(new UserTokenDto
+        {
+            ChainId = "tDVV",
+            Address = "0x123456789",
+            Symbol = "USDT",
+            Balance = NumberFormatter.WithDecimals(1, 6)
+        });
+
+        var result = await _assetAppService.GetIdleTokensAsync(new GetIdleTokensDto()
+        {
+            Address = "0x123456789",
+            ChainId = "tDVV"
+        });
+        result.IdleTokens.Count.ShouldBe(5);
+        result.IdleTokens[0].TokenDto.Symbol.ShouldBe("USDT");
+        result.IdleTokens[0].TokenDto.Decimals.ShouldBe(6);
+        result.IdleTokens[0].Percent.ShouldBe("100.00");
+        result.IdleTokens[1].TokenDto.Symbol.ShouldBe("BNB");
+        result.IdleTokens[1].TokenDto.Decimals.ShouldBe(8);
+        result.IdleTokens[1].Percent.ShouldBe("0.00");
+    }
+    
+    [Fact]
+    public async Task MergeListTest()
+    {
+        var result = _myPortfolioAppService.MergeAndProcess(new Dictionary<string, TokenPortfolioInfoDto>
+        {
+            {
+                "BTC", new TokenPortfolioInfoDto()
+                {
+                    ValueInUsd = "2",
+                    Token = new TokenDto()
+                    {
+                        ChainId = ChainName,
+                        Symbol = "BTC"
+                    }
+                }
+            },
+            {
+                "USDT", new TokenPortfolioInfoDto()
+                {
+                    ValueInUsd = "2",
+                    Token = new TokenDto()
+                    {
+                        ChainId = ChainName,
+                        Symbol = "USDT"
+                    }
+                }
+            },
+        }, 2, 5);
+        
+        result.Count.ShouldBe(2);
+        result[0].ValuePercent.ShouldBe("40.00");
+        result[1].ValuePercent.ShouldBe("60.00");
+    }
+    
+    [Fact]
+    public async Task GetAllUserAddressesAsyncTest()
+    {
+        await PrepareUserData();
+        
+        var result = await _myPortfolioAppService.GetAllUserAddressesAsync("v1");
+        result.Count.ShouldBe(1);
+        result[0].ShouldBe("0x123456789");
+    }
+    
+    [Fact]
+    public async Task CleanupUserLiquidityDataTest()
+    {
+        await PrepareUserData();
+        
+        var result = await _myPortfolioAppService.CleanupUserLiquidityDataAsync("v1", true);
+        result.ShouldBe(true);
+        
+        result = await _myPortfolioAppService.CleanupUserLiquiditySnapshotsDataAsync("v1", true);
+        result.ShouldBe(true);
+        
+        Thread.Sleep(1000);
+        
+        var userResult = await _myPortfolioAppService.GetAllUserAddressesAsync("v1");
+        userResult.Count.ShouldBe(0);
     }
 }
