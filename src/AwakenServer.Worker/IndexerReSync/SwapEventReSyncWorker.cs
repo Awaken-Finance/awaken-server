@@ -40,16 +40,16 @@ public class SwapEventReSyncWorker : AwakenServerWorkerBase
     {
         long blockHeight = -1;
         
-        var queryList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
+        // var queryList = await _graphQlProvider.GetSwapRecordsAsync(chain.Id, startHeight, 0, 0, _workerOptions.QueryOnceLimit);
         
-        foreach (var queryDto in queryList)
-        {
-            if (!await _tradeRecordAppService.FillKLineIndexAsync(queryDto))
-            {
-                continue;
-            }
-            blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
-        }
+        // foreach (var queryDto in queryList)
+        // {
+        //     if (!await _tradeRecordAppService.FillKLineIndexAsync(queryDto))
+        //     {
+        //         continue;
+        //     }
+        //     blockHeight = Math.Max(blockHeight, queryDto.BlockHeight);
+        // }
 
         return blockHeight;
     }
