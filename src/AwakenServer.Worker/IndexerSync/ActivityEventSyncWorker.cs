@@ -84,7 +84,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
                     // _logger.Information($"current: {timestamp}, begin time: {activity.BeginTime} - {activity.BeginTime + _workerOptions.TimePeriod * TvlSnapshotTimeFactor}, isActivityBeginTime: {isActivityBeginTime}");
                     if (isActivityBeginTime)
                     {
-                        var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker activity begin");
+                        var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker activity begin", _activityOptions.ActivityList);
                         if (success)
                         {
                             _logger.Information($"Executing LP snapshot at activity begin done at: {timestamp}, activityId: {activity.ActivityId}, type: {activity.Type}");
@@ -100,7 +100,7 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
             if (now.TimeOfDay >= _nextLpSnapshotExecutionTime && now.TimeOfDay < _nextLpSnapshotExecutionTime.Add(TimeSpan.FromSeconds(_workerOptions.TimePeriod * TvlSnapshotTimeFactor / 1000)))
             {
                 SetNextExecutionTime(now);
-                var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker");
+                var success = await _activityAppService.CreateLpSnapshotAsync(timestamp, "worker", _activityOptions.ActivityList);
                 if (success)
                 {
                     _logger.Information($"Executing LP snapshot done at: {timestamp}, next executing time set to: {_nextLpSnapshotExecutionTime}");
@@ -122,12 +122,12 @@ public class ActivityEventSyncWorker : AwakenServerWorkerBase
 
         foreach (var limitOrderFillRecord in limitOrderFillRecordList)
         {
-            await _activityAppService.CreateLimitOrderFillRecordAsync(limitOrderFillRecord);
+            await _activityAppService.CreateLimitOrderFillRecordAsync(limitOrderFillRecord, _activityOptions.ActivityList);
         }
         
         foreach (var swapRecordDto in swapRecordList)
         {
-            if (!await _activityAppService.CreateSwapAsync(swapRecordDto))
+            if (!await _activityAppService.CreateSwapAsync(swapRecordDto, _activityOptions.ActivityList))
             {
                 continue;
             }
