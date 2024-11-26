@@ -66,7 +66,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
     private const double LimitLabsFeeRate = 0.0005;
 
     public ActivityAppService(
-        IOptionsMonitor<ActivityOptions> activityOptionsMonitor,
+        IOptionsSnapshot<ActivityOptions> activityOptions,
         IClusterClient clusterClient,
         IPriceAppService priceAppService,
         ITokenAppService tokenAppService,
@@ -81,7 +81,7 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         IDistributedCache<string> syncedTransactionIdCache)
     {
         _logger = Log.ForContext<ActivityAppService>();
-        _activityOptions = activityOptionsMonitor.CurrentValue;
+        _activityOptions = activityOptions.Value;
         _clusterClient = clusterClient;
         _tokenAppService = tokenAppService;
         _priceAppService = priceAppService;
@@ -95,12 +95,6 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         _rankingListSnapshotRepository = rankingListSnapshotRepository;
         _syncedTransactionIdCache = syncedTransactionIdCache;
         _graphQlProvider = graphQlProvider;
-        
-        activityOptionsMonitor.OnChange((newOptions, _) =>
-        {
-            _activityOptions = newOptions;
-            _logger.Information($"ActivityOptions is change to: {JsonConvert.SerializeObject(_activityOptions)}");
-        });
     }
 
     private string AddVersionToKey(string baseKey, string version)
@@ -508,9 +502,9 @@ public class ActivityAppService : ApplicationService, IActivityAppService
                 activityRankingSnapshotResult.Data));
     }
 
-    public async Task<bool> CreateLimitOrderFillRecordAsync(LimitOrderFillRecordDto dto)
+    public async Task<bool> CreateLimitOrderFillRecordAsync(LimitOrderFillRecordDto dto, List<Activity> activityList)
     {
-        foreach (var activity in _activityOptions.ActivityList)
+        foreach (var activity in activityList)
         {
             var key = $"{SyncedLimitFillRecordTransactionCachePrefix}:{dto.OrderId}:{dto.TransactionHash}:{activity.ActivityId}";
             var existed = await _syncedTransactionIdCache.GetAsync(key);
@@ -542,9 +536,9 @@ public class ActivityAppService : ApplicationService, IActivityAppService
         return true;
     }
     
-    public async Task<bool> CreateSwapAsync(SwapRecordDto dto)
+    public async Task<bool> CreateSwapAsync(SwapRecordDto dto, List<Activity> activityList)
     {
-        foreach (var activity in _activityOptions.ActivityList)
+        foreach (var activity in activityList)
         {
             var key = $"{SyncedTransactionCachePrefix}:{dto.TransactionHash}:{activity.ActivityId}";
             var existed = await _syncedTransactionIdCache.GetAsync(key);
@@ -648,8 +642,23 @@ public class ActivityAppService : ApplicationService, IActivityAppService
 
     public async Task<bool> CreateLpSnapshotAsync(long executeTime, string type)
     {
+        return await CreateLpSnapshotAsync(executeTime, type, _activityOptions.ActivityList);
+    }
+
+    public async Task<bool> CreateSwapAsync(SwapRecordDto dto)
+    {
+        return await CreateSwapAsync(dto, _activityOptions.ActivityList);
+    }
+
+    public async Task<bool> CreateLimitOrderFillRecordAsync(LimitOrderFillRecordDto dto)
+    {
+        return await CreateLimitOrderFillRecordAsync(dto, _activityOptions.ActivityList);
+    }
+    
+    public async Task<bool> CreateLpSnapshotAsync(long executeTime, string type, List<Activity> activityList)
+    {
         var snapshotTime = RandomSnapshotHelper.GetLpSnapshotTime(DateTimeHelper.FromUnixTimeMilliseconds(executeTime));
-        foreach (var activity in _activityOptions.ActivityList)
+        foreach (var activity in activityList)
         {
             if (activity.Type != TvlActivityType)
             {
