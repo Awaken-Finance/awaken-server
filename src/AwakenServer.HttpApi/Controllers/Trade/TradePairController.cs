@@ -53,6 +53,13 @@ namespace AwakenServer.Controllers.Trade
         }
         
         [HttpGet]
+        [Route("token-tvl")]
+        public virtual Task<string> GetTokenTvlAsync(string symbol)
+        {
+            return _tradePairAppService.GetTokenTvlAsync(symbol);
+        }
+        
+        [HttpGet]
         [Route("test/latest-snapshot/{id}")]
         public virtual Task<TradePairMarketDataSnapshotDto> GetTradePairLatestSnapshotAsync(Guid id)
         {

@@ -335,6 +335,41 @@ namespace AwakenServer.Trade
         }
 
         [Fact]
+        public async Task GetTokenTvlTest()
+        {
+            var usdtTvl = await _tradePairAppService.GetTokenTvlAsync(TokenUsdtSymbol);
+            usdtTvl.ShouldBe("0.00");
+            var newLiquidity1 = new SyncRecordDto()
+            {
+                ChainId = ChainId,
+                PairAddress = TradePairEthUsdtAddress,
+                SymbolA = "ETH",
+                SymbolB = "USDT",
+                ReserveA = NumberFormatter.WithDecimals(100, 8),
+                ReserveB = NumberFormatter.WithDecimals(10000, 6),
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1))
+            };
+            await _tradePairAppService.CreateSyncAsync(newLiquidity1);
+            
+            var newLiquidity2 = new SyncRecordDto()
+            {
+                ChainId = ChainId,
+                PairAddress = TradePairBtcEthAddress,
+                SymbolA = "BTC",
+                SymbolB = "ETH",
+                ReserveA = NumberFormatter.WithDecimals(500, 8),
+                ReserveB = NumberFormatter.WithDecimals(10000, 8),
+                Timestamp = DateTimeHelper.ToUnixTimeMilliseconds(DateTime.UtcNow.AddDays(-1))
+            };
+            await _tradePairAppService.CreateSyncAsync(newLiquidity2);
+            
+            usdtTvl = await _tradePairAppService.GetTokenTvlAsync(TokenUsdtSymbol);
+            usdtTvl.ShouldBe("10000.00");
+            var ethTvl = await _tradePairAppService.GetTokenTvlAsync(TokenEthSymbol);
+            ethTvl.ShouldBe("10100.00");
+        }
+
+        [Fact]
         public async Task UpdateTradePairTest()
         {
             var tradePair = await _tradePairAppService.GetAsync(TradePairEthUsdtId);
