@@ -9,6 +9,7 @@ using AElf.ExceptionHandler;
 using AElf.Types;
 using AwakenServer.Tokens;
 using Google.Protobuf;
+using Microsoft.Extensions.Options;
 using Serilog;
 using TransactionFeeCharged = AElf.Contracts.MultiToken.TransactionFeeCharged;
 using TokenInfo = AElf.Contracts.MultiToken.TokenInfo;
@@ -30,10 +31,13 @@ namespace AwakenServer.Chains
         private const string FTImageUriKey = "__ft_image_uri";
         private const string NFTImageUriKey = "__nft_image_uri";
         private const string NFTImageUrlKey = "__nft_image_url";
+        private readonly ChainsInitOptions _chainsInitOptions;
 
-        public AElfClientProvider(IBlockchainClientFactory<AElfClient> blockchainClientFactory)
+        public AElfClientProvider(IBlockchainClientFactory<AElfClient> blockchainClientFactory,
+            IOptionsSnapshot<ChainsInitOptions> chainsInitOptions)
         {
             _blockchainClientFactory = blockchainClientFactory;
+            _chainsInitOptions = chainsInitOptions.Value;
             _logger = Log.ForContext<AElfClientProvider>();
         }
 
@@ -111,10 +115,10 @@ namespace AwakenServer.Chains
                 Symbol = symbol
             };
             var transactionGetToken =
-                await client.GenerateTransactionAsync(client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey), address,
+                await client.GenerateTransactionAsync(client.GetAddressFromPrivateKey(_chainsInitOptions.PrivateKey), address,
                     "GetTokenInfo",
                     paramGetBalance);
-            var txWithSignGetToken = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetToken);
+            var txWithSignGetToken = client.SignTransaction(_chainsInitOptions.PrivateKey, transactionGetToken);
             var transactionGetTokenResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
             {
                 RawTransaction = txWithSignGetToken.ToByteArray().ToHex()
@@ -160,15 +164,15 @@ namespace AwakenServer.Chains
                 }
             };
 
-            var from = client.GetAddressFromPrivateKey(ChainsInitOptions.PrivateKey);
-            _logger.Information($"GenerateTransactionAsync, key: {ChainsInitOptions.PrivateKey}, from: {from}, to: {contractAddress}");
+            var from = client.GetAddressFromPrivateKey(_chainsInitOptions.PrivateKey);
+            _logger.Information($"GenerateTransactionAsync, from: {from}, to: {contractAddress}");
             var transactionGetBalance =
                 await client.GenerateTransactionAsync(from,
                     contractAddress,
                     "GetBalance",
                     paramGetBalance);
             _logger.Information($"transactionGetBalance: {transactionGetBalance}, from: {from}, to: {contractAddress}");
-            var txWithSignGetBalance = client.SignTransaction(ChainsInitOptions.PrivateKey, transactionGetBalance);
+            var txWithSignGetBalance = client.SignTransaction(_chainsInitOptions.PrivateKey, transactionGetBalance);
             var transactionGetTokenResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
             {
                 RawTransaction = txWithSignGetBalance.ToByteArray().ToHex()
