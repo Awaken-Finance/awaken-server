@@ -604,6 +604,21 @@ namespace AwakenServer.Trade
             };
         }
 
+        public async Task<string> GetTokenTvlAsync(string symbol)
+        {
+            var queryBuilder = new TradePairListQueryBuilder(_cmsAppService, _favoriteAppService)
+                .WithNotDeleted()
+                .WithTokenSymbol(symbol);
+            var mustQuery = queryBuilder.Build();
+            QueryContainer Filter(QueryContainerDescriptor<Index.TradePair> f) => f.Bool(b => b.Must(mustQuery));
+
+            var list = await _tradePairIndexRepository.GetSortListAsync(Filter,
+                limit: 1000);
+            var totalValue = list.Item2.Sum(t => t.Token0.Symbol == symbol ? t.ValueLocked0 : t.ValueLocked1);
+            var price = await _tokenPriceProvider.GetTokenUSDPriceAsync(null, symbol);
+            return (totalValue * price).ToString("F2");
+        }
+
         [ExceptionHandler(typeof(Exception), Message = "AddFavoriteInfo Error", 
             TargetType = typeof(HandlerExceptionService), MethodName = nameof(HandlerExceptionService.HandleWithReturn))]
         public virtual async Task<List<TradePairIndexDto>> AddFavoriteInfoAsync(List<TradePairIndexDto> inTradePairIndexDtos,

@@ -46,6 +46,7 @@ namespace AwakenServer
             Configure<AbpAutoMapperOptions>(options => { options.AddMaps<AwakenServerApplicationModule>(); });
 
             var configuration = context.Services.GetConfiguration();
+            Configure<ChainsInitOptions>(configuration.GetSection("ChainsInit"));
             Configure<StableCoinOptions>(configuration.GetSection("StableCoin"));
             Configure<MainCoinOptions>(configuration.GetSection("MainCoin"));
             Configure<KLinePeriodOptions>(configuration.GetSection("KLinePeriods"));
