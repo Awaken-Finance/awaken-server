@@ -30,8 +30,15 @@ public class CorsConfigurationUpdater
 
                 corsOptions.AddDefaultPolicy(builder =>
                 {
+                    if (newOptions.CorsOrigins == "*")
+                    {
+                        builder.AllowAnyOrigin();
+                    }
+                    else
+                    {
+                        builder.WithOrigins(corsOrigins);
+                    }
                     builder
-                        .WithOrigins(corsOrigins)
                         .WithAbpExposedHeaders()
                         .SetIsOriginAllowedToAllowWildcardSubdomains()
                         .AllowAnyHeader()
