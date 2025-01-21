@@ -36,14 +36,14 @@ public class CorsConfigurationUpdater
                     }
                     else
                     {
-                        builder.WithOrigins(corsOrigins);
+                        builder.WithOrigins(corsOrigins)
+                            .AllowCredentials();
                     }
                     builder
                         .WithAbpExposedHeaders()
                         .SetIsOriginAllowedToAllowWildcardSubdomains()
                         .AllowAnyHeader()
-                        .AllowAnyMethod()
-                        .AllowCredentials();
+                        .AllowAnyMethod();
                 });
             }
         
