@@ -39,7 +39,6 @@ public class CorsConfigurationUpdater
                         builder.WithOrigins(corsOrigins);
                     }
                     builder
-                        .WithOrigins(corsOrigins)
                         .WithAbpExposedHeaders()
                         .SetIsOriginAllowedToAllowWildcardSubdomains()
                         .AllowAnyHeader()
