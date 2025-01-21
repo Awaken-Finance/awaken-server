@@ -208,14 +208,20 @@ namespace AwakenServer
             {
                 options.AddDefaultPolicy(builder =>
                 {
-                    builder
-                        .WithOrigins(
+                    if (configuration["App:CorsOrigins"] == "*")
+                    {
+                        builder.AllowAnyOrigin();
+                    }
+                    else
+                    {
+                        builder.WithOrigins(
                             configuration["App:CorsOrigins"]
                                 .Split(",", StringSplitOptions.RemoveEmptyEntries)
                                 .Select(o => o.RemovePostFix("/"))
                                 .ToArray()
-                        )
-                        .WithAbpExposedHeaders()
+                        );
+                    }
+                    builder.WithAbpExposedHeaders()
                         .SetIsOriginAllowedToAllowWildcardSubdomains()
                         .AllowAnyHeader()
                         .AllowAnyMethod()
