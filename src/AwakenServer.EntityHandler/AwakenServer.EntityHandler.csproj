@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <OutputType>Exe</OutputType>
+        <RootNamespace>AwakenServer.EntityHandler</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\AwakenServer.Application\AwakenServer.Application.csproj" />
+      <ProjectReference Include="..\AwakenServer.CoinGeckoApi\AwakenServer.CoinGeckoApi.csproj" />
+      <ProjectReference Include="..\AwakenServer.AetherLinkApi\AwakenServer.AetherLinkApi.csproj" />
+      <ProjectReference Include="..\AwakenServer.Domain\AwakenServer.Domain.csproj" />
+      <ProjectReference Include="..\AwakenServer.EntityFrameworkCore\AwakenServer.EntityFrameworkCore.csproj" />
+      <ProjectReference Include="..\AwakenServer.EntityHandler.Core\AwakenServer.EntityHandler.Core.csproj" />
+      <ProjectReference Include="..\AwakenServer.Worker\AwakenServer.Worker.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="AElf.OpenTelemetry" Version="8.0.5" />
+        <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
+        <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+        <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.0.0" />
+        <PackageReference Include="Serilog.Sinks.Async" Version="1.5.0" />
+        <PackageReference Include="Serilog.Sinks.RollingFile" Version="3.3.0" />
+        <PackageReference Include="Volo.Abp.Autofac" Version="8.2.0" />
+        <PackageReference Include="Volo.Abp.AspNetCore.Serilog" Version="8.2.0" />
+        <PackageReference Include="Volo.Abp.Caching.StackExchangeRedis" Version="8.2.0" />
+        <PackageReference Include="Volo.Abp.EventBus.RabbitMQ" Version="8.2.0" />
+        <PackageReference Include="Volo.Abp.Swashbuckle" Version="8.2.0" />
+        <PackageReference Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" Version="5.0.*" />
+        
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="appsettings.json">
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="bin\Debug\net8.0\apollosettings.json" />
+      <None Update="apollosettings.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+</Project>

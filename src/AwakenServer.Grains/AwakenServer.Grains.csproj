@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>AwakenServer.Grains</RootNamespace>
+        <PackageId>AwakenServer.Grains</PackageId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Orleans.Client" Version="8.1.0" />
+        <PackageReference Include="Microsoft.Orleans.Sdk" Version="8.1.0" />
+        <PackageReference Include="MongoDB.Bson" Version="2.17.1" />
+        <PackageReference Include="Volo.Abp.Autofac" Version="8.2.0" />
+        <PackageReference Include="Volo.Abp.BackgroundJobs.Domain" Version="8.2.0" />
+        <PackageReference Include="Volo.Abp.Caching" Version="8.2.0" />
+        <PackageReference Include="GraphQL.Client.Serializer.Newtonsoft" Version="5.1.0" />
+        <PackageReference Include="GraphQL.Client" Version="5.1.0" />
+        <PackageReference Include="AetherlinkPriceServer" Version="1.0.4" />
+        <PackageReference Include="AElf.OpenTelemetry" Version="8.0.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\AwakenServer.AetherLinkApi\AwakenServer.AetherLinkApi.csproj" />
+        <ProjectReference Include="..\AwakenServer.Application.Contracts\AwakenServer.Application.Contracts.csproj" />
+        <ProjectReference Include="..\AwakenServer.Domain\AwakenServer.Domain.csproj" />
+    </ItemGroup>
+    
+</Project>
